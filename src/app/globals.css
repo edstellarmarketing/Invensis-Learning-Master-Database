@@ -1,44 +1,61 @@
 @import "tailwindcss";
 
-/* Theme via CSS variables (Next 16 convention: no dark: classes; toggle data-theme). */
+/* Semantic theme tokens (no dark: classes; theme via data-theme / prefers-color-scheme).
+   Palette: slate neutrals + indigo primary + teal accent. All text/background pairs
+   meet WCAG AA (>= 4.5:1 body, >= 3:1 secondary). */
 :root {
-  --bg: #f6f7f9;
+  --bg: #f8fafc;
   --surface: #ffffff;
-  --surface-2: #f0f2f5;
-  --border: #e2e5ea;
-  --text: #16191d;
-  --text-muted: #5b6472;
-  --primary: #1f6feb;
+  --surface-2: #f1f5f9;
+  --border: #e2e8f0;
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --primary: #4f46e5;
+  --primary-hover: #4338ca;
   --primary-contrast: #ffffff;
-  --accent: #0b7285;
-  --ring: rgba(31, 111, 235, 0.35);
+  --primary-soft: #eef2ff;
+  --accent: #0d9488;
+  --danger: #dc2626;
+  --ring: rgba(79, 70, 229, 0.35);
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
 }
 
 :root[data-theme="dark"] {
-  --bg: #0d1117;
-  --surface: #161b22;
-  --surface-2: #1c232d;
-  --border: #2a313c;
-  --text: #e6edf3;
-  --text-muted: #9aa4b2;
-  --primary: #4c8dff;
-  --primary-contrast: #0d1117;
-  --accent: #38bdf8;
-  --ring: rgba(76, 141, 255, 0.4);
+  --bg: #0b1120;
+  --surface: #151e31;
+  --surface-2: #1e2a44;
+  --border: #2b3a57;
+  --text: #e8edf6;
+  --text-muted: #93a1b8;
+  --primary: #818cf8;
+  --primary-hover: #a5b0fb;
+  --primary-contrast: #0b1120;
+  --primary-soft: #1e2547;
+  --accent: #2dd4bf;
+  --danger: #f87171;
+  --ring: rgba(129, 140, 248, 0.45);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0d1117;
-    --surface: #161b22;
-    --surface-2: #1c232d;
-    --border: #2a313c;
-    --text: #e6edf3;
-    --text-muted: #9aa4b2;
-    --primary: #4c8dff;
-    --primary-contrast: #0d1117;
-    --accent: #38bdf8;
-    --ring: rgba(76, 141, 255, 0.4);
+    --bg: #0b1120;
+    --surface: #151e31;
+    --surface-2: #1e2a44;
+    --border: #2b3a57;
+    --text: #e8edf6;
+    --text-muted: #93a1b8;
+    --primary: #818cf8;
+    --primary-hover: #a5b0fb;
+    --primary-contrast: #0b1120;
+    --primary-soft: #1e2547;
+    --accent: #2dd4bf;
+    --danger: #f87171;
+    --ring: rgba(129, 140, 248, 0.45);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45);
   }
 }
 
@@ -50,8 +67,11 @@
   --color-text: var(--text);
   --color-text-muted: var(--text-muted);
   --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
   --color-primary-contrast: var(--primary-contrast);
+  --color-primary-soft: var(--primary-soft);
   --color-accent: var(--accent);
+  --color-danger: var(--danger);
 }
 
 * {
@@ -63,8 +83,45 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 a {
   color: inherit;
+}
+
+/* Keyboard focus always visible */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Data tables: tabular figures prevent number jitter */
+table {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Subtle themed scrollbars */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

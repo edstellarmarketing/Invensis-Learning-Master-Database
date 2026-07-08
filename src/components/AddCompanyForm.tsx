@@ -25,6 +25,8 @@ export default function AddCompanyForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const isEdit = Boolean(initial?.id);
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -34,8 +36,8 @@ export default function AddCompanyForm({
     }
     setSaving(true);
     try {
-      const res = await fetch("/api/companies", {
-        method: "POST",
+      const res = await fetch(isEdit ? `/api/companies/${initial!.id}` : "/api/companies", {
+        method: isEdit ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           courseSlug,
@@ -100,7 +102,7 @@ export default function AddCompanyForm({
           disabled={saving}
           className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-contrast disabled:opacity-60"
         >
-          {saving ? "Saving..." : "Save company"}
+          {saving ? "Saving..." : isEdit ? "Update company" : "Save company"}
         </button>
         <button
           type="button"

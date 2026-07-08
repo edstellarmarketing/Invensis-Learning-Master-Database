@@ -34,25 +34,31 @@ src/
     page.tsx                         # landing
     [courseSlug]/page.tsx            # industries grid
     [courseSlug]/[industrySlug]/page.tsx   # industries + companies table
-    api/companies/route.ts           # GET list / POST add -> src/data/companies.json
+    api/companies/route.ts           # GET list / POST add
+    api/companies/[id]/route.ts      # PUT edit / DELETE
     api/companies/search/route.ts    # POST AI discovery (needs API key)
-  components/  Sidebar, IndustryGrid, CompaniesTable, AddCompanyForm, CompanySearch
+    api/industries/route.ts          # GET / POST / PUT / DELETE per course
+  components/  Sidebar, IndustryTabs (tabs + manage CRUD), CompaniesTable,
+               AddCompanyForm (add + edit modes), CompanySearch
   lib/         courses.ts, industries.ts, slug.ts, companies.ts
-  data/        companies.json        # file-backed store (Phase 1; not a DB)
+  data/        companies.json, industries.json   # file-backed stores (Phase 1; not a DB)
 ```
 
 ## Data model
 - **Courses** (`lib/courses.ts`): 6 categories × 59 courses (authoritative, from the sibling
   "Invensis Learning Course Content Generator" `category_db.py`, cross-checked vs the live
   sitemap). Drives the sidebar.
-- **Industries** (`lib/industries.ts`): one curated default set per category + optional
-  per-course overrides. Industry names are slugified for URLs via `lib/slug.ts`.
-- **Companies** (`data/companies.json`): keyed by `courseSlug` + `industrySlug`.
+- **Industries** (`data/industries.json`): Record<courseSlug, Industry[]> — 5 curated
+  industries per course, all 59 seeded. CRUD via `/api/industries` or the "Manage" toggle
+  on any course page. Renaming an industry re-slugs it and migrates its companies;
+  deleting cascades to its companies. Names are slugified for URLs via `lib/slug.ts`.
+- **Companies** (`data/companies.json`): keyed by `courseSlug` + `industrySlug`. Full CRUD:
+  add (form or AI Search), edit (pencil icon), delete (trash icon, confirm prompt).
 
 ## How to extend
-- **Add a company**: use the UI (Add Company / AI Search) or append to `src/data/companies.json`.
-- **Change a course's industries**: edit `INDUSTRIES_BY_COURSE` override in `lib/industries.ts`.
-- **Add a course/category**: edit `CATEGORIES` in `lib/courses.ts`.
+- **Add/edit/delete a company or industry**: use the UI, or the REST routes above.
+- **Add a course/category**: edit `CATEGORIES` in `lib/courses.ts`, then add its 5 industries
+  to `src/data/industries.json`.
 
 ## Gotchas (Next 16)
 - Route `params` are async — `const { courseSlug } = await params;`.

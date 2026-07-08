@@ -13,11 +13,11 @@ export default function Home() {
         training they ran last financial year.
       </p>
 
-      <div className="mt-6 rounded-lg border bg-surface p-4">
+      <div className="mt-6 rounded-xl border bg-surface p-5 shadow-sm">
         <p className="text-sm font-medium text-text-muted">Start here</p>
         <Link
           href="/pmp-certification-training"
-          className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-contrast"
+          className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-contrast shadow-sm transition-opacity hover:opacity-90"
         >
           Open PMP Certification <ArrowRight size={15} />
         </Link>
@@ -25,10 +25,14 @@ export default function Home() {
 
       <div className="mt-8 grid gap-3 sm:grid-cols-2">
         {CATEGORIES.map((cat) => (
-          <div key={cat.slug} className="rounded-lg border bg-surface p-4">
-            <p className="font-medium">{cat.name}</p>
-            <p className="text-sm text-text-muted">{cat.courses.length} courses</p>
-          </div>
+          <Link
+            key={cat.slug}
+            href={`/${cat.courses[0].slug}`}
+            className="rounded-xl border bg-surface p-4 shadow-sm transition-all duration-150 hover:border-[var(--primary)] hover:shadow-md"
+          >
+            <p className="font-semibold">{cat.name}</p>
+            <p className="mt-0.5 text-sm text-text-muted">{cat.courses.length} courses</p>
+          </Link>
         ))}
       </div>
     </div>

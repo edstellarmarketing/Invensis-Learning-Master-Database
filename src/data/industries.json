@@ -1,0 +1,415 @@
+{
+  "pmp-certification-training": [
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "Large project portfolios demand certified PMs for delivery governance." },
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Regulated transformation programs require formal project management rigor." },
+    { "name": "Construction", "icon": "HardHat", "rationale": "Capital projects need PMP-certified managers for schedule and cost control." },
+    { "name": "Healthcare", "icon": "HeartPulse", "rationale": "Hospital IT and facility programs need structured project leadership." },
+    { "name": "Manufacturing", "icon": "Factory", "rationale": "Plant expansions and NPD programs rely on certified project managers." }
+  ],
+  "capm-certification-training": [
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "Entry-level engineers move into coordination roles needing PM basics." },
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Banks upskill analysts into junior project roles at scale." },
+    { "name": "Consulting & Professional Services", "icon": "Briefcase", "rationale": "Firms certify junior consultants before client project staffing." },
+    { "name": "Telecom", "icon": "RadioTower", "rationale": "Network rollout teams need standardized PM fundamentals." },
+    { "name": "Healthcare", "icon": "HeartPulse", "rationale": "Clinical and admin staff transition into project coordinator roles." }
+  ],
+  "prince2-foundation-practitioner-certification-training": [
+    { "name": "Government/Public Sector", "icon": "Landmark", "rationale": "PRINCE2 is the mandated PM standard in many public agencies." },
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "Structured stage-gate delivery suits large IT programs." },
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Audit-friendly governance fits regulated banking projects." },
+    { "name": "Healthcare", "icon": "HeartPulse", "rationale": "Public health systems run PRINCE2-governed change projects." },
+    { "name": "Telecom", "icon": "RadioTower", "rationale": "Infrastructure programs need controlled, document-driven delivery." }
+  ],
+  "prince2-foundation-certification-training": [
+    { "name": "Government/Public Sector", "icon": "Landmark", "rationale": "Baseline PRINCE2 literacy required across public project teams." },
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "Teams need shared PRINCE2 vocabulary on governed IT projects." },
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Regulated projects demand staff versed in controlled methods." },
+    { "name": "Healthcare", "icon": "HeartPulse", "rationale": "Health programs onboard staff to a common project method." },
+    { "name": "Consulting & Professional Services", "icon": "Briefcase", "rationale": "Consultancies certify staff for public-sector client work." }
+  ],
+  "prince2-practitioner-certification-training": [
+    { "name": "Government/Public Sector", "icon": "Landmark", "rationale": "Project leads must apply PRINCE2 to live public programs." },
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "Delivery managers tailor PRINCE2 to complex IT projects." },
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Program leads apply controlled governance to regulatory change." },
+    { "name": "Telecom", "icon": "RadioTower", "rationale": "Rollout managers need practitioner-level tailoring skills." },
+    { "name": "Consulting & Professional Services", "icon": "Briefcase", "rationale": "Client-facing PMs need practitioner credentials to lead engagements." }
+  ],
+  "change-management-certification": [
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Digital transformation and mergers demand managed people change." },
+    { "name": "Healthcare", "icon": "HeartPulse", "rationale": "EHR rollouts and process change need clinician adoption management." },
+    { "name": "Government/Public Sector", "icon": "Landmark", "rationale": "Policy and system reforms require structured change adoption." },
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "Constant tooling and org shifts need change management discipline." },
+    { "name": "Manufacturing", "icon": "Factory", "rationale": "Industry 4.0 and lean transitions hinge on workforce buy-in." }
+  ],
+  "lean-project-management-certification-training": [
+    { "name": "Manufacturing", "icon": "Factory", "rationale": "Lean-native culture extends waste elimination into project delivery." },
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "Teams cut project waste and shorten delivery cycles." },
+    { "name": "Automotive", "icon": "Car", "rationale": "Lean heritage drives demand for lean-run launch projects." },
+    { "name": "Construction", "icon": "HardHat", "rationale": "Lean construction reduces rework and schedule overruns." },
+    { "name": "Healthcare", "icon": "HeartPulse", "rationale": "Improvement projects apply lean to patient-flow initiatives." }
+  ],
+  "project-management-fundamentals-training": [
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "New team leads need core planning and execution skills." },
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Operations staff manage small projects needing baseline PM skills." },
+    { "name": "E-commerce/Retail", "icon": "ShoppingCart", "rationale": "Fast-moving launch teams need lightweight PM foundations." },
+    { "name": "Manufacturing", "icon": "Factory", "rationale": "Supervisors run improvement projects without formal PM training." },
+    { "name": "Education", "icon": "GraduationCap", "rationale": "Administrators manage programs and grants as projects." }
+  ],
+  "microsoft-project-training": [
+    { "name": "Construction", "icon": "HardHat", "rationale": "Schedulers build and track Gantt-driven construction plans." },
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "PMOs standardize planning and resource tracking on MS Project." },
+    { "name": "Engineering/EPC", "icon": "HardHat", "rationale": "EPC planners manage multi-discipline schedules and dependencies." },
+    { "name": "Manufacturing", "icon": "Factory", "rationale": "Plant projects and shutdowns need detailed schedule control." },
+    { "name": "Government/Public Sector", "icon": "Landmark", "rationale": "Agencies track public projects in the Microsoft ecosystem." }
+  ],
+  "oracle-primavera-p6-certification-training": [
+    { "name": "Construction", "icon": "HardHat", "rationale": "P6 is the industry standard for large construction scheduling." },
+    { "name": "Engineering/EPC", "icon": "HardHat", "rationale": "EPC megaprojects mandate P6 for integrated schedule control." },
+    { "name": "Oil & Gas", "icon": "Fuel", "rationale": "Capital projects and turnarounds run on Primavera schedules." },
+    { "name": "Energy & Utilities", "icon": "Zap", "rationale": "Power plant and grid projects require P6 planners." },
+    { "name": "Government/Public Sector", "icon": "Landmark", "rationale": "Infrastructure contracts often mandate P6 deliverables." }
+  ],
+  "jira-certification-training": [
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "Engineering teams run sprints and backlogs in Jira daily." },
+    { "name": "SaaS", "icon": "Server", "rationale": "Product squads track releases and bugs in Jira." },
+    { "name": "E-commerce/Retail", "icon": "ShoppingCart", "rationale": "Digital teams coordinate feature delivery via Jira boards." },
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Bank digital units standardize agile delivery tooling on Jira." },
+    { "name": "Media & Entertainment", "icon": "Clapperboard", "rationale": "Content and streaming teams manage production pipelines in Jira." }
+  ],
+  "business-analysis-certification": [
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Banks employ armies of BAs for regulatory and digital change." },
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "Requirements engineering underpins every software delivery." },
+    { "name": "Consulting & Professional Services", "icon": "Briefcase", "rationale": "Consultants sell BA capability on client transformations." },
+    { "name": "Insurance", "icon": "ShieldCheck", "rationale": "Policy system modernization demands skilled business analysts." },
+    { "name": "Government/Public Sector", "icon": "Landmark", "rationale": "Digital government programs require formal requirements analysis." }
+  ],
+  "pgmp-certification-training": [
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "Multi-project transformation programs need certified program managers." },
+    { "name": "Government/Public Sector", "icon": "Landmark", "rationale": "Large public programs require benefits-driven program governance." },
+    { "name": "Aerospace & Defense", "icon": "Plane", "rationale": "Defense programs span years and demand program-level oversight." },
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Enterprise-wide banking change runs as coordinated programs." },
+    { "name": "Energy & Utilities", "icon": "Zap", "rationale": "Grid modernization and energy transition run as programs." }
+  ],
+  "pfmp-certification-training": [
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Investment in change portfolios needs strategic portfolio governance." },
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "CIOs prioritize competing initiatives via portfolio management." },
+    { "name": "Government/Public Sector", "icon": "Landmark", "rationale": "Agencies must optimize limited budgets across project portfolios." },
+    { "name": "Energy & Utilities", "icon": "Zap", "rationale": "Capital allocation across asset portfolios needs PfMP discipline." },
+    { "name": "Consulting & Professional Services", "icon": "Briefcase", "rationale": "Firms advise clients on portfolio strategy and need credentials." }
+  ],
+  "pmi-rmp-certification-training": [
+    { "name": "Construction", "icon": "HardHat", "rationale": "High-stakes projects demand formal risk identification and response." },
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Risk culture extends into project risk management roles." },
+    { "name": "Oil & Gas", "icon": "Fuel", "rationale": "Capital-intensive projects carry major safety and cost risk." },
+    { "name": "Aerospace & Defense", "icon": "Plane", "rationale": "Complex programs require quantified risk management practices." },
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "Large IT programs fail without disciplined risk management." }
+  ],
+  "pmi-cp-certification-training": [
+    { "name": "Construction", "icon": "HardHat", "rationale": "Purpose-built credential for construction project professionals." },
+    { "name": "Engineering/EPC", "icon": "HardHat", "rationale": "EPC contractors need construction-specific delivery expertise." },
+    { "name": "Real Estate", "icon": "Building2", "rationale": "Developers manage build programs needing construction PM skills." },
+    { "name": "Energy & Utilities", "icon": "Zap", "rationale": "Power and infrastructure builds are construction-heavy projects." },
+    { "name": "Government/Public Sector", "icon": "Landmark", "rationale": "Public infrastructure projects need certified construction managers." }
+  ],
+  "pmi-acp-certification-training": [
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "Agile delivery is the default for software organizations." },
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Banks scale agile across digital and regulatory delivery." },
+    { "name": "SaaS", "icon": "Server", "rationale": "Continuous product delivery requires certified agile practitioners." },
+    { "name": "Telecom", "icon": "RadioTower", "rationale": "Telcos adopt agile for digital services and OSS/BSS change." },
+    { "name": "E-commerce/Retail", "icon": "ShoppingCart", "rationale": "Rapid feature iteration demands mature agile practice." }
+  ],
+  "agile-scrum-foundation-certification-training": [
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "Teams need shared Scrum vocabulary before agile rollouts." },
+    { "name": "SaaS", "icon": "Server", "rationale": "New hires onboard into Scrum-based product teams." },
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Agile transformations start with foundation-level Scrum literacy." },
+    { "name": "E-commerce/Retail", "icon": "ShoppingCart", "rationale": "Digital teams standardize on Scrum basics across squads." },
+    { "name": "Telecom", "icon": "RadioTower", "rationale": "Delivery teams adopt Scrum fundamentals in digital units." }
+  ],
+  "agile-scrum-master": [
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "Every software squad needs trained Scrum Masters." },
+    { "name": "SaaS", "icon": "Server", "rationale": "Product teams rely on Scrum Masters to sustain velocity." },
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Scaled agile programs need Scrum Masters per squad." },
+    { "name": "E-commerce/Retail", "icon": "ShoppingCart", "rationale": "Fast release cycles demand strong sprint facilitation." },
+    { "name": "Media & Entertainment", "icon": "Clapperboard", "rationale": "Digital content platforms run Scrum-based delivery teams." }
+  ],
+  "prince2-agile-foundation-practitioner-certification-training": [
+    { "name": "Government/Public Sector", "icon": "Landmark", "rationale": "Agencies blend PRINCE2 governance with agile delivery." },
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "Hybrid delivery needs governance plus agile flexibility." },
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Regulated agile delivery requires controlled governance wrappers." },
+    { "name": "Telecom", "icon": "RadioTower", "rationale": "Large programs mix waterfall governance and agile teams." },
+    { "name": "Healthcare", "icon": "HeartPulse", "rationale": "Health IT programs need governed yet iterative delivery." }
+  ],
+  "scrum-fundamentals-certification-training": [
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "Broad staff need Scrum basics to join agile teams." },
+    { "name": "SaaS", "icon": "Server", "rationale": "Non-engineering roles learn Scrum to collaborate with squads." },
+    { "name": "E-commerce/Retail", "icon": "ShoppingCart", "rationale": "Cross-functional teams adopt Scrum for digital initiatives." },
+    { "name": "Education", "icon": "GraduationCap", "rationale": "EdTech and admin teams apply Scrum to course delivery." },
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Operations staff learn Scrum during agile transformations." }
+  ],
+  "csm-certification-training": [
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "CSM is the benchmark Scrum Master credential for tech teams." },
+    { "name": "SaaS", "icon": "Server", "rationale": "Product companies hire CSM-certified facilitators per squad." },
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Agile banking programs require certified Scrum Masters." },
+    { "name": "E-commerce/Retail", "icon": "ShoppingCart", "rationale": "Retail digital teams staff CSMs to run sprint cadences." },
+    { "name": "Gaming", "icon": "Gamepad2", "rationale": "Game studios use Scrum for iterative build-test cycles." }
+  ],
+  "cspo-certification-training": [
+    { "name": "SaaS", "icon": "Server", "rationale": "Product owners drive roadmap and backlog in product companies." },
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "Every agile team needs a trained product owner." },
+    { "name": "E-commerce/Retail", "icon": "ShoppingCart", "rationale": "Digital commerce POs prioritize features against revenue impact." },
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Banks appoint POs to own digital product backlogs." },
+    { "name": "Media & Entertainment", "icon": "Clapperboard", "rationale": "Streaming platforms need POs balancing content and tech features." }
+  ],
+  "agile-pm-certification": [
+    { "name": "Government/Public Sector", "icon": "Landmark", "rationale": "AgilePM suits governed agile in public-sector projects." },
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "PMs need structured agile beyond team-level Scrum." },
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Regulated firms want agile with project-level accountability." },
+    { "name": "Consulting & Professional Services", "icon": "Briefcase", "rationale": "Consultants deliver agile projects under fixed client contracts." },
+    { "name": "Telecom", "icon": "RadioTower", "rationale": "Hybrid programs need agile PMs with governance skills." }
+  ],
+  "kanban-training": [
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "Ops and support teams manage flow-based work via Kanban." },
+    { "name": "Manufacturing", "icon": "Factory", "rationale": "Kanban originates in manufacturing pull systems and WIP control." },
+    { "name": "SaaS", "icon": "Server", "rationale": "DevOps and support squads visualize continuous flow." },
+    { "name": "Automotive", "icon": "Car", "rationale": "Lean production lines run on Kanban replenishment signals." },
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Service and ops teams cut queue times with Kanban." }
+  ],
+  "itil-v5-foundation-bridge-training-course": [
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "ITIL 4 holders must bridge teams to the V5 framework." },
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Banks keep large ITSM workforces current on ITIL versions." },
+    { "name": "Telecom", "icon": "RadioTower", "rationale": "Service providers update NOC and service desk staff to V5." },
+    { "name": "Government/Public Sector", "icon": "Landmark", "rationale": "Public IT departments standardize on the latest ITIL." },
+    { "name": "Healthcare", "icon": "HeartPulse", "rationale": "Health IT service teams refresh certifications to V5." }
+  ],
+  "itil-v5-foundation-certification-training": [
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "ITIL is the default service management framework in IT." },
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Always-on banking services demand mature ITSM practices." },
+    { "name": "Telecom", "icon": "RadioTower", "rationale": "Carriers run ITIL-based service desks and incident processes." },
+    { "name": "Government/Public Sector", "icon": "Landmark", "rationale": "Public IT services mandate ITIL-aligned operations." },
+    { "name": "Healthcare", "icon": "HeartPulse", "rationale": "Clinical systems uptime depends on disciplined service management." }
+  ],
+  "itil-4-foundation-certification-training": [
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "ITIL 4 remains the baseline certification for IT service teams." },
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Regulated uptime requirements drive ITIL adoption in banks." },
+    { "name": "Telecom", "icon": "RadioTower", "rationale": "Service operations at scale require ITIL-trained staff." },
+    { "name": "Government/Public Sector", "icon": "Landmark", "rationale": "Agencies mandate ITIL for citizen-facing digital services." },
+    { "name": "Healthcare", "icon": "HeartPulse", "rationale": "Hospital IT teams manage critical services with ITIL." }
+  ],
+  "verism-foundation-certification-training": [
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "Digital-age service management model for modern IT organizations." },
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Banks blend ITIL, agile, and DevOps under VeriSM." },
+    { "name": "Telecom", "icon": "RadioTower", "rationale": "Providers modernize service models beyond classic ITSM." },
+    { "name": "Consulting & Professional Services", "icon": "Briefcase", "rationale": "Advisors guide clients on flexible service management." },
+    { "name": "E-commerce/Retail", "icon": "ShoppingCart", "rationale": "Digital retailers need service management fit for fast change." }
+  ],
+  "siam-foundation-certification-training": [
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "Multi-vendor IT estates need service integration governance." },
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Banks orchestrate many outsourced IT providers under SIAM." },
+    { "name": "Government/Public Sector", "icon": "Landmark", "rationale": "Multi-supplier public IT contracts require SIAM structures." },
+    { "name": "Telecom", "icon": "RadioTower", "rationale": "Complex supplier ecosystems demand integrated service management." },
+    { "name": "Energy & Utilities", "icon": "Zap", "rationale": "Outsourced IT and OT services need cross-vendor integration." }
+  ],
+  "siam-professional-certification-training": [
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "Integrators run SIAM ecosystems needing professional-level skills." },
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Service integration leads govern complex bank vendor stacks." },
+    { "name": "Government/Public Sector", "icon": "Landmark", "rationale": "Lead roles in multi-supplier towers require SIAM Professional." },
+    { "name": "Telecom", "icon": "RadioTower", "rationale": "Senior service managers integrate carrier supplier networks." },
+    { "name": "Consulting & Professional Services", "icon": "Briefcase", "rationale": "SIAM consultants design and run client integration models." }
+  ],
+  "lean-six-sigma-yellow-belt-certification-training": [
+    { "name": "Manufacturing", "icon": "Factory", "rationale": "Shop-floor staff join improvement projects with Yellow Belt basics." },
+    { "name": "Healthcare", "icon": "HeartPulse", "rationale": "Frontline staff contribute to patient-flow improvement projects." },
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Ops teams support process improvement across back offices." },
+    { "name": "Automotive", "icon": "Car", "rationale": "Line workers participate in quality and waste initiatives." },
+    { "name": "Logistics & Supply Chain", "icon": "Truck", "rationale": "Warehouse teams engage in throughput improvement efforts." }
+  ],
+  "lean-six-sigma-green-belt-certification-training": [
+    { "name": "Manufacturing", "icon": "Factory", "rationale": "Engineers lead DMAIC projects on yield and defect reduction." },
+    { "name": "Healthcare", "icon": "HeartPulse", "rationale": "Quality leads run projects cutting wait times and errors." },
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Analysts drive process improvement in operations and claims." },
+    { "name": "Pharmaceuticals", "icon": "Pill", "rationale": "Green Belts improve batch quality and compliance processes." },
+    { "name": "Automotive", "icon": "Car", "rationale": "Quality engineers lead supplier and line improvement projects." }
+  ],
+  "lean-six-sigma-black-belt-certification-training": [
+    { "name": "Manufacturing", "icon": "Factory", "rationale": "Black Belts lead enterprise-level defect and cost programs." },
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Senior improvement leaders drive bank-wide process excellence." },
+    { "name": "Healthcare", "icon": "HeartPulse", "rationale": "System-level improvement programs need Black Belt leadership." },
+    { "name": "Pharmaceuticals", "icon": "Pill", "rationale": "Complex quality programs require advanced statistical leadership." },
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "Shared services optimize delivery processes with Black Belts." }
+  ],
+  "value-stream-mapping-training": [
+    { "name": "Manufacturing", "icon": "Factory", "rationale": "VSM exposes waste across end-to-end production flows." },
+    { "name": "Automotive", "icon": "Car", "rationale": "Plants map value streams to cut lead time and inventory." },
+    { "name": "Logistics & Supply Chain", "icon": "Truck", "rationale": "Mapping order-to-delivery flows reveals bottlenecks." },
+    { "name": "FMCG/Consumer Goods", "icon": "Package", "rationale": "High-volume lines use VSM to speed changeovers and flow." },
+    { "name": "Healthcare", "icon": "HeartPulse", "rationale": "Hospitals map patient journeys to remove delays." }
+  ],
+  "poka-yoke-training": [
+    { "name": "Manufacturing", "icon": "Factory", "rationale": "Mistake-proofing devices prevent defects at the source." },
+    { "name": "Automotive", "icon": "Car", "rationale": "Assembly lines rely on poka-yoke for zero-defect builds." },
+    { "name": "Aerospace & Defense", "icon": "Plane", "rationale": "Safety-critical assembly demands error-proofed processes." },
+    { "name": "Pharmaceuticals", "icon": "Pill", "rationale": "Error-proofing protects batch integrity and compliance." },
+    { "name": "FMCG/Consumer Goods", "icon": "Package", "rationale": "Packaging lines use poka-yoke to prevent mislabeling." }
+  ],
+  "kaizen-training": [
+    { "name": "Manufacturing", "icon": "Factory", "rationale": "Continuous improvement culture starts with kaizen events." },
+    { "name": "Automotive", "icon": "Car", "rationale": "Kaizen is core to automotive production systems." },
+    { "name": "FMCG/Consumer Goods", "icon": "Package", "rationale": "Daily improvement drives cost-out on high-volume lines." },
+    { "name": "Healthcare", "icon": "HeartPulse", "rationale": "Care teams run kaizen events on safety and flow." },
+    { "name": "Logistics & Supply Chain", "icon": "Truck", "rationale": "Warehouses apply kaizen to picking and throughput." }
+  ],
+  "business-process-management-training": [
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Process-heavy banking operations demand BPM discipline." },
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "BPM underpins automation and workflow platform initiatives." },
+    { "name": "Insurance", "icon": "ShieldCheck", "rationale": "Claims and underwriting processes need continuous redesign." },
+    { "name": "Healthcare", "icon": "HeartPulse", "rationale": "Admin and clinical workflows benefit from BPM rigor." },
+    { "name": "Government/Public Sector", "icon": "Landmark", "rationale": "Citizen service processes require mapped, optimized workflows." }
+  ],
+  "minitab-essentials-training": [
+    { "name": "Manufacturing", "icon": "Factory", "rationale": "Quality engineers analyze process data in Minitab." },
+    { "name": "Pharmaceuticals", "icon": "Pill", "rationale": "Validation and stability studies rely on Minitab statistics." },
+    { "name": "Automotive", "icon": "Car", "rationale": "SPC and capability studies run on Minitab in plants." },
+    { "name": "Chemicals", "icon": "FlaskConical", "rationale": "Process chemists use Minitab for DOE and analysis." },
+    { "name": "Aerospace & Defense", "icon": "Plane", "rationale": "Quality data analysis for tight tolerances uses Minitab." }
+  ],
+  "six-sigma-awareness-training": [
+    { "name": "Manufacturing", "icon": "Factory", "rationale": "Org-wide awareness precedes Six Sigma deployment." },
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Staff learn improvement basics before belt programs." },
+    { "name": "Healthcare", "icon": "HeartPulse", "rationale": "Awareness builds support for quality improvement initiatives." },
+    { "name": "FMCG/Consumer Goods", "icon": "Package", "rationale": "Broad workforce alignment powers cost and quality programs." },
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "Service teams gain shared improvement vocabulary." }
+  ],
+  "design-for-six-sigma-training": [
+    { "name": "Manufacturing", "icon": "Factory", "rationale": "DFSS builds quality into new products from design." },
+    { "name": "Automotive", "icon": "Car", "rationale": "New vehicle programs use DFSS to prevent launch defects." },
+    { "name": "Aerospace & Defense", "icon": "Plane", "rationale": "Design robustness is mandatory for safety-critical systems." },
+    { "name": "Pharmaceuticals", "icon": "Pill", "rationale": "Product and process design quality drives compliance." },
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "Hardware and product teams design for reliability upfront." }
+  ],
+  "lean-fundamentals-training": [
+    { "name": "Manufacturing", "icon": "Factory", "rationale": "Lean basics are the entry point for operational excellence." },
+    { "name": "Automotive", "icon": "Car", "rationale": "Supplier workforces need grounding in lean principles." },
+    { "name": "FMCG/Consumer Goods", "icon": "Package", "rationale": "High-volume operations train all staff in lean thinking." },
+    { "name": "Healthcare", "icon": "HeartPulse", "rationale": "Lean healthcare starts with fundamentals for care teams." },
+    { "name": "Logistics & Supply Chain", "icon": "Truck", "rationale": "Distribution centers apply lean to flow and waste." }
+  ],
+  "lean-it-training": [
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "IT organizations cut waste in service and delivery processes." },
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Bank IT applies lean to reduce cost-to-serve." },
+    { "name": "Telecom", "icon": "RadioTower", "rationale": "IT operations streamline provisioning and support flows." },
+    { "name": "SaaS", "icon": "Server", "rationale": "Product ops teams remove waste from delivery pipelines." },
+    { "name": "Government/Public Sector", "icon": "Landmark", "rationale": "Public IT seeks efficiency under budget pressure." }
+  ],
+  "quality-by-design-training": [
+    { "name": "Pharmaceuticals", "icon": "Pill", "rationale": "QbD is a regulatory expectation for drug development." },
+    { "name": "Chemicals", "icon": "FlaskConical", "rationale": "Process design quality reduces variability in production." },
+    { "name": "FMCG/Consumer Goods", "icon": "Package", "rationale": "Formulated products benefit from designed-in quality." },
+    { "name": "Manufacturing", "icon": "Factory", "rationale": "Building quality into design cuts downstream defects." },
+    { "name": "Healthcare", "icon": "HeartPulse", "rationale": "Medical device development applies QbD for compliance." }
+  ],
+  "quality-function-deployment-training": [
+    { "name": "Manufacturing", "icon": "Factory", "rationale": "QFD translates customer needs into engineering specs." },
+    { "name": "Automotive", "icon": "Car", "rationale": "Vehicle programs deploy QFD from voice-of-customer to design." },
+    { "name": "Aerospace & Defense", "icon": "Plane", "rationale": "Requirements-heavy programs map needs to specifications." },
+    { "name": "FMCG/Consumer Goods", "icon": "Package", "rationale": "Product developers align features to consumer priorities." },
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "Product teams prioritize features against customer value." }
+  ],
+  "root-cause-analysis-training": [
+    { "name": "Manufacturing", "icon": "Factory", "rationale": "Defect and downtime investigations require structured RCA." },
+    { "name": "Healthcare", "icon": "HeartPulse", "rationale": "Patient safety events mandate rigorous root cause analysis." },
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "Incident postmortems depend on disciplined RCA methods." },
+    { "name": "Energy & Utilities", "icon": "Zap", "rationale": "Outage and safety incidents demand formal RCA." },
+    { "name": "Aerospace & Defense", "icon": "Plane", "rationale": "Failure investigations are safety-critical and regulated." }
+  ],
+  "7-qc-tools-training": [
+    { "name": "Manufacturing", "icon": "Factory", "rationale": "Core quality toolkit for shop-floor problem solving." },
+    { "name": "Automotive", "icon": "Car", "rationale": "Supplier quality systems mandate 7 QC tool fluency." },
+    { "name": "Pharmaceuticals", "icon": "Pill", "rationale": "Quality teams apply QC tools in deviation management." },
+    { "name": "FMCG/Consumer Goods", "icon": "Package", "rationale": "Line teams track and solve quality issues with QC tools." },
+    { "name": "Chemicals", "icon": "FlaskConical", "rationale": "Process quality control relies on statistical QC tools." }
+  ],
+  "lean-manufacturing-training-course": [
+    { "name": "Manufacturing", "icon": "Factory", "rationale": "Direct application: waste elimination across production." },
+    { "name": "Automotive", "icon": "Car", "rationale": "Lean is the backbone of automotive production systems." },
+    { "name": "FMCG/Consumer Goods", "icon": "Package", "rationale": "High-volume plants drive cost-out through lean." },
+    { "name": "Aerospace & Defense", "icon": "Plane", "rationale": "Complex assembly adopts lean for flow and quality." },
+    { "name": "Pharmaceuticals", "icon": "Pill", "rationale": "Lean improves throughput in regulated production." }
+  ],
+  "devops-foundation-certification-training": [
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "DevOps literacy is baseline for modern software teams." },
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Banks adopt DevOps to speed regulated release cycles." },
+    { "name": "SaaS", "icon": "Server", "rationale": "Continuous delivery culture starts with DevOps foundations." },
+    { "name": "Telecom", "icon": "RadioTower", "rationale": "Network software teams shift to DevOps operating models." },
+    { "name": "E-commerce/Retail", "icon": "ShoppingCart", "rationale": "Fast, reliable deployments drive digital commerce revenue." }
+  ],
+  "devops-master-certification-training": [
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "Senior engineers lead enterprise DevOps transformations." },
+    { "name": "SaaS", "icon": "Server", "rationale": "Platform leads architect mature CI/CD at scale." },
+    { "name": "BFSI", "icon": "Banknote", "rationale": "DevOps leads balance speed with compliance controls." },
+    { "name": "Telecom", "icon": "RadioTower", "rationale": "Master-level practitioners run large-scale delivery pipelines." },
+    { "name": "Media & Entertainment", "icon": "Clapperboard", "rationale": "Streaming platforms need advanced deployment leadership." }
+  ],
+  "observability-foundation-certification-course": [
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "Distributed systems require metrics, logs, and tracing skills." },
+    { "name": "SaaS", "icon": "Server", "rationale": "Uptime SLAs depend on mature observability practice." },
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Transaction platforms need real-time monitoring and alerting." },
+    { "name": "E-commerce/Retail", "icon": "ShoppingCart", "rationale": "Peak-traffic reliability hinges on observability tooling." },
+    { "name": "Telecom", "icon": "RadioTower", "rationale": "Network and service telemetry demand observability skills." }
+  ],
+  "aws-devops-training-course": [
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "AWS dominates cloud; teams need AWS-native CI/CD skills." },
+    { "name": "SaaS", "icon": "Server", "rationale": "Products built on AWS need automated deployment pipelines." },
+    { "name": "E-commerce/Retail", "icon": "ShoppingCart", "rationale": "Retail platforms scale on AWS with DevOps automation." },
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Cloud-migrating banks need secure AWS DevOps practices." },
+    { "name": "Media & Entertainment", "icon": "Clapperboard", "rationale": "Streaming workloads run on AWS with heavy automation." }
+  ],
+  "azure-devops-training-course": [
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "Microsoft-stack teams standardize delivery on Azure DevOps." },
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Enterprise banks on Microsoft estates adopt Azure pipelines." },
+    { "name": "Manufacturing", "icon": "Factory", "rationale": "Industrial firms on Microsoft ecosystems build on Azure." },
+    { "name": "Healthcare", "icon": "HeartPulse", "rationale": "Health systems on Azure need compliant DevOps practices." },
+    { "name": "Government/Public Sector", "icon": "Landmark", "rationale": "Agencies with Microsoft agreements deploy via Azure DevOps." }
+  ],
+  "cgeit-certification-training": [
+    { "name": "BFSI", "icon": "Banknote", "rationale": "IT governance is a regulatory mandate in financial services." },
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "Enterprise IT leaders need governance credentials for board roles." },
+    { "name": "Government/Public Sector", "icon": "Landmark", "rationale": "Public IT investment requires formal governance oversight." },
+    { "name": "Telecom", "icon": "RadioTower", "rationale": "Large IT estates demand governance of value and risk." },
+    { "name": "Insurance", "icon": "ShieldCheck", "rationale": "Insurers align IT investment with regulated business goals." }
+  ],
+  "crisc-certification-training": [
+    { "name": "BFSI", "icon": "Banknote", "rationale": "IT risk management is core to banking compliance." },
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "Risk and security teams need enterprise IT risk credentials." },
+    { "name": "Insurance", "icon": "ShieldCheck", "rationale": "Risk-native insurers formalize IT and cyber risk control." },
+    { "name": "Healthcare", "icon": "HeartPulse", "rationale": "Patient data risk demands certified IT risk professionals." },
+    { "name": "Government/Public Sector", "icon": "Landmark", "rationale": "Critical public systems require managed IT risk programs." }
+  ],
+  "cobit-5-certification": [
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Regulators expect COBIT-aligned IT governance in banks." },
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "Enterprises adopt COBIT to govern IT processes end-to-end." },
+    { "name": "Government/Public Sector", "icon": "Landmark", "rationale": "Public audits benchmark IT controls against COBIT." },
+    { "name": "Telecom", "icon": "RadioTower", "rationale": "Complex IT estates use COBIT for control and audit." },
+    { "name": "Insurance", "icon": "ShieldCheck", "rationale": "Compliance-driven insurers govern IT with COBIT." }
+  ],
+  "cobit-5-foundation-certification-training": [
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Governance and audit staff need COBIT baseline knowledge." },
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "IT staff learn the COBIT framework before adoption." },
+    { "name": "Government/Public Sector", "icon": "Landmark", "rationale": "Agency IT teams build COBIT literacy for audits." },
+    { "name": "Telecom", "icon": "RadioTower", "rationale": "Governance teams standardize on COBIT vocabulary." },
+    { "name": "Insurance", "icon": "ShieldCheck", "rationale": "Control functions ground IT oversight in COBIT." }
+  ],
+  "cobit-5-implementation-certification-training": [
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Banks operationalize COBIT into working governance systems." },
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "Practitioners implement COBIT process improvements." },
+    { "name": "Consulting & Professional Services", "icon": "Briefcase", "rationale": "Advisors lead COBIT implementations for clients." },
+    { "name": "Government/Public Sector", "icon": "Landmark", "rationale": "Agencies roll out COBIT-based control frameworks." },
+    { "name": "Telecom", "icon": "RadioTower", "rationale": "Operators embed COBIT into IT operating models." }
+  ],
+  "cobit-5-assessor-certification-training": [
+    { "name": "BFSI", "icon": "Banknote", "rationale": "Internal audit assesses IT process capability via COBIT." },
+    { "name": "Consulting & Professional Services", "icon": "Briefcase", "rationale": "Assessors run formal capability assessments for clients." },
+    { "name": "IT/Technology", "icon": "Cpu", "rationale": "Governance teams measure process maturity with COBIT PAM." },
+    { "name": "Government/Public Sector", "icon": "Landmark", "rationale": "Public audits require certified COBIT assessors." },
+    { "name": "Insurance", "icon": "ShieldCheck", "rationale": "Regulated insurers audit IT capability against COBIT." }
+  ]
+}

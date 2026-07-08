@@ -26,16 +26,18 @@ export default function Sidebar() {
     setCollapsed((prev) => ({ ...prev, [slug]: !prev[slug] }));
 
   return (
-    <aside className="w-72 shrink-0 border-r bg-surface flex flex-col h-screen sticky top-0">
-      <div className="px-4 py-4 border-b">
-        <Link href="/" className="flex items-center gap-2 font-semibold">
-          <Database size={18} className="text-primary" />
+    <aside className="sticky top-0 flex h-screen w-72 shrink-0 flex-col border-r bg-surface">
+      <div className="border-b px-4 py-4">
+        <Link href="/" className="group flex items-center gap-2.5 font-semibold">
+          <span className="grid place-items-center rounded-lg bg-primary-soft p-2 text-primary transition-transform duration-150 group-hover:scale-105">
+            <Database size={17} />
+          </span>
           <span className="leading-tight">
             Invensis Learning
             <span className="block text-xs font-normal text-text-muted">Master Database</span>
           </span>
         </Link>
-        <div className="mt-3 relative">
+        <div className="relative mt-3.5">
           <Search
             size={15}
             className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted"
@@ -44,7 +46,7 @@ export default function Sidebar() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Filter courses..."
-            className="w-full rounded-md border bg-bg pl-8 pr-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-[var(--ring)]"
+            className="w-full rounded-lg border bg-bg py-2 pl-8 pr-2 text-sm outline-none transition-shadow focus:ring-2 focus:ring-[var(--ring)]"
           />
         </div>
       </div>
@@ -56,24 +58,27 @@ export default function Sidebar() {
             <div key={cat.slug} className="mb-1">
               <button
                 onClick={() => toggle(cat.slug)}
-                className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-md text-text-muted hover:bg-surface-2 font-medium uppercase tracking-wide text-[11px]"
+                className="flex w-full items-center gap-1.5 rounded-md px-2 py-2 text-[11px] font-semibold uppercase tracking-wider text-text-muted transition-colors hover:bg-surface-2 hover:text-text"
               >
                 {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
                 <span className="flex-1 text-left">{cat.name}</span>
-                <span className="text-[10px] opacity-70">{cat.courses.length}</span>
+                <span className="rounded-full bg-surface-2 px-1.5 py-0.5 text-[10px] font-medium">
+                  {cat.courses.length}
+                </span>
               </button>
               {!isCollapsed && (
-                <ul className="mt-0.5 mb-1">
+                <ul className="mb-1.5 mt-0.5 space-y-px border-l pl-2 ml-3.5">
                   {cat.courses.map((course) => {
                     const active = course.slug === activeCourseSlug;
                     return (
                       <li key={course.slug}>
                         <Link
                           href={`/${course.slug}`}
-                          className={`block rounded-md px-3 py-1.5 ml-2 ${
+                          aria-current={active ? "page" : undefined}
+                          className={`block rounded-md px-3 py-1.5 transition-colors duration-150 ${
                             active
-                              ? "bg-primary text-primary-contrast"
-                              : "hover:bg-surface-2 text-text"
+                              ? "bg-primary-soft font-medium text-primary"
+                              : "text-text-muted hover:bg-surface-2 hover:text-text"
                           }`}
                         >
                           {course.name}

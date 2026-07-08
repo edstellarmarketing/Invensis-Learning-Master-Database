@@ -62,3 +62,22 @@ export async function addCompany(
   await writeCompanies(all);
   return company;
 }
+
+export async function updateCompany(
+  id: string,
+  patch: Partial<Omit<Company, "id" | "addedAt">>,
+): Promise<Company> {
+  const all = await readCompanies();
+  const idx = all.findIndex((c) => c.id === id);
+  if (idx === -1) throw new Error("Company not found");
+  all[idx] = { ...all[idx], ...patch, id: all[idx].id, addedAt: all[idx].addedAt };
+  await writeCompanies(all);
+  return all[idx];
+}
+
+export async function deleteCompany(id: string): Promise<void> {
+  const all = await readCompanies();
+  const next = all.filter((c) => c.id !== id);
+  if (next.length === all.length) throw new Error("Company not found");
+  await writeCompanies(next);
+}

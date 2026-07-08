@@ -16,9 +16,8 @@ export default async function IndustryPage({
   if (!course) notFound();
   const category = findCategoryForCourse(courseSlug);
 
-  const industry = getIndustriesForCourse(courseSlug).find(
-    (i) => slugify(i.name) === industrySlug,
-  );
+  const industries = await getIndustriesForCourse(courseSlug);
+  const industry = industries.find((i) => slugify(i.name) === industrySlug);
   if (!industry) notFound();
 
   const companies = await listCompanies(courseSlug, industrySlug);
@@ -30,7 +29,11 @@ export default async function IndustryPage({
 
       {/* Industry tabs across the top, per reference layout */}
       <div className="mt-4">
-        <IndustryTabs courseSlug={courseSlug} activeIndustrySlug={industrySlug} />
+        <IndustryTabs
+          courseSlug={courseSlug}
+          industries={industries}
+          activeIndustrySlug={industrySlug}
+        />
       </div>
 
       {/* Full-width companies table below */}

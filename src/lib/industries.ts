@@ -1,186 +1,93 @@
-// Top target industries per course, for sales targeting.
-// Strategy: one curated default set per category (covers all 59 courses), plus an
-// optional per-course override map for cases that differ from their category.
-// `icon` is a lucide-react icon name resolved in IndustryGrid.
-
-import { findCategoryForCourse } from "./courses";
+// Industries per course + file-backed persistence (same Phase-1 JSON-store pattern
+// as lib/companies.ts). Shape: Record<courseSlug, Industry[]>.
+import { promises as fs } from "fs";
+import path from "path";
+import { slugify } from "./slug";
+import { readCompanies, writeCompanies } from "./companies";
 
 export type Industry = { name: string; icon: string; rationale: string };
 
-// Category slug -> its default target industries.
-const INDUSTRIES_BY_CATEGORY: Record<string, Industry[]> = {
-  "project-management-certification-courses": [
-    {
-      name: "IT/Technology",
-      icon: "Cpu",
-      rationale: "Large delivery orgs run constant multi-project portfolios needing certified PMs.",
-    },
-    {
-      name: "Construction",
-      icon: "HardHat",
-      rationale: "Capital projects demand rigorous schedule, cost and risk management.",
-    },
-    {
-      name: "Healthcare",
-      icon: "HeartPulse",
-      rationale: "Hospital builds, compliance and digital rollouts require structured PM.",
-    },
-    {
-      name: "BFSI",
-      icon: "Landmark",
-      rationale: "Regulatory and transformation programs need disciplined project governance.",
-    },
-    {
-      name: "Manufacturing",
-      icon: "Factory",
-      rationale: "Plant expansions and product launches run as tightly managed projects.",
-    },
-  ],
-  "agile-certification-courses": [
-    {
-      name: "IT/Technology",
-      icon: "Cpu",
-      rationale: "Software teams adopt Scrum/Kanban at scale across product lines.",
-    },
-    {
-      name: "BFSI",
-      icon: "Landmark",
-      rationale: "Digital banking pushes agile delivery for faster feature release.",
-    },
-    {
-      name: "Telecom",
-      icon: "RadioTower",
-      rationale: "Network and OSS/BSS modernization runs on agile squads.",
-    },
-    {
-      name: "E-commerce/Retail",
-      icon: "ShoppingCart",
-      rationale: "Rapid iteration on storefronts and apps favors agile roles.",
-    },
-    {
-      name: "Media & Entertainment",
-      icon: "Clapperboard",
-      rationale: "Streaming and content platforms ship continuously with agile teams.",
-    },
-  ],
-  "itsm-certification-courses": [
-    {
-      name: "IT/Technology",
-      icon: "Cpu",
-      rationale: "Service desks and ops teams standardize on ITIL practices.",
-    },
-    {
-      name: "BFSI",
-      icon: "Landmark",
-      rationale: "Uptime and change control are business-critical for financial services.",
-    },
-    {
-      name: "Telecom",
-      icon: "RadioTower",
-      rationale: "24x7 service assurance depends on mature ITSM processes.",
-    },
-    {
-      name: "Government/Public Sector",
-      icon: "Building2",
-      rationale: "Citizen services require auditable, standardized IT service management.",
-    },
-    {
-      name: "Healthcare",
-      icon: "HeartPulse",
-      rationale: "Clinical systems need reliable incident and change management.",
-    },
-  ],
-  "quality-management-certification-courses": [
-    {
-      name: "Manufacturing",
-      icon: "Factory",
-      rationale: "Defect reduction and process control are core to plant performance.",
-    },
-    {
-      name: "Automotive",
-      icon: "Car",
-      rationale: "Six Sigma and lean are standard for supplier quality and throughput.",
-    },
-    {
-      name: "Healthcare",
-      icon: "HeartPulse",
-      rationale: "Patient-safety and process improvement drive quality programs.",
-    },
-    {
-      name: "Pharmaceuticals",
-      icon: "Pill",
-      rationale: "Validated processes and CAPA demand strong quality skills.",
-    },
-    {
-      name: "FMCG/Consumer Goods",
-      icon: "Package",
-      rationale: "High-volume lines rely on lean and variation reduction.",
-    },
-  ],
-  "devops-certification-courses": [
-    {
-      name: "IT/Technology",
-      icon: "Cpu",
-      rationale: "CI/CD and platform teams upskill on DevOps toolchains.",
-    },
-    {
-      name: "BFSI",
-      icon: "Landmark",
-      rationale: "Secure, compliant release automation is a top priority.",
-    },
-    {
-      name: "E-commerce/Retail",
-      icon: "ShoppingCart",
-      rationale: "Peak-scale reliability needs automated delivery pipelines.",
-    },
-    {
-      name: "Telecom",
-      icon: "RadioTower",
-      rationale: "Cloud-native network functions push DevOps adoption.",
-    },
-    {
-      name: "SaaS/Gaming",
-      icon: "Gamepad2",
-      rationale: "Continuous deployment is a competitive requirement.",
-    },
-  ],
-  "it-governance-certification-courses": [
-    {
-      name: "BFSI",
-      icon: "Landmark",
-      rationale: "Regulatory scrutiny drives demand for IT risk and control frameworks.",
-    },
-    {
-      name: "IT/Technology",
-      icon: "Cpu",
-      rationale: "Enterprises formalize governance over sprawling IT estates.",
-    },
-    {
-      name: "Government/Public Sector",
-      icon: "Building2",
-      rationale: "Public accountability requires COBIT-style governance.",
-    },
-    {
-      name: "Insurance",
-      icon: "ShieldCheck",
-      rationale: "Data and model governance are compliance-critical.",
-    },
-    {
-      name: "Energy & Utilities",
-      icon: "Zap",
-      rationale: "Critical infrastructure needs strong IT risk management.",
-    },
-  ],
-};
+const DATA_FILE = path.join(process.cwd(), "src", "data", "industries.json");
 
-// Optional per-course overrides (empty for now; category defaults cover all courses).
-const INDUSTRIES_BY_COURSE: Record<string, Industry[]> = {};
-
-export function getIndustriesForCourse(courseSlug: string): Industry[] {
-  if (INDUSTRIES_BY_COURSE[courseSlug]) return INDUSTRIES_BY_COURSE[courseSlug];
-  const category = findCategoryForCourse(courseSlug);
-  if (category && INDUSTRIES_BY_CATEGORY[category.slug]) {
-    return INDUSTRIES_BY_CATEGORY[category.slug];
+export async function readAllIndustries(): Promise<Record<string, Industry[]>> {
+  try {
+    const raw = await fs.readFile(DATA_FILE, "utf-8");
+    return JSON.parse(raw) as Record<string, Industry[]>;
+  } catch {
+    return {};
   }
-  return [];
+}
+
+async function writeAllIndustries(data: Record<string, Industry[]>): Promise<void> {
+  await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2) + "\n", "utf-8");
+}
+
+export async function getIndustriesForCourse(courseSlug: string): Promise<Industry[]> {
+  const all = await readAllIndustries();
+  return all[courseSlug] ?? [];
+}
+
+export async function addIndustry(courseSlug: string, industry: Industry): Promise<Industry> {
+  const all = await readAllIndustries();
+  const list = all[courseSlug] ?? [];
+  if (list.some((i) => slugify(i.name) === slugify(industry.name))) {
+    throw new Error(`Industry "${industry.name}" already exists for this course`);
+  }
+  list.push(industry);
+  all[courseSlug] = list;
+  await writeAllIndustries(all);
+  return industry;
+}
+
+export async function updateIndustry(
+  courseSlug: string,
+  industrySlug: string,
+  patch: Partial<Industry>,
+): Promise<Industry> {
+  const all = await readAllIndustries();
+  const list = all[courseSlug] ?? [];
+  const idx = list.findIndex((i) => slugify(i.name) === industrySlug);
+  if (idx === -1) throw new Error("Industry not found");
+
+  const updated: Industry = { ...list[idx], ...patch };
+  const newSlug = slugify(updated.name);
+  if (
+    newSlug !== industrySlug &&
+    list.some((i, j) => j !== idx && slugify(i.name) === newSlug)
+  ) {
+    throw new Error(`Industry "${updated.name}" already exists for this course`);
+  }
+  list[idx] = updated;
+  all[courseSlug] = list;
+  await writeAllIndustries(all);
+
+  // Renaming an industry re-slugs it: move its companies to the new slug.
+  if (newSlug !== industrySlug) {
+    const companies = await readCompanies();
+    let changed = false;
+    for (const c of companies) {
+      if (c.courseSlug === courseSlug && c.industrySlug === industrySlug) {
+        c.industrySlug = newSlug;
+        changed = true;
+      }
+    }
+    if (changed) await writeCompanies(companies);
+  }
+  return updated;
+}
+
+export async function deleteIndustry(courseSlug: string, industrySlug: string): Promise<void> {
+  const all = await readAllIndustries();
+  const list = all[courseSlug] ?? [];
+  const next = list.filter((i) => slugify(i.name) !== industrySlug);
+  if (next.length === list.length) throw new Error("Industry not found");
+  all[courseSlug] = next;
+  await writeAllIndustries(all);
+
+  // Cascade: remove companies attached to the deleted industry.
+  const companies = await readCompanies();
+  const remaining = companies.filter(
+    (c) => !(c.courseSlug === courseSlug && c.industrySlug === industrySlug),
+  );
+  if (remaining.length !== companies.length) await writeCompanies(remaining);
 }
