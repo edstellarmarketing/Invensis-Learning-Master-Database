@@ -12,7 +12,15 @@ export default function Sidebar() {
   const pathname = usePathname();
   const activeCourseSlug = pathname?.split("/")[1] ?? "";
   const [query, setQuery] = useState("");
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  // Categories start collapsed; the active course's category opens itself.
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(
+      CATEGORIES.map((cat) => [
+        cat.slug,
+        !cat.courses.some((c) => c.slug === activeCourseSlug),
+      ]),
+    ),
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
