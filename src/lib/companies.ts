@@ -1,6 +1,8 @@
-// Company records + file-backed persistence (Phase 1 uses a JSON file, not a DB).
-import { promises as fs } from "fs";
-import path from "path";
+// Company records. Persistence: Upstash Redis when configured, local JSON file
+// otherwise — see lib/storage.ts.
+import { readDataset, writeDataset, friendlyWriteError } from "./storage";
+
+export { friendlyWriteError };
 
 export type Company = {
   id: string;
@@ -15,35 +17,12 @@ export type Company = {
   addedAt: string; // ISO
 };
 
-const DATA_FILE = path.join(process.cwd(), "src", "data", "companies.json");
-
 export async function readCompanies(): Promise<Company[]> {
-  try {
-    const raw = await fs.readFile(DATA_FILE, "utf-8");
-    return JSON.parse(raw) as Company[];
-  } catch {
-    return [];
-  }
+  return readDataset<Company[]>("companies", []);
 }
 
 export async function writeCompanies(companies: Company[]): Promise<void> {
-  try {
-    await fs.writeFile(DATA_FILE, JSON.stringify(companies, null, 2) + "\n", "utf-8");
-  } catch (err) {
-    throw friendlyWriteError(err);
-  }
-}
-
-// Vercel / serverless filesystems are read-only: surface that clearly instead of a 500.
-export function friendlyWriteError(err: unknown): Error {
-  const code = (err as NodeJS.ErrnoException)?.code;
-  if (code === "EROFS" || code === "EACCES" || code === "EPERM") {
-    return new Error(
-      "This deployment has a read-only filesystem (e.g. Vercel), so saving is disabled. " +
-        "Run locally to edit data, or export/import JSON. A database backend is planned.",
-    );
-  }
-  return err instanceof Error ? err : new Error("Write failed");
+  await writeDataset("companies", companies);
 }
 
 export async function listCompanies(

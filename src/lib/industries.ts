@@ -1,32 +1,18 @@
-// Industries per course + file-backed persistence (same Phase-1 JSON-store pattern
-// as lib/companies.ts). Shape: Record<courseSlug, Industry[]>.
-import { promises as fs } from "fs";
-import path from "path";
+// Industries per course. Shape: Record<courseSlug, Industry[]>.
+// Persistence: Upstash Redis when configured, local JSON file otherwise — see lib/storage.ts.
 import { slugify } from "./slug";
-import { readCompanies, writeCompanies, friendlyWriteError } from "./companies";
+import { readCompanies, writeCompanies } from "./companies";
+import { readDataset, writeDataset } from "./storage";
 
 export type Industry = { name: string; icon: string; rationale: string };
 
-const DATA_FILE = path.join(process.cwd(), "src", "data", "industries.json");
-
 export async function readAllIndustries(): Promise<Record<string, Industry[]>> {
-  try {
-    const raw = await fs.readFile(DATA_FILE, "utf-8");
-    return JSON.parse(raw) as Record<string, Industry[]>;
-  } catch {
-    return {};
-  }
+  return readDataset<Record<string, Industry[]>>("industries", {});
 }
 
-async function writeAllIndustries(data: Record<string, Industry[]>): Promise<void> {
-  try {
-    await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2) + "\n", "utf-8");
-  } catch (err) {
-    throw friendlyWriteError(err);
-  }
+export async function writeAllIndustries(data: Record<string, Industry[]>): Promise<void> {
+  await writeDataset("industries", data);
 }
-
-export { writeAllIndustries };
 
 export async function getIndustriesForCourse(courseSlug: string): Promise<Industry[]> {
   const all = await readAllIndustries();

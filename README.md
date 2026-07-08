@@ -39,16 +39,18 @@ npm run dev                  # http://localhost:3000
 ## Deploying to Vercel
 
 1. Push this repo to GitHub and import it in Vercel (framework auto-detected: Next.js).
-2. Optionally set `ANTHROPIC_API_KEY` (and `ANTHROPIC_MODEL`) in Project → Settings →
-   Environment Variables to enable AI Search.
-3. Deploy. Reads work fully; the seeded data ships inside the build.
+2. **Enable saving (required for CRUD/CSV import in production):** in the Vercel project go to
+   **Storage → Create Database → Upstash (Redis)** (free tier), and connect it to the project.
+   This auto-injects `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`.
+3. Optionally set `ANTHROPIC_API_KEY` (and `ANTHROPIC_MODEL`) to enable AI Search.
+4. Deploy (or redeploy after adding the integration).
 
-> **Important limitation:** the Phase-1 data store is two JSON files
-> (`src/data/companies.json`, `src/data/industries.json`). Vercel's serverless filesystem is
-> **read-only**, so add/edit/delete/import will return a clear "saving is disabled" error in
-> production. Workflow for now: edit data locally (or via JSON import locally), commit, and
-> redeploy. A database backend (Vercel Postgres / Turso) is the planned fix — see
-> [PROJECTLOG.md](PROJECTLOG.md) backlog.
+**How storage works** (`src/lib/storage.ts`): with Upstash configured, both datasets live in
+Redis (keys `invensis-master-db:companies` / `:industries`) and every feature — add/edit/delete,
+CSV bulk import, bulk delete, industry CRUD, JSON import — works on Vercel. On first run the
+database is seeded from the bundled JSON. Without the integration, local dev reads/writes the
+JSON files in `src/data/`, and a read-only deploy shows a clear "connect a database" message
+on writes.
 
 ## API
 

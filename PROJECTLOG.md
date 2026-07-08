@@ -2,6 +2,14 @@
 
 Chronological record of what was built and why. Newest first.
 
+## 2026-07-08 — Session 6: Upstash Redis backend (writes on Vercel)
+- Storage adapter (`src/lib/storage.ts`): Upstash Redis when env is configured, local JSON
+  files otherwise. Both datasets stored whole under two keys; first read seeds Redis from the
+  bundled JSON. Enables ALL mutations on Vercel: CRUD, CSV bulk import, bulk delete, JSON import.
+- companies.ts / industries.ts rewired onto the adapter (public API unchanged).
+- Setup: Vercel > Storage > Upstash Redis integration (free tier) auto-injects
+  UPSTASH_REDIS_REST_URL/TOKEN; redeploy after connecting.
+
 ## 2026-07-08 — Session 5: Vivid design system, icons everywhere, richer summaries
 - Palette upgrade: tinted app background, indigo→violet gradient tokens
   (--gradient / --gradient-soft), semantic success/warning/info hues, deeper shadows.

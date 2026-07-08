@@ -68,10 +68,11 @@ src/
 ## Gotchas (Next 16 / Vercel)
 - Route `params` are async — `const { courseSlug } = await params;`.
 - Data stores use Node `fs`, so API routes set `runtime = "nodejs"`.
-- **Vercel's filesystem is read-only**: all mutating routes catch EROFS/EACCES/EPERM via
-  `friendlyWriteError()` (lib/companies.ts) and return a clear "saving is disabled" message.
-  Reads/exports work everywhere. Local workflow: edit → commit → redeploy. A DB backend is
-  the planned fix (see PROJECTLOG.md backlog).
+- **Storage adapter** (`lib/storage.ts`): Upstash Redis when `UPSTASH_REDIS_REST_URL`/`TOKEN`
+  are set (Vercel Storage integration — required for writes in production), local JSON files in
+  `src/data/` otherwise. Datasets stored whole under `invensis-master-db:companies` /
+  `:industries`; first KV read seeds from the bundled JSON. Read-only deploys without the
+  integration get a clear "connect a database" error on writes (friendlyWriteError).
 - Home + course pages are `force-dynamic` (stats and redirects reflect live JSON data).
 
 ## Out of scope (later phases)
