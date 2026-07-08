@@ -29,20 +29,26 @@ export async function POST(request: Request) {
     );
   }
 
-  const company = await addCompany({
-    courseSlug,
-    industrySlug,
-    companyName,
-    country: String(body.country ?? ""),
-    website: String(body.website ?? ""),
-    annualReportUrls: Array.isArray(body.annualReportUrls)
-      ? (body.annualReportUrls as unknown[]).map(String)
-      : [],
-    aiInsight: Array.isArray(body.aiInsight)
-      ? (body.aiInsight as unknown[]).map(String)
-      : [],
-    source: body.source ? String(body.source) : undefined,
-  });
-
-  return Response.json(company, { status: 201 });
+  try {
+    const company = await addCompany({
+      courseSlug,
+      industrySlug,
+      companyName,
+      country: String(body.country ?? ""),
+      website: String(body.website ?? ""),
+      annualReportUrls: Array.isArray(body.annualReportUrls)
+        ? (body.annualReportUrls as unknown[]).map(String)
+        : [],
+      aiInsight: Array.isArray(body.aiInsight)
+        ? (body.aiInsight as unknown[]).map(String)
+        : [],
+      source: body.source ? String(body.source) : undefined,
+    });
+    return Response.json(company, { status: 201 });
+  } catch (err) {
+    return Response.json(
+      { error: err instanceof Error ? err.message : "Save failed" },
+      { status: 500 },
+    );
+  }
 }

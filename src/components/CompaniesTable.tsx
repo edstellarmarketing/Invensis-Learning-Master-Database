@@ -4,6 +4,7 @@ import { useState, useMemo, Fragment } from "react";
 import {
   ChevronDown,
   ChevronRight,
+  Download,
   ExternalLink,
   FileText,
   Pencil,
@@ -34,16 +35,48 @@ export default function CompaniesTable({
   const [showSearch, setShowSearch] = useState(false);
   const [editing, setEditing] = useState<Company | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [countryFilter, setCountryFilter] = useState("");
+  const [reportFilter, setReportFilter] = useState<"" | "with" | "without">("");
+
+  const countries = useMemo(
+    () => [...new Set(companies.map((c) => c.country).filter(Boolean))].sort(),
+    [companies],
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return companies;
-    return companies.filter(
-      (c) =>
-        c.companyName.toLowerCase().includes(q) ||
-        c.country.toLowerCase().includes(q),
-    );
-  }, [companies, query]);
+    return companies.filter((c) => {
+      if (q && !c.companyName.toLowerCase().includes(q) && !c.country.toLowerCase().includes(q))
+        return false;
+      if (countryFilter && c.country !== countryFilter) return false;
+      if (reportFilter === "with" && c.annualReportUrls.length === 0) return false;
+      if (reportFilter === "without" && c.annualReportUrls.length > 0) return false;
+      return true;
+    });
+  }, [companies, query, countryFilter, reportFilter]);
+
+  const exportCsv = () => {
+    const esc = (s: string) => `"${s.replace(/"/g, '""')}"`;
+    const rows = [
+      ["Company Name", "Country", "Website", "Annual Report URLs", "AI Insights", "Source"],
+      ...filtered.map((c) => [
+        c.companyName,
+        c.country,
+        c.website,
+        c.annualReportUrls.join(" | "),
+        c.aiInsight.join(" | "),
+        c.source ?? "",
+      ]),
+    ];
+    const csv = rows.map((r) => r.map(esc).join(",")).join("\r\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${courseSlug}_${industrySlug}_companies.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const onAdded = (c: Company) => {
     setCompanies((prev) => [...prev, c]);
@@ -87,6 +120,37 @@ export default function CompaniesTable({
             className="w-full rounded-lg border bg-surface pl-8 pr-2 py-2 text-sm outline-none transition-shadow focus:ring-2 focus:ring-[var(--ring)]"
           />
         </div>
+        <select
+          value={countryFilter}
+          onChange={(e) => setCountryFilter(e.target.value)}
+          aria-label="Filter by country"
+          className="rounded-lg border bg-surface px-2.5 py-2 text-sm text-text-muted outline-none focus:ring-2 focus:ring-[var(--ring)]"
+        >
+          <option value="">All countries</option>
+          {countries.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+        <select
+          value={reportFilter}
+          onChange={(e) => setReportFilter(e.target.value as "" | "with" | "without")}
+          aria-label="Filter by annual report availability"
+          className="rounded-lg border bg-surface px-2.5 py-2 text-sm text-text-muted outline-none focus:ring-2 focus:ring-[var(--ring)]"
+        >
+          <option value="">All reports</option>
+          <option value="with">Has annual report</option>
+          <option value="without">Missing report</option>
+        </select>
+        <button
+          onClick={exportCsv}
+          disabled={filtered.length === 0}
+          aria-label="Export filtered rows as CSV"
+          className="inline-flex items-center gap-1.5 rounded-lg border bg-surface px-3.5 py-2 text-sm font-medium text-text-muted transition-colors hover:border-[var(--primary)] hover:text-primary disabled:opacity-50"
+        >
+          <Download size={15} /> CSV
+        </button>
         <button
           onClick={() => {
             setShowSearch((s) => !s);
@@ -167,8 +231,10 @@ export default function CompaniesTable({
                       or <span className="font-medium text-text">Add Company</span> to populate this
                       industry.
                     </>
-                  ) : (
+                  ) : query.trim() ? (
                     <>No companies match &ldquo;{query}&rdquo;.</>
+                  ) : (
+                    <>No companies match the current filters.</>
                   )}
                 </td>
               </tr>

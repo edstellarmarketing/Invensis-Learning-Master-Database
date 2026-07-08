@@ -38,8 +38,11 @@ src/
     api/companies/[id]/route.ts      # PUT edit / DELETE
     api/companies/search/route.ts    # POST AI discovery (needs API key)
     api/industries/route.ts          # GET / POST / PUT / DELETE per course
-  components/  Sidebar, IndustryTabs (tabs + manage CRUD), CompaniesTable,
-               AddCompanyForm (add + edit modes), CompanySearch
+    api/export/route.ts              # GET full-DB JSON download
+    api/import/route.ts              # POST restore/merge an export (merge|replace)
+  components/  Sidebar, IndustryTabs (tabs + manage CRUD), CompaniesTable (filters,
+               CSV export, row edit/delete), AddCompanyForm (add + edit modes),
+               CompanySearch, DataTools (export/import UI)
   lib/         courses.ts, industries.ts, slug.ts, companies.ts
   data/        companies.json, industries.json   # file-backed stores (Phase 1; not a DB)
 ```
@@ -60,10 +63,14 @@ src/
 - **Add a course/category**: edit `CATEGORIES` in `lib/courses.ts`, then add its 5 industries
   to `src/data/industries.json`.
 
-## Gotchas (Next 16)
+## Gotchas (Next 16 / Vercel)
 - Route `params` are async — `const { courseSlug } = await params;`.
-- Company store uses Node `fs`, so those API routes set `runtime = "nodejs"`. Writes work in
-  `next dev` / node runtime; not on edge or read-only serverless FS.
+- Data stores use Node `fs`, so API routes set `runtime = "nodejs"`.
+- **Vercel's filesystem is read-only**: all mutating routes catch EROFS/EACCES/EPERM via
+  `friendlyWriteError()` (lib/companies.ts) and return a clear "saving is disabled" message.
+  Reads/exports work everywhere. Local workflow: edit → commit → redeploy. A DB backend is
+  the planned fix (see PROJECTLOG.md backlog).
+- Home + course pages are `force-dynamic` (stats and redirects reflect live JSON data).
 
 ## Out of scope (later phases)
 Automated bulk scraping across all 59 courses, a real database, auth, deployment.

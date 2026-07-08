@@ -27,7 +27,23 @@ export async function readCompanies(): Promise<Company[]> {
 }
 
 export async function writeCompanies(companies: Company[]): Promise<void> {
-  await fs.writeFile(DATA_FILE, JSON.stringify(companies, null, 2) + "\n", "utf-8");
+  try {
+    await fs.writeFile(DATA_FILE, JSON.stringify(companies, null, 2) + "\n", "utf-8");
+  } catch (err) {
+    throw friendlyWriteError(err);
+  }
+}
+
+// Vercel / serverless filesystems are read-only: surface that clearly instead of a 500.
+export function friendlyWriteError(err: unknown): Error {
+  const code = (err as NodeJS.ErrnoException)?.code;
+  if (code === "EROFS" || code === "EACCES" || code === "EPERM") {
+    return new Error(
+      "This deployment has a read-only filesystem (e.g. Vercel), so saving is disabled. " +
+        "Run locally to edit data, or export/import JSON. A database backend is planned.",
+    );
+  }
+  return err instanceof Error ? err : new Error("Write failed");
 }
 
 export async function listCompanies(

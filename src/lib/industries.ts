@@ -3,7 +3,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { slugify } from "./slug";
-import { readCompanies, writeCompanies } from "./companies";
+import { readCompanies, writeCompanies, friendlyWriteError } from "./companies";
 
 export type Industry = { name: string; icon: string; rationale: string };
 
@@ -19,8 +19,14 @@ export async function readAllIndustries(): Promise<Record<string, Industry[]>> {
 }
 
 async function writeAllIndustries(data: Record<string, Industry[]>): Promise<void> {
-  await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2) + "\n", "utf-8");
+  try {
+    await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2) + "\n", "utf-8");
+  } catch (err) {
+    throw friendlyWriteError(err);
+  }
 }
+
+export { writeAllIndustries };
 
 export async function getIndustriesForCourse(courseSlug: string): Promise<Industry[]> {
   const all = await readAllIndustries();
