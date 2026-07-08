@@ -1,4 +1,4 @@
-# AGENTS.md — Invensis Learning Master Database
+# AGENTS.md - Invensis Learning Master Database
 
 ## Overview
 Sales/marketing target-account research dashboard. For each Invensis Learning course it shows
@@ -8,7 +8,7 @@ ran last financial year.
 
 ## Stack
 - Next.js 16.2.9 (App Router), React 19, TypeScript (strict)
-- Tailwind CSS v4 (CSS-variable theming, no `dark:` classes — toggle `data-theme`)
+- Tailwind CSS v4 (CSS-variable theming, no `dark:` classes - toggle `data-theme`)
 - `lucide-react` icons
 - `@anthropic-ai/sdk` for the optional AI company-search route
 
@@ -22,9 +22,9 @@ npm run lint
 
 ## Env vars
 Copy `.env.example` → `.env.local`. All optional:
-- `ANTHROPIC_API_KEY` — enables `/api/companies/search` (AI discovery). Without it the dashboard,
+- `ANTHROPIC_API_KEY` - enables `/api/companies/search` (AI discovery). Without it the dashboard,
   seed data, and manual Add Company all still work. **Paid** (Anthropic API usage).
-- `ANTHROPIC_MODEL` — defaults to `claude-sonnet-5`.
+- `ANTHROPIC_MODEL` - defaults to `claude-sonnet-5`.
 
 ## Layout
 ```
@@ -53,7 +53,7 @@ src/
 - **Courses** (`lib/courses.ts`): 6 categories × 59 courses (authoritative, from the sibling
   "Invensis Learning Course Content Generator" `category_db.py`, cross-checked vs the live
   sitemap). Drives the sidebar.
-- **Industries** (`data/industries.json`): Record<courseSlug, Industry[]> — 5 curated
+- **Industries** (`data/industries.json`): Record<courseSlug, Industry[]> - 5 curated
   industries per course, all 59 seeded. CRUD via `/api/industries` or the "Manage" toggle
   on any course page. Renaming an industry re-slugs it and migrates its companies;
   deleting cascades to its companies. Names are slugified for URLs via `lib/slug.ts`.
@@ -66,10 +66,10 @@ src/
   to `src/data/industries.json`.
 
 ## Gotchas (Next 16 / Vercel)
-- Route `params` are async — `const { courseSlug } = await params;`.
+- Route `params` are async - `const { courseSlug } = await params;`.
 - Data stores use Node `fs`, so API routes set `runtime = "nodejs"`.
 - **Storage adapter** (`lib/storage.ts`): Upstash Redis when `UPSTASH_REDIS_REST_URL`/`TOKEN`
-  are set (Vercel Storage integration — required for writes in production), local JSON files in
+  are set (Vercel Storage integration - required for writes in production), local JSON files in
   `src/data/` otherwise. Datasets stored whole under `invensis-master-db:companies` /
   `:industries`; first KV read seeds from the bundled JSON. Read-only deploys without the
   integration get a clear "connect a database" error on writes (friendlyWriteError).

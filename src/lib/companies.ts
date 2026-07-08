@@ -1,5 +1,5 @@
 // Company records. Persistence: Upstash Redis when configured, local JSON file
-// otherwise — see lib/storage.ts.
+// otherwise - see lib/storage.ts.
 import { readDataset, writeDataset, friendlyWriteError } from "./storage";
 
 export { friendlyWriteError };

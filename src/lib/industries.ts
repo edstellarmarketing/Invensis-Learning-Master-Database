@@ -1,5 +1,5 @@
 // Industries per course. Shape: Record<courseSlug, Industry[]>.
-// Persistence: Upstash Redis when configured, local JSON file otherwise — see lib/storage.ts.
+// Persistence: Upstash Redis when configured, local JSON file otherwise - see lib/storage.ts.
 import { slugify } from "./slug";
 import { readCompanies, writeCompanies } from "./companies";
 import { readDataset, writeDataset } from "./storage";

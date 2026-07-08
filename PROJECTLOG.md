@@ -1,8 +1,8 @@
-# Project Log — Invensis Learning Master Database
+# Project Log - Invensis Learning Master Database
 
 Chronological record of what was built and why. Newest first.
 
-## 2026-07-08 — Session 6: Upstash Redis backend (writes on Vercel)
+## 2026-07-08 - Session 6: Upstash Redis backend (writes on Vercel)
 - Storage adapter (`src/lib/storage.ts`): Upstash Redis when env is configured, local JSON
   files otherwise. Both datasets stored whole under two keys; first read seeds Redis from the
   bundled JSON. Enables ALL mutations on Vercel: CRUD, CSV bulk import, bulk delete, JSON import.
@@ -10,7 +10,7 @@ Chronological record of what was built and why. Newest first.
 - Setup: Vercel > Storage > Upstash Redis integration (free tier) auto-injects
   UPSTASH_REDIS_REST_URL/TOKEN; redeploy after connecting.
 
-## 2026-07-08 — Session 5: Vivid design system, icons everywhere, richer summaries
+## 2026-07-08 - Session 5: Vivid design system, icons everywhere, richer summaries
 - Palette upgrade: tinted app background, indigo→violet gradient tokens
   (--gradient / --gradient-soft), semantic success/warning/info hues, deeper shadows.
 - Per-category visual identity (`src/lib/categoryMeta.ts`): 6 color pairs + icons
@@ -23,7 +23,7 @@ Chronological record of what was built and why. Newest first.
 - Course summaries expanded from one line to 3-4 sentences (~4 lines) for all 59
   courses: what it is (correct governing body), skills, audience, employer value.
 
-## 2026-07-08 — Session 4: Course headers, bulk CSV import, bulk delete
+## 2026-07-08 - Session 4: Course headers, bulk CSV import, bulk delete
 - Course header card (gradient, modern): one-line summary for every course
   (`src/lib/courseSummaries.ts`, all 59) + "View course page" link to
   invensislearning.com/<slug>/.
@@ -36,7 +36,7 @@ Chronological record of what was built and why. Newest first.
 - First push to GitHub: edstellarmarketing/Invensis-Learning-Master-Database,
   git identity pinned to edstellarmarketing for this repo.
 
-## 2026-07-08 — Session 3: Dashboard, filters, export/import, Vercel prep
+## 2026-07-08 - Session 3: Dashboard, filters, export/import, Vercel prep
 - Dashboard home: stat cards (courses / categories / industries / companies), research-coverage
   list (populated course × industry combos), recently-added companies, category quick links.
 - Companies table: country dropdown filter, annual-report presence filter, CSV export of the
@@ -47,7 +47,7 @@ Chronological record of what was built and why. Newest first.
   clear actionable error instead of a 500; deployment notes added to README.
 - New docs: this PROJECTLOG.md; README rewritten with features + deploy guide.
 
-## 2026-07-08 — Session 2: CRUD, per-course industries, design refresh
+## 2026-07-08 - Session 2: CRUD, per-course industries, design refresh
 - Industries moved to `src/data/industries.json`: 5 curated target industries for each of the
   59 courses (tailored per course, agent-researched, programmatically verified).
 - Industries CRUD: `/api/industries` (GET/POST/PUT/DELETE) + inline "Manage" mode on the tabs.
@@ -56,7 +56,7 @@ Chronological record of what was built and why. Newest first.
 - Design system: slate + indigo semantic tokens (WCAG AA in light and dark), focus rings,
   elevation scale, tabular numerals, reduced-motion support.
 
-## 2026-07-08 — Session 1: Phase-1 dashboard
+## 2026-07-08 - Session 1: Phase-1 dashboard
 - Next.js 16 (App Router, TS strict, Tailwind v4) scaffold.
 - Sidebar: 59 courses across 6 categories (catalog sourced from the sibling
   "Invensis Learning Course Content Generator" project's `category_db.py`, cross-checked

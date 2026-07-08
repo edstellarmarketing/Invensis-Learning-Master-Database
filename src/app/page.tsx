@@ -53,7 +53,7 @@ export default async function Home() {
 
   return (
     <div className="max-w-5xl">
-      <h1 className="text-2xl font-semibold">Invensis Learning — Master Database</h1>
+      <h1 className="text-2xl font-semibold">Invensis Learning Master Database</h1>
       <p className="mt-2 max-w-3xl text-text-muted">
         Target-account research across the full course portfolio. Pick a course from the sidebar,
         choose an industry, and work the prospect table: websites, annual reports, and AI insights

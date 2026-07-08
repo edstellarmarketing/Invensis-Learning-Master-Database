@@ -3,7 +3,7 @@ import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 
 export const metadata: Metadata = {
-  title: "Invensis Learning — Master Database",
+  title: "Invensis Learning Master Database",
   description:
     "Target-account research dashboard: courses, top target industries, and prospect companies with annual-report training insights.",
 };

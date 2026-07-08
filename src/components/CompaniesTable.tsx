@@ -443,7 +443,7 @@ export default function CompaniesTable({
                     <td className="px-4 py-3.5 text-text-muted">{c.country}</td>
                     <td className="px-4 py-3.5">
                       {c.annualReportUrls.length === 0 ? (
-                        <span className="text-text-muted">—</span>
+                        <span className="text-text-muted">-</span>
                       ) : (
                         <div className="flex flex-col gap-1">
                           {c.annualReportUrls.map((url, i) => (
