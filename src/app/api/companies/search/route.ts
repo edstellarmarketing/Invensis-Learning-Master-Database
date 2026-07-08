@@ -36,6 +36,8 @@ export async function POST(request: Request) {
   const industryName = String(body.industryName ?? "");
   const country = String(body.country ?? "").trim();
   const query = String(body.query ?? "").trim();
+  const size = String(body.size ?? "").trim(); // e.g. "Enterprise (1000+ employees)"
+  const count = Math.min(20, Math.max(1, Number(body.count) || 5));
   const course = findCourse(courseSlug);
   const courseName = course?.name ?? courseSlug;
 
@@ -44,9 +46,11 @@ export async function POST(request: Request) {
 
   const prompt = `You are a B2B sales-research assistant for Invensis Learning, which sells "${courseName}" corporate training.
 
-Find 5 REAL companies in the "${industryName}" industry${
+Find ${count} REAL companies in the "${industryName}" industry${
     country ? ` based in ${country}` : ""
-  } that are strong prospects for this training${query ? `. Extra criteria: ${query}` : ""}.
+  }${size ? `, company size: ${size}` : ""} that are strong prospects for this training${
+    query ? `. Extra criteria: ${query}` : ""
+  }.
 
 For each company use web search to verify:
 - official corporate website URL
@@ -59,11 +63,16 @@ companyName (string), country (string), website (string), annualReportUrls (stri
   try {
     const resp = await client.messages.create({
       model,
-      max_tokens: 3000,
+      // Scale output budget and search allowance with the requested company count.
+      max_tokens: Math.min(8000, 1000 + count * 550),
       // Server-side web search tool. Cast: older SDK type defs don't list server tools,
       // but the API accepts the JSON passthrough.
       tools: [
-        { type: "web_search_20250305", name: "web_search", max_uses: 6 } as unknown as Anthropic.Tool,
+        {
+          type: "web_search_20250305",
+          name: "web_search",
+          max_uses: Math.min(12, count + 3),
+        } as unknown as Anthropic.Tool,
       ],
       messages: [{ role: "user", content: prompt }],
     });

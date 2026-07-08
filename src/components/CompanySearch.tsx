@@ -26,6 +26,8 @@ export default function CompanySearch({
 }) {
   const [country, setCountry] = useState("");
   const [query, setQuery] = useState("");
+  const [count, setCount] = useState(5);
+  const [size, setSize] = useState("");
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Candidate[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +42,7 @@ export default function CompanySearch({
       const res = await fetch("/api/companies/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ courseSlug, industryName, country, query }),
+        body: JSON.stringify({ courseSlug, industryName, country, query, count, size }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || `Search failed (${res.status})`);
@@ -88,7 +90,7 @@ export default function CompanySearch({
             placeholder={`e.g. large ${industryName} firms hiring PMs`}
           />
         </div>
-        <div className="w-40">
+        <div className="w-36">
           <label className="block text-xs font-medium text-text-muted mb-1">Country</label>
           <input
             className={`${field} w-full`}
@@ -96,6 +98,34 @@ export default function CompanySearch({
             onChange={(e) => setCountry(e.target.value)}
             placeholder="Any"
           />
+        </div>
+        <div className="w-28">
+          <label className="block text-xs font-medium text-text-muted mb-1">Companies</label>
+          <select
+            className={`${field} w-full`}
+            value={count}
+            onChange={(e) => setCount(Number(e.target.value))}
+          >
+            {[3, 5, 10, 15, 20].map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="w-44">
+          <label className="block text-xs font-medium text-text-muted mb-1">Company size</label>
+          <select
+            className={`${field} w-full`}
+            value={size}
+            onChange={(e) => setSize(e.target.value)}
+          >
+            <option value="">Any size</option>
+            <option value="Enterprise (5000+ employees)">Enterprise (5000+)</option>
+            <option value="Large (1000-5000 employees)">Large (1000-5000)</option>
+            <option value="Mid-market (200-1000 employees)">Mid-market (200-1000)</option>
+            <option value="SMB (under 200 employees)">SMB (&lt;200)</option>
+          </select>
         </div>
         <button
           type="submit"
