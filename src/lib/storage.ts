@@ -12,13 +12,21 @@ const KEY_PREFIX = "invensis-master-db:";
 
 let redis: Redis | null | undefined;
 
+// The Vercel Upstash integration may inject either UPSTASH_REDIS_REST_* or KV_REST_API_*.
+function kvCredentials(): { url: string; token: string } | null {
+  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+  return url && token ? { url, token } : null;
+}
+
 export function kvConfigured(): boolean {
-  return Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+  return kvCredentials() !== null;
 }
 
 function getRedis(): Redis | null {
   if (redis !== undefined) return redis;
-  redis = kvConfigured() ? Redis.fromEnv() : null;
+  const creds = kvCredentials();
+  redis = creds ? new Redis(creds) : null;
   return redis;
 }
 
