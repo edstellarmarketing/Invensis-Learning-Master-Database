@@ -109,18 +109,16 @@ export default function CompaniesTable({
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-text-muted border-b">
-              <th className="w-8 px-3 py-2"></th>
-              <th className="px-3 py-2 font-medium">Company</th>
-              <th className="px-3 py-2 font-medium">Country</th>
-              <th className="px-3 py-2 font-medium">Website</th>
-              <th className="px-3 py-2 font-medium">Annual Report</th>
-              <th className="px-3 py-2 font-medium">AI Insight</th>
+              <th className="px-4 py-2.5 font-medium">Company Name</th>
+              <th className="px-4 py-2.5 font-medium">Country</th>
+              <th className="px-4 py-2.5 font-medium">Annual Report</th>
+              <th className="px-4 py-2.5 font-medium">Insights</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-3 py-8 text-center text-text-muted">
+                <td colSpan={4} className="px-4 py-8 text-center text-text-muted">
                   No companies yet. Use{" "}
                   <span className="font-medium">AI Search</span> or{" "}
                   <span className="font-medium">Add Company</span> to populate this industry.
@@ -132,30 +130,22 @@ export default function CompaniesTable({
               return (
                 <Fragment key={c.id}>
                   <tr className="border-b align-top last:border-b-0">
-                    <td className="px-3 py-3">
-                      <button
-                        onClick={() =>
-                          setExpanded((p) => ({ ...p, [c.id]: !p[c.id] }))
-                        }
-                        aria-label={open ? "Collapse insight" : "Expand insight"}
-                        className="text-text-muted hover:text-text"
-                      >
-                        {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                      </button>
+                    <td className="px-4 py-3">
+                      {c.website ? (
+                        <a
+                          href={c.website}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 font-medium hover:text-primary hover:underline"
+                        >
+                          {c.companyName} <ExternalLink size={13} className="text-text-muted" />
+                        </a>
+                      ) : (
+                        <span className="font-medium">{c.companyName}</span>
+                      )}
                     </td>
-                    <td className="px-3 py-3 font-medium">{c.companyName}</td>
-                    <td className="px-3 py-3 text-text-muted">{c.country}</td>
-                    <td className="px-3 py-3">
-                      <a
-                        href={c.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-primary hover:underline"
-                      >
-                        Visit <ExternalLink size={13} />
-                      </a>
-                    </td>
-                    <td className="px-3 py-3">
+                    <td className="px-4 py-3 text-text-muted">{c.country}</td>
+                    <td className="px-4 py-3">
                       {c.annualReportUrls.length === 0 ? (
                         <span className="text-text-muted">—</span>
                       ) : (
@@ -168,27 +158,28 @@ export default function CompaniesTable({
                               rel="noopener noreferrer"
                               className="inline-flex items-center gap-1 text-accent hover:underline"
                             >
-                              <FileText size={13} /> Report {c.annualReportUrls.length > 1 ? i + 1 : ""}
+                              <FileText size={13} /> Report{" "}
+                              {c.annualReportUrls.length > 1 ? i + 1 : ""}
                             </a>
                           ))}
                         </div>
                       )}
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-4 py-3">
                       <button
                         onClick={() =>
                           setExpanded((p) => ({ ...p, [c.id]: !p[c.id] }))
                         }
-                        className="text-primary hover:underline"
+                        className="inline-flex items-center gap-1 text-primary hover:underline"
                       >
+                        {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                         {open ? "Hide" : `View (${c.aiInsight.length})`}
                       </button>
                     </td>
                   </tr>
                   {open && (
                     <tr className="border-b bg-surface-2/50">
-                      <td></td>
-                      <td colSpan={5} className="px-3 py-3">
+                      <td colSpan={4} className="px-4 py-3">
                         <p className="mb-2 text-xs font-medium uppercase tracking-wide text-text-muted">
                           Training conducted last financial year
                         </p>
