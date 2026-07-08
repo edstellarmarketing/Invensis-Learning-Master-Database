@@ -3,7 +3,10 @@
 import { useState, useMemo, Fragment, useRef } from "react";
 import {
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   Download,
   ExternalLink,
   FileDown,
@@ -45,6 +48,8 @@ export default function CompaniesTable({
   const [importing, setImporting] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
+  const [rawPage, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const countries = useMemo(
     () => [...new Set(companies.map((c) => c.country).filter(Boolean))].sort(),
@@ -62,6 +67,15 @@ export default function CompaniesTable({
       return true;
     });
   }, [companies, query, countryFilter, reportFilter]);
+
+  // Pagination over the filtered set. The stored page is clamped at render time so
+  // shrinking the list (filters, deletes) snaps back without a state cascade.
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const page = Math.min(rawPage, totalPages);
+  const pageRows = useMemo(
+    () => filtered.slice((page - 1) * pageSize, page * pageSize),
+    [filtered, page, pageSize],
+  );
 
   const exportCsv = () => {
     const esc = (s: string) => `"${s.replace(/"/g, '""')}"`;
@@ -129,13 +143,13 @@ export default function CompaniesTable({
     }
   };
 
-  const allFilteredSelected = filtered.length > 0 && filtered.every((c) => selected.has(c.id));
+  const allPageSelected = pageRows.length > 0 && pageRows.every((c) => selected.has(c.id));
 
   const toggleSelectAll = () => {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (allFilteredSelected) filtered.forEach((c) => next.delete(c.id));
-      else filtered.forEach((c) => next.add(c.id));
+      if (allPageSelected) pageRows.forEach((c) => next.delete(c.id));
+      else pageRows.forEach((c) => next.add(c.id));
       return next;
     });
   };
@@ -363,7 +377,7 @@ export default function CompaniesTable({
                 <input
                   type="checkbox"
                   aria-label="Select all visible companies"
-                  checked={allFilteredSelected}
+                  checked={allPageSelected}
                   onChange={toggleSelectAll}
                   className="size-4 cursor-pointer accent-[var(--primary)]"
                 />
@@ -393,7 +407,7 @@ export default function CompaniesTable({
                 </td>
               </tr>
             )}
-            {filtered.map((c) => {
+            {pageRows.map((c) => {
               const open = expanded[c.id];
               return (
                 <Fragment key={c.id}>
@@ -503,6 +517,71 @@ export default function CompaniesTable({
           </tbody>
         </table>
       </div>
+
+      {/* Pagination */}
+      {filtered.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t bg-surface-2/40 px-4 py-2.5">
+          <p className="text-xs text-text-muted">
+            Showing{" "}
+            <span className="font-semibold tabular-nums">
+              {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, filtered.length)}
+            </span>{" "}
+            of <span className="font-semibold tabular-nums">{filtered.length}</span>
+          </p>
+          <div className="flex items-center gap-1.5">
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setPage(1);
+              }}
+              aria-label="Rows per page"
+              className="rounded-md border bg-surface px-2 py-1 text-xs text-text-muted outline-none focus:ring-2 focus:ring-[var(--ring)]"
+            >
+              {[10, 25, 50, 100].map((n) => (
+                <option key={n} value={n}>
+                  {n} / page
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => setPage(1)}
+              disabled={page === 1}
+              aria-label="First page"
+              className="rounded-md border bg-surface p-1.5 text-text-muted transition-colors hover:text-primary disabled:opacity-40"
+            >
+              <ChevronsLeft size={14} />
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              aria-label="Previous page"
+              className="rounded-md border bg-surface p-1.5 text-text-muted transition-colors hover:text-primary disabled:opacity-40"
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <span className="px-1 text-xs font-medium tabular-nums">
+              {page} / {totalPages}
+            </span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              aria-label="Next page"
+              className="rounded-md border bg-surface p-1.5 text-text-muted transition-colors hover:text-primary disabled:opacity-40"
+            >
+              <ChevronRight size={14} />
+            </button>
+            <button
+              onClick={() => setPage(totalPages)}
+              disabled={page === totalPages}
+              aria-label="Last page"
+              className="rounded-md border bg-surface p-1.5 text-text-muted transition-colors hover:text-primary disabled:opacity-40"
+            >
+              <ChevronsRight size={14} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
