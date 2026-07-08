@@ -11,11 +11,15 @@ their training activity.
 - **Sidebar navigation** — all 59 courses grouped by category, collapsible, filterable.
 - **Industry tabs per course** — 5 curated target industries for every course, each with a
   rationale (hover). Full inline CRUD via the "Manage" toggle.
+- **Course header** — one-line course summary plus a direct link to the live
+  invensislearning.com course page.
 - **Companies table** — Company Name (links to website) · Country · Annual Report PDFs ·
   collapsible AI Insights (4–5 bullets on last FY's training). Per-row edit/delete.
+- **Bulk operations** — CSV import (sample template downloadable; Excel: save as CSV UTF-8),
+  select-all checkboxes with bulk delete.
 - **Filters** — text search, country dropdown, annual-report presence.
 - **Export / import**
-  - Table → CSV of the currently filtered rows.
+  - Table → CSV of the currently filtered rows (re-importable format).
   - Full database → JSON export (`/api/export`) and validated import (`/api/import`)
     with merge or replace modes.
 - **Add companies** — manual form, or **AI Search** (Anthropic web search) that discovers real
@@ -52,6 +56,7 @@ npm run dev                  # http://localhost:3000
 |---|---|---|
 | `/api/companies` | GET, POST | List (by `courseSlug`+`industrySlug`) / add |
 | `/api/companies/[id]` | PUT, DELETE | Edit / remove a company |
+| `/api/companies/bulk` | POST, DELETE | Bulk add (CSV import) / bulk delete by ids |
 | `/api/companies/search` | POST | AI company discovery (needs `ANTHROPIC_API_KEY`) |
 | `/api/industries` | GET, POST, PUT, DELETE | Per-course industry CRUD |
 | `/api/export` | GET | Full-DB JSON download |

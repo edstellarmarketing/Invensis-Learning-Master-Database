@@ -2,6 +2,19 @@
 
 Chronological record of what was built and why. Newest first.
 
+## 2026-07-08 — Session 4: Course headers, bulk CSV import, bulk delete
+- Course header card (gradient, modern): one-line summary for every course
+  (`src/lib/courseSummaries.ts`, all 59) + "View course page" link to
+  invensislearning.com/<slug>/.
+- Bulk company addition: CSV import in the table toolbar with downloadable sample
+  template; quote-aware zero-dependency parser (`src/lib/csv.ts`, unit-tested via
+  `npm test`, Node built-in runner). Export CSV format round-trips through import.
+  Excel workbooks: save as "CSV UTF-8" first (clear error message otherwise).
+- Bulk delete: checkbox column + select-all (visible rows), selection bar with
+  Delete selected (confirm) / Clear. API: `/api/companies/bulk` POST + DELETE.
+- First push to GitHub: edstellarmarketing/Invensis-Learning-Master-Database,
+  git identity pinned to edstellarmarketing for this repo.
+
 ## 2026-07-08 — Session 3: Dashboard, filters, export/import, Vercel prep
 - Dashboard home: stat cards (courses / categories / industries / companies), research-coverage
   list (populated course × industry combos), recently-added companies, category quick links.

@@ -36,6 +36,7 @@ src/
     [courseSlug]/[industrySlug]/page.tsx   # industries + companies table
     api/companies/route.ts           # GET list / POST add
     api/companies/[id]/route.ts      # PUT edit / DELETE
+    api/companies/bulk/route.ts      # POST bulk add (CSV import) / DELETE bulk by ids
     api/companies/search/route.ts    # POST AI discovery (needs API key)
     api/industries/route.ts          # GET / POST / PUT / DELETE per course
     api/export/route.ts              # GET full-DB JSON download
@@ -43,7 +44,8 @@ src/
   components/  Sidebar, IndustryTabs (tabs + manage CRUD), CompaniesTable (filters,
                CSV export, row edit/delete), AddCompanyForm (add + edit modes),
                CompanySearch, DataTools (export/import UI)
-  lib/         courses.ts, industries.ts, slug.ts, companies.ts
+  lib/         courses.ts, courseSummaries.ts, industries.ts, slug.ts, companies.ts,
+               csv.ts (quote-aware parser + sample; tested in tests/csv.test.ts)
   data/        companies.json, industries.json   # file-backed stores (Phase 1; not a DB)
 ```
 
