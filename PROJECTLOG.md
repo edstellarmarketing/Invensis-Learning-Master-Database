@@ -2,6 +2,19 @@
 
 Chronological record of what was built and why. Newest first.
 
+## 2026-07-08 — Session 5: Vivid design system, icons everywhere, richer summaries
+- Palette upgrade: tinted app background, indigo→violet gradient tokens
+  (--gradient / --gradient-soft), semantic success/warning/info hues, deeper shadows.
+- Per-category visual identity (`src/lib/categoryMeta.ts`): 6 color pairs + icons
+  (light-dark() aware) used in the sidebar, course header, and dashboard.
+- Icons everywhere: central `IconByName` registry; industry tabs now show their
+  industry icon; sidebar categories get colored icon chips + count pills; stat
+  cards get colored icon chips; gradient brand mark, gradient CTAs.
+- Course header redesigned: category icon tile, colored accent orb, gradient band,
+  gradient "View course page" button.
+- Course summaries expanded from one line to 3-4 sentences (~4 lines) for all 59
+  courses: what it is (correct governing body), skills, audience, employer value.
+
 ## 2026-07-08 — Session 4: Course headers, bulk CSV import, bulk delete
 - Course header card (gradient, modern): one-line summary for every course
   (`src/lib/courseSummaries.ts`, all 59) + "View course page" link to

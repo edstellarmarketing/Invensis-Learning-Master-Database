@@ -289,7 +289,7 @@ export default function CompaniesTable({
             setShowSearch(false);
             setEditing(null);
           }}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-sm font-semibold text-primary-contrast shadow-sm transition-opacity hover:opacity-90"
+          className="btn-gradient inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold shadow-sm transition-transform hover:scale-[1.02]"
         >
           <Plus size={15} /> Add Company
         </button>

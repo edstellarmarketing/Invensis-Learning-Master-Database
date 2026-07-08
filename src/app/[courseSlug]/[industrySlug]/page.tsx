@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 import { findCourse, findCategoryForCourse } from "@/lib/courses";
+import { getCategoryMeta } from "@/lib/categoryMeta";
+import IconByName from "@/components/IconByName";
 import { COURSE_SUMMARIES } from "@/lib/courseSummaries";
 import { getIndustriesForCourse } from "@/lib/industries";
 import { slugify } from "@/lib/slug";
@@ -25,26 +27,48 @@ export default async function IndustryPage({
   const companies = await listCompanies(courseSlug, industrySlug);
   const summary = COURSE_SUMMARIES[courseSlug];
   const courseUrl = `https://www.invensislearning.com/${courseSlug}/`;
+  const meta = getCategoryMeta(category?.slug);
+  const catColor = `light-dark(${meta.color}, ${meta.darkColor})`;
+  const catSoft = `light-dark(${meta.soft}, ${meta.darkSoft})`;
 
   return (
     <div>
       {/* Course header */}
-      <div className="rounded-2xl border bg-gradient-to-br from-[var(--primary-soft)] via-[var(--surface)] to-[var(--surface)] p-6 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-          {category?.name}
-        </p>
-        <div className="mt-1 flex flex-wrap items-start justify-between gap-3">
-          <h1 className="text-2xl font-bold tracking-tight">{course.name}</h1>
-          <a
-            href={courseUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border bg-surface px-3.5 py-2 text-sm font-medium transition-colors hover:border-[var(--primary)] hover:text-primary"
+      <div className="band-gradient-soft relative overflow-hidden rounded-2xl border p-6 shadow-sm">
+        <div
+          className="pointer-events-none absolute -right-10 -top-10 size-40 rounded-full opacity-20"
+          style={{ background: catColor }}
+        />
+        <div className="flex items-start gap-4">
+          <span
+            className="mt-0.5 grid shrink-0 place-items-center rounded-2xl p-3 shadow-sm"
+            style={{ background: catSoft, color: catColor }}
           >
-            View course page <ExternalLink size={14} />
-          </a>
+            <IconByName name={meta.icon} size={26} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p
+              className="text-xs font-bold uppercase tracking-wider"
+              style={{ color: catColor }}
+            >
+              {category?.name}
+            </p>
+            <div className="mt-1 flex flex-wrap items-start justify-between gap-3">
+              <h1 className="text-2xl font-bold tracking-tight">{course.name}</h1>
+              <a
+                href={courseUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-gradient inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold shadow-sm transition-transform hover:scale-[1.02]"
+              >
+                View course page <ExternalLink size={14} />
+              </a>
+            </div>
+            {summary && (
+              <p className="mt-2 max-w-4xl text-sm leading-relaxed text-text-muted">{summary}</p>
+            )}
+          </div>
         </div>
-        {summary && <p className="mt-2 max-w-3xl text-sm text-text-muted">{summary}</p>}
       </div>
 
       {/* Industry tabs across the top, per reference layout */}

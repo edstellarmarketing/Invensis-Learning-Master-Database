@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Pencil, Plus, Settings2, Trash2, X } from "lucide-react";
 import type { Industry } from "@/lib/industries";
 import { slugify } from "@/lib/slug";
+import IconByName from "./IconByName";
 
 const ICON_OPTIONS = [
   "Briefcase", "Cpu", "HardHat", "HeartPulse", "Landmark", "Factory", "RadioTower",
@@ -128,12 +129,13 @@ export default function IndustryTabs({
               <Link
                 href={`/${courseSlug}/${iSlug}`}
                 title={ind.rationale}
-                className={`rounded-lg border px-4 py-2 text-sm font-medium transition-all duration-150 ${
+                className={`inline-flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-sm font-medium transition-all duration-150 ${
                   active
-                    ? "border-transparent bg-primary text-primary-contrast shadow-sm"
+                    ? "btn-gradient border-transparent shadow-md"
                     : "bg-surface text-text-muted hover:text-text hover:border-[var(--primary)] hover:shadow-sm"
                 } ${managing ? "rounded-r-none" : ""}`}
               >
+                <IconByName name={ind.icon} size={15} className={active ? "" : "text-primary"} />
                 {ind.name}
               </Link>
               {managing && (

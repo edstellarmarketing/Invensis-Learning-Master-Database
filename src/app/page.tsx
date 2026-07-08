@@ -7,6 +7,8 @@ import {
   Target,
 } from "lucide-react";
 import { CATEGORIES, ALL_COURSES, findCourse } from "@/lib/courses";
+import { getCategoryMeta } from "@/lib/categoryMeta";
+import IconByName from "@/components/IconByName";
 import { readCompanies } from "@/lib/companies";
 import { readAllIndustries } from "@/lib/industries";
 import { slugify } from "@/lib/slug";
@@ -39,10 +41,10 @@ export default async function Home() {
     .slice(0, 5);
 
   const stats = [
-    { label: "Courses", value: ALL_COURSES.length, icon: GraduationCap },
-    { label: "Categories", value: CATEGORIES.length, icon: FolderKanban },
-    { label: "Target industries", value: industryCount, icon: Target },
-    { label: "Companies", value: companies.length, icon: Building },
+    { label: "Courses", value: ALL_COURSES.length, icon: GraduationCap, color: "#4f46e5", darkColor: "#a5b4fc", soft: "#eef2ff", darkSoft: "#272a55" },
+    { label: "Categories", value: CATEGORIES.length, icon: FolderKanban, color: "#9333ea", darkColor: "#d8b4fe", soft: "#faf5ff", darkSoft: "#3b2154" },
+    { label: "Target industries", value: industryCount, icon: Target, color: "#d97706", darkColor: "#fcd34d", soft: "#fffbeb", darkSoft: "#42300b" },
+    { label: "Companies", value: companies.length, icon: Building, color: "#059669", darkColor: "#6ee7b7", soft: "#ecfdf5", darkSoft: "#0d3b2e" },
   ];
 
   const industryDisplayName = (courseSlug: string, industrySlug: string) =>
@@ -60,13 +62,23 @@ export default async function Home() {
 
       {/* Stats */}
       <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {stats.map(({ label, value, icon: Icon }) => (
-          <div key={label} className="rounded-xl border bg-surface p-4 shadow-sm">
-            <div className="flex items-center gap-2 text-text-muted">
-              <Icon size={16} />
-              <p className="text-xs font-semibold uppercase tracking-wide">{label}</p>
+        {stats.map(({ label, value, icon: Icon, color, darkColor, soft, darkSoft }) => (
+          <div key={label} className="rounded-2xl border bg-surface p-4 shadow-sm transition-shadow hover:shadow-md">
+            <div className="flex items-center gap-2.5">
+              <span
+                className="grid place-items-center rounded-xl p-2"
+                style={{
+                  background: `light-dark(${soft}, ${darkSoft})`,
+                  color: `light-dark(${color}, ${darkColor})`,
+                }}
+              >
+                <Icon size={18} />
+              </span>
+              <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+                {label}
+              </p>
             </div>
-            <p className="mt-1.5 text-3xl font-bold tabular-nums">{value}</p>
+            <p className="mt-2 text-3xl font-bold tabular-nums">{value}</p>
           </div>
         ))}
       </div>
@@ -142,16 +154,30 @@ export default async function Home() {
 
       {/* Categories */}
       <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {CATEGORIES.map((cat) => (
-          <Link
-            key={cat.slug}
-            href={`/${cat.courses[0].slug}`}
-            className="rounded-xl border bg-surface p-4 shadow-sm transition-all duration-150 hover:border-[var(--primary)] hover:shadow-md"
-          >
-            <p className="font-semibold">{cat.name}</p>
-            <p className="mt-0.5 text-sm text-text-muted">{cat.courses.length} courses</p>
-          </Link>
-        ))}
+        {CATEGORIES.map((cat) => {
+          const meta = getCategoryMeta(cat.slug);
+          return (
+            <Link
+              key={cat.slug}
+              href={`/${cat.courses[0].slug}`}
+              className="group flex items-center gap-3 rounded-2xl border bg-surface p-4 shadow-sm transition-all duration-150 hover:border-[var(--primary)] hover:shadow-md"
+            >
+              <span
+                className="grid shrink-0 place-items-center rounded-xl p-2.5 transition-transform duration-150 group-hover:scale-110"
+                style={{
+                  background: `light-dark(${meta.soft}, ${meta.darkSoft})`,
+                  color: `light-dark(${meta.color}, ${meta.darkColor})`,
+                }}
+              >
+                <IconByName name={meta.icon} size={20} />
+              </span>
+              <span>
+                <p className="font-semibold">{cat.name}</p>
+                <p className="mt-0.5 text-sm text-text-muted">{cat.courses.length} courses</p>
+              </span>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

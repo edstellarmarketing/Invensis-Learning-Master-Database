@@ -4,58 +4,73 @@
    Palette: slate neutrals + indigo primary + teal accent. All text/background pairs
    meet WCAG AA (>= 4.5:1 body, >= 3:1 secondary). */
 :root {
-  --bg: #f8fafc;
+  --bg: #f2f4fb;
   --surface: #ffffff;
-  --surface-2: #f1f5f9;
-  --border: #e2e8f0;
-  --text: #0f172a;
-  --text-muted: #64748b;
+  --surface-2: #eceffa;
+  --border: #dde2f1;
+  --text: #10182b;
+  --text-muted: #5a6785;
   --primary: #4f46e5;
   --primary-hover: #4338ca;
   --primary-contrast: #ffffff;
-  --primary-soft: #eef2ff;
+  --primary-soft: #e7eaff;
+  --gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 55%, #9333ea 100%);
+  --gradient-soft: linear-gradient(135deg, #eef0ff 0%, #f6efff 60%, #ffffff 100%);
   --accent: #0d9488;
+  --success: #059669;
+  --warning: #d97706;
+  --info: #0284c7;
   --danger: #dc2626;
-  --ring: rgba(79, 70, 229, 0.35);
-  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
-  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
+  --ring: rgba(99, 82, 233, 0.4);
+  --shadow-sm: 0 1px 3px rgba(30, 27, 75, 0.08);
+  --shadow-md: 0 6px 18px rgba(30, 27, 75, 0.12);
 }
 
 :root[data-theme="dark"] {
-  --bg: #0b1120;
-  --surface: #151e31;
-  --surface-2: #1e2a44;
-  --border: #2b3a57;
-  --text: #e8edf6;
-  --text-muted: #93a1b8;
-  --primary: #818cf8;
-  --primary-hover: #a5b0fb;
-  --primary-contrast: #0b1120;
-  --primary-soft: #1e2547;
+  --bg: #0c1022;
+  --surface: #161b33;
+  --surface-2: #1f2647;
+  --border: #2e3660;
+  --text: #eaedfa;
+  --text-muted: #97a1c4;
+  --primary: #8b91ff;
+  --primary-hover: #a6abff;
+  --primary-contrast: #0c1022;
+  --primary-soft: #23295a;
+  --gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 55%, #a855f7 100%);
+  --gradient-soft: linear-gradient(135deg, #1d2350 0%, #2a2153 60%, #161b33 100%);
   --accent: #2dd4bf;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --info: #38bdf8;
   --danger: #f87171;
-  --ring: rgba(129, 140, 248, 0.45);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45);
+  --ring: rgba(139, 145, 255, 0.5);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.5);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0b1120;
-    --surface: #151e31;
-    --surface-2: #1e2a44;
-    --border: #2b3a57;
-    --text: #e8edf6;
-    --text-muted: #93a1b8;
-    --primary: #818cf8;
-    --primary-hover: #a5b0fb;
-    --primary-contrast: #0b1120;
-    --primary-soft: #1e2547;
+    --bg: #0c1022;
+    --surface: #161b33;
+    --surface-2: #1f2647;
+    --border: #2e3660;
+    --text: #eaedfa;
+    --text-muted: #97a1c4;
+    --primary: #8b91ff;
+    --primary-hover: #a6abff;
+    --primary-contrast: #0c1022;
+    --primary-soft: #23295a;
+    --gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 55%, #a855f7 100%);
+    --gradient-soft: linear-gradient(135deg, #1d2350 0%, #2a2153 60%, #161b33 100%);
     --accent: #2dd4bf;
+    --success: #34d399;
+    --warning: #fbbf24;
+    --info: #38bdf8;
     --danger: #f87171;
-    --ring: rgba(129, 140, 248, 0.45);
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
-    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45);
+    --ring: rgba(139, 145, 255, 0.5);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.5);
   }
 }
 
@@ -71,11 +86,36 @@
   --color-primary-contrast: var(--primary-contrast);
   --color-primary-soft: var(--primary-soft);
   --color-accent: var(--accent);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
   --color-danger: var(--danger);
+}
+
+/* Gradient primary button / band utilities */
+.btn-gradient {
+  background-image: var(--gradient);
+  color: #ffffff;
+}
+.btn-gradient:hover {
+  filter: brightness(1.08);
+}
+.band-gradient-soft {
+  background-image: var(--gradient-soft);
 }
 
 * {
   border-color: var(--border);
+}
+
+html {
+  color-scheme: light dark; /* enables CSS light-dark() for data-driven colors */
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 html,

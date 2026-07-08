@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDown, ChevronRight, Search, Database } from "lucide-react";
 import { CATEGORIES } from "@/lib/courses";
+import { getCategoryMeta } from "@/lib/categoryMeta";
+import IconByName from "./IconByName";
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -29,7 +31,7 @@ export default function Sidebar() {
     <aside className="sticky top-0 flex h-screen w-72 shrink-0 flex-col border-r bg-surface">
       <div className="border-b px-4 py-4">
         <Link href="/" className="group flex items-center gap-2.5 font-semibold">
-          <span className="grid place-items-center rounded-lg bg-primary-soft p-2 text-primary transition-transform duration-150 group-hover:scale-105">
+          <span className="btn-gradient grid place-items-center rounded-xl p-2 shadow-sm transition-transform duration-150 group-hover:scale-105">
             <Database size={17} />
           </span>
           <span className="leading-tight">
@@ -54,17 +56,29 @@ export default function Sidebar() {
       <nav className="flex-1 overflow-y-auto px-2 py-2 text-sm">
         {filtered.map((cat) => {
           const isCollapsed = collapsed[cat.slug] && !query;
+          const meta = getCategoryMeta(cat.slug);
+          const catColor = `light-dark(${meta.color}, ${meta.darkColor})`;
+          const catSoft = `light-dark(${meta.soft}, ${meta.darkSoft})`;
           return (
-            <div key={cat.slug} className="mb-1">
+            <div key={cat.slug} className="mb-1.5">
               <button
                 onClick={() => toggle(cat.slug)}
-                className="flex w-full items-center gap-1.5 rounded-md px-2 py-2 text-[11px] font-semibold uppercase tracking-wider text-text-muted transition-colors hover:bg-surface-2 hover:text-text"
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-[11px] font-semibold uppercase tracking-wider text-text-muted transition-colors hover:bg-surface-2 hover:text-text"
               >
-                {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+                <span
+                  className="grid place-items-center rounded-md p-1"
+                  style={{ background: catSoft, color: catColor }}
+                >
+                  <IconByName name={meta.icon} size={13} />
+                </span>
                 <span className="flex-1 text-left">{cat.name}</span>
-                <span className="rounded-full bg-surface-2 px-1.5 py-0.5 text-[10px] font-medium">
+                <span
+                  className="rounded-full px-1.5 py-0.5 text-[10px] font-bold"
+                  style={{ background: catSoft, color: catColor }}
+                >
                   {cat.courses.length}
                 </span>
+                {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
               </button>
               {!isCollapsed && (
                 <ul className="mb-1.5 mt-0.5 space-y-px border-l pl-2 ml-3.5">
@@ -76,10 +90,9 @@ export default function Sidebar() {
                           href={`/${course.slug}`}
                           aria-current={active ? "page" : undefined}
                           className={`block rounded-md px-3 py-1.5 transition-colors duration-150 ${
-                            active
-                              ? "bg-primary-soft font-medium text-primary"
-                              : "text-text-muted hover:bg-surface-2 hover:text-text"
+                            active ? "font-semibold" : "text-text-muted hover:bg-surface-2 hover:text-text"
                           }`}
+                          style={active ? { background: catSoft, color: catColor } : undefined}
                         >
                           {course.name}
                         </Link>
