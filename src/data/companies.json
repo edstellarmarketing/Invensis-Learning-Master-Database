@@ -1,0 +1,102 @@
+[
+  {
+    "id": "seed_infosys",
+    "courseSlug": "pmp-certification-training",
+    "industrySlug": "it-technology",
+    "companyName": "Infosys Limited",
+    "country": "India",
+    "website": "https://www.infosys.com",
+    "annualReportUrls": [
+      "https://www.infosys.com/investors/reports-filings/annual-report/annual/documents/infosys-ar-25.pdf"
+    ],
+    "aiInsight": [
+      "Runs internal learning at scale via Infosys Lex and the client-facing Wingspan platform, using virtual labs and gen-AI-powered modules.",
+      "Operates the 'Bridge Program' letting employees reskill and change careers internally, trained on real projects.",
+      "FY2024-25 strategy pillar explicitly 'Reskill our people', with large-scale digital and generative-AI upskilling.",
+      "Recognized as a Global Top Employer for the fourth consecutive year, citing learning and employee experience.",
+      "Continued heavy investment in AI/gen-AI capability building across delivery talent for its 'AI Your Enterprise' positioning."
+    ],
+    "source": "Infosys Integrated Annual Report 2024-25 (investor relations) and Wingspan/Lex product pages.",
+    "addedAt": "2026-07-08T00:00:00.000Z"
+  },
+  {
+    "id": "seed_tcs",
+    "courseSlug": "pmp-certification-training",
+    "industrySlug": "it-technology",
+    "companyName": "Tata Consultancy Services (TCS)",
+    "country": "India",
+    "website": "https://www.tcs.com",
+    "annualReportUrls": [
+      "https://www.tcs.com/content/dam/tcs/investor-relations/financial-statements/2024-25/ar/annual-report-2024-2025.pdf"
+    ],
+    "aiInsight": [
+      "Clocked ~56 million learning hours in FY2024-25, averaging 96.4 learning hours per employee.",
+      "Employees acquired 5.2 million competencies and 100,000+ external certifications during the year.",
+      "100,000+ employees gained higher-order AI/ML and GenAI skills; ranked #1 in AI & Data certifications across AWS, Google Cloud, Microsoft and GitHub.",
+      "402,000+ employees pursued career-linked learning through the TCS Elevate platform.",
+      "Deployed AI-driven skilling tools including AI Interview Coach, AI Communications Coach and Fresco Play AI Labs for hands-on practice."
+    ],
+    "source": "TCS Integrated Annual Report 2024-25 (investor relations), human-capital section.",
+    "addedAt": "2026-07-08T00:00:00.000Z"
+  },
+  {
+    "id": "seed_accenture",
+    "courseSlug": "pmp-certification-training",
+    "industrySlug": "it-technology",
+    "companyName": "Accenture plc",
+    "country": "Ireland",
+    "website": "https://www.accenture.com",
+    "annualReportUrls": [
+      "https://www.accenture.com/content/dam/accenture/final/accenture-com/a-com-custom-component/iconic/document/Accenture-2024-Letter-To-Shareholders.pdf"
+    ],
+    "aiInsight": [
+      "Invests more than US$1 billion per year in learning and professional development for its 700,000+ people.",
+      "Delivered roughly 40-47 million training hours in the fiscal year, with heavy emphasis on generative AI.",
+      "Trained 600,000+ employees in AI fundamentals and targeted doubling deeply skilled Data & AI practitioners to ~80,000.",
+      "Launched Accenture LearnVantage, a technology/data/AI learning service for clients' workforces.",
+      "Acquired edtech firm Udacity and committed ~US$1 billion toward scaling AI-focused learning capabilities."
+    ],
+    "source": "Accenture FY2024 Form 10-K (SEC EDGAR) and FY2024 Letter to Shareholders.",
+    "addedAt": "2026-07-08T00:00:00.000Z"
+  },
+  {
+    "id": "seed_wipro",
+    "courseSlug": "pmp-certification-training",
+    "industrySlug": "it-technology",
+    "companyName": "Wipro Limited",
+    "country": "India",
+    "website": "https://www.wipro.com",
+    "annualReportUrls": [
+      "https://www.wipro.com/content/dam/nexus/en/investor/annual-reports/2024-2025/Integrated-annual-report-2024-25.pdf"
+    ],
+    "aiInsight": [
+      "Positions itself as an 'AI-powered' services company with large-scale generative-AI upskilling across its 230,000+ global workforce.",
+      "Runs structured reskilling and career-development programs through internal learning platforms (TalentNext / learning academies).",
+      "Reports human-capital and learning metrics in its FY2024-25 Integrated Annual Report and Sustainability Report.",
+      "Emphasizes continuous upskilling in AI, cloud and engineering to align talent with its ai360 strategy.",
+      "Invests in inclusion-linked development and workforce skilling per its FY25 Sustainability reports."
+    ],
+    "source": "Wipro Integrated Annual Report 2024-25 and Sustainability Report FY25. Per-employee learning-hour figures not surfaced, so points are qualitative.",
+    "addedAt": "2026-07-08T00:00:00.000Z"
+  },
+  {
+    "id": "seed_capgemini",
+    "courseSlug": "pmp-certification-training",
+    "industrySlug": "it-technology",
+    "companyName": "Capgemini SE",
+    "country": "France",
+    "website": "https://www.capgemini.com",
+    "annualReportUrls": [
+      "https://reports.capgemini.com/2024/en/assets/files/Capgemini-2024-Integrated-Annual-Report.pdf"
+    ],
+    "aiInsight": [
+      "Upskilled 150,000+ team members on generative-AI tools over two years and set up AI Centers of Excellence plus dedicated AI Labs.",
+      "Ran the Generative AI Campus via Capgemini University in partnership with Coursera, offering role-, skill- and tool-based training globally.",
+      "Employees spent 38,204 hours specifically on AI-skills learning in 2024, up 42% year over year.",
+      "Scaled GenAI enablement to 340,000+ employees, contributing to ~3x growth in GenAI client projects across 40+ countries.",
+      "Continues broad workforce learning investment across ~340,000 employees in 50 countries as part of its AI transformation strategy."
+    ],
+    "source": "Capgemini 2024 Integrated Annual Report and Universal Registration Document; corroborated by Coursera case studies.",
+    "addedAt": "2026-07-08T00:00:00.000Z"
+  }
+]

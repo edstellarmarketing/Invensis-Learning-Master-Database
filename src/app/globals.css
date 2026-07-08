@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+/* Theme via CSS variables (Next 16 convention: no dark: classes; toggle data-theme). */
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #f0f2f5;
+  --border: #e2e5ea;
+  --text: #16191d;
+  --text-muted: #5b6472;
+  --primary: #1f6feb;
+  --primary-contrast: #ffffff;
+  --accent: #0b7285;
+  --ring: rgba(31, 111, 235, 0.35);
+}
+
+:root[data-theme="dark"] {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --surface-2: #1c232d;
+  --border: #2a313c;
+  --text: #e6edf3;
+  --text-muted: #9aa4b2;
+  --primary: #4c8dff;
+  --primary-contrast: #0d1117;
+  --accent: #38bdf8;
+  --ring: rgba(76, 141, 255, 0.4);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c232d;
+    --border: #2a313c;
+    --text: #e6edf3;
+    --text-muted: #9aa4b2;
+    --primary: #4c8dff;
+    --primary-contrast: #0d1117;
+    --accent: #38bdf8;
+    --ring: rgba(76, 141, 255, 0.4);
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-primary: var(--primary);
+  --color-primary-contrast: var(--primary-contrast);
+  --color-accent: var(--accent);
+}
+
+* {
+  border-color: var(--border);
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+a {
+  color: inherit;
+}
