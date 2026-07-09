@@ -94,6 +94,12 @@ each annual report.
    - Clutch / GoodFirms (IT services, scrapable); D&B / ZoomInfo paid - skip unless needed
 5. **Apify actors** - ready-made scrapers (Google Maps, directories); free monthly credit,
    pay per result. Middle ground when a site is hard to scrape.
+   - Google Maps API itself: skipped by decision (needs GCP billing; no company size /
+     annual-report data). Geographic discovery is covered free by the Overpass script below.
+   - IMPLEMENTED: `scripts/discover-companies.mjs` - OpenStreetMap Overpass discovery
+     (free, no key). `node scripts/discover-companies.mjs --industry it --city "Bengaluru"
+     --country India` -> import-ready CSV. 10 industry presets + raw --tag escape hatch,
+     mirror fallback, dedupe, --help.
 6. **Custom scrapers (fully free)** - Node/Playwright or Python script per source, output
    in the sample CSV format, then bulk Import CSV. The CSV format was designed for this.
 7. **Search APIs** - SerpAPI / Google Programmable Search for

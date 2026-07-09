@@ -57,6 +57,19 @@ database is seeded from the bundled JSON. Without the integration, local dev rea
 JSON files in `src/data/`, and a read-only deploy shows a clear "connect a database" message
 on writes.
 
+## Geographic discovery (free, no key)
+
+Find companies by industry + city via OpenStreetMap and import them:
+
+```bash
+node scripts/discover-companies.mjs --industry it --city "Bengaluru" --country India
+# -> discovered-companies.csv  (then: course page -> Import CSV)
+```
+
+Presets: it, software, construction, healthcare, bfsi, logistics, manufacturing, telecom,
+education, energy. Raw OSM filters via `--tag key=value`. Names/websites come from OSM;
+fill annual reports + insights afterwards with AI Search.
+
 ## API
 
 | Route | Methods | Purpose |
