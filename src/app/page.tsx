@@ -162,11 +162,19 @@ export default async function Home() {
       <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {categories.map((cat) => {
           const meta = getCategoryMeta(cat.slug);
+          // Categories can be empty (freshly created, or all courses removed) -
+          // fall back to the dashboard itself rather than crashing on courses[0].
+          const href = cat.courses[0] ? `/${cat.courses[0].slug}` : "/";
           return (
             <Link
               key={cat.slug}
-              href={`/${cat.courses[0].slug}`}
-              className="group flex items-center gap-3 rounded-2xl border bg-surface p-4 shadow-sm transition-all duration-150 hover:border-[var(--primary)] hover:shadow-md"
+              href={href}
+              aria-disabled={cat.courses.length === 0}
+              className={`group flex items-center gap-3 rounded-2xl border bg-surface p-4 shadow-sm transition-all duration-150 ${
+                cat.courses.length === 0
+                  ? "cursor-default opacity-60"
+                  : "hover:border-[var(--primary)] hover:shadow-md"
+              }`}
             >
               <span
                 className="grid shrink-0 place-items-center rounded-xl p-2.5 transition-transform duration-150 group-hover:scale-110"

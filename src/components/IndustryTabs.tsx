@@ -158,7 +158,7 @@ export default function IndustryTabs({
                     onClick={() => remove(ind)}
                     disabled={busy}
                     aria-label={`Delete ${ind.name}`}
-                    className="px-1.5 py-2.5 text-text-muted transition-colors hover:bg-surface-2 hover:text-danger"
+                    className="px-1.5 py-2.5 text-danger/70 transition-colors hover:bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] hover:text-danger"
                   >
                     <Trash2 size={13} />
                   </button>

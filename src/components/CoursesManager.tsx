@@ -95,6 +95,8 @@ export default function CoursesManager({
     "rounded-md border bg-bg px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-[var(--ring)]";
   const iconBtn =
     "rounded-md p-1.5 text-text-muted transition-colors hover:bg-surface-2 disabled:opacity-50";
+  const iconBtnDanger =
+    "rounded-md p-1.5 text-danger/70 transition-colors hover:bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] hover:text-danger disabled:opacity-50";
 
   return (
     <div
@@ -156,7 +158,7 @@ export default function CoursesManager({
                     <button onClick={() => renameCategory(cat.slug, cat.name)} disabled={busy} aria-label="Rename category" className={`${iconBtn} hover:text-primary`}>
                       <Pencil size={13} />
                     </button>
-                    <button onClick={() => removeCategory(cat.slug, cat.name, cat.courses.length)} disabled={busy} aria-label="Delete category" className={`${iconBtn} hover:text-danger`}>
+                    <button onClick={() => removeCategory(cat.slug, cat.name, cat.courses.length)} disabled={busy} aria-label="Delete category" className={iconBtnDanger}>
                       <Trash2 size={13} />
                     </button>
                   </div>
@@ -179,7 +181,7 @@ export default function CoursesManager({
                           <button onClick={() => renameCourse(co.slug, co.name)} disabled={busy} aria-label="Rename course" className={`${iconBtn} hover:text-primary`}>
                             <Pencil size={13} />
                           </button>
-                          <button onClick={() => removeCourse(co.slug, co.name)} disabled={busy} aria-label="Delete course" className={`${iconBtn} hover:text-danger`}>
+                          <button onClick={() => removeCourse(co.slug, co.name)} disabled={busy} aria-label="Delete course" className={iconBtnDanger}>
                             <Trash2 size={13} />
                           </button>
                         </li>

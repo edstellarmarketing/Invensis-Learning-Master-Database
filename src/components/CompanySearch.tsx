@@ -15,6 +15,12 @@ type Candidate = {
   reportVerified?: boolean;
 };
 
+// Stable per-candidate key (company name), used instead of array index so that adding
+// or removing one row can never mis-target a different row after the array reflows.
+function keyOf(cand: Candidate): string {
+  return cand.companyName.toLowerCase().trim();
+}
+
 function CostBadge({ free }: { free: boolean }) {
   return (
     <span
@@ -34,11 +40,15 @@ export default function CompanySearch({
   industrySlug,
   industryName,
   onAdded,
+  onResultsChange,
 }: {
   courseSlug: string;
   industrySlug: string;
   industryName: string;
   onAdded: (c: Company) => void;
+  // Lets the parent warn before discarding un-added AI results (e.g. switching to
+  // Edit/Add Company would otherwise unmount this panel and silently drop them).
+  onResultsChange?: (count: number) => void;
 }) {
   const [country, setCountry] = useState("");
   const [query, setQuery] = useState("");
@@ -64,14 +74,19 @@ export default function CompanySearch({
   const [wasCached, setWasCached] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [addingIdx, setAddingIdx] = useState<number | null>(null);
+  const [addingKey, setAddingKey] = useState<string | null>(null);
   const [addingAll, setAddingAll] = useState(false);
-  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [enriching, setEnriching] = useState(false);
   // Multi-course targeting: all courses as checkboxes, current one pre-selected.
   const [allCourses, setAllCourses] = useState<{ name: string; slug: string }[]>([]);
   const [targetCourses, setTargetCourses] = useState<Set<string>>(new Set([courseSlug]));
   const [showCourses, setShowCourses] = useState(false);
+
+  useEffect(() => {
+    onResultsChange?.(results.length);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [results.length]);
 
   useEffect(() => {
     let cancelled = false;
@@ -153,9 +168,8 @@ export default function CompanySearch({
   // fields. Typical flow: search with only Website checked (cheap), then tick the other
   // field boxes, select rows, and enrich.
   const enrichSelected = async () => {
-    const targets = [...selected]
-      .map((i) => results[i])
-      .filter(Boolean)
+    const targets = results
+      .filter((c) => selected.has(keyOf(c)))
       .map((c) => ({ companyName: c.companyName, website: c.website }));
     if (targets.length === 0) return;
     setEnriching(true);
@@ -202,6 +216,7 @@ export default function CompanySearch({
     if (results.length === 0) return;
     setAddingAll(true);
     setError(null);
+    const succeeded: string[] = [];
     try {
       for (const cs of saveTo) {
         const res = await fetch("/api/companies/bulk", {
@@ -211,19 +226,29 @@ export default function CompanySearch({
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data?.error || `Save failed (${res.status})`);
+        succeeded.push(cs);
         if (cs === courseSlug) for (const saved of data.companies as Company[]) onAdded(saved);
       }
       setResults([]);
       if (saveTo.length > 1) setNotice(`Added to ${saveTo.length} courses.`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Save failed");
+      const msg = err instanceof Error ? err.message : "Save failed";
+      // Partial failure: some courses already got the companies. Don't clear results
+      // (so nothing is lost) but warn clearly so a retry doesn't duplicate the ones
+      // that already succeeded.
+      setError(
+        succeeded.length > 0
+          ? `Saved to ${succeeded.length} of ${saveTo.length} course(s) (${succeeded.join(", ")}), then failed: ${msg}. Uncheck those courses in Target courses before retrying to avoid duplicates.`
+          : msg,
+      );
     } finally {
       setAddingAll(false);
     }
   };
 
-  const addCandidate = async (cand: Candidate, idx: number) => {
-    setAddingIdx(idx);
+  const addCandidate = async (cand: Candidate) => {
+    const key = keyOf(cand);
+    setAddingKey(key);
     try {
       for (const cs of saveTo) {
         const res = await fetch("/api/companies", {
@@ -235,13 +260,17 @@ export default function CompanySearch({
         const saved = (await res.json()) as Company;
         if (cs === courseSlug) onAdded(saved);
       }
-      setResults((prev) => prev.filter((_, i) => i !== idx));
-      setSelected(new Set()); // indices shifted
-
+      setResults((prev) => prev.filter((c) => keyOf(c) !== key));
+      setSelected((prev) => {
+        if (!prev.has(key)) return prev;
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed");
     } finally {
-      setAddingIdx(null);
+      setAddingKey(null);
     }
   };
 
@@ -479,11 +508,19 @@ export default function CompanySearch({
           <Loader2 size={14} className="animate-spin" /> {progress}
         </p>
       )}
-      {error && <p className="mt-2 text-sm text-danger">{error}</p>}
-      {notice && <p className="mt-2 text-sm text-accent">{notice}</p>}
+      {error && (
+        <p role="alert" aria-live="assertive" className="mt-2 text-sm text-danger">
+          {error}
+        </p>
+      )}
+      {notice && (
+        <p role="status" aria-live="polite" className="mt-2 text-sm text-accent">
+          {notice}
+        </p>
+      )}
 
       {results.length > 0 && (
-        <div className="mt-3 flex items-center justify-between">
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-text-muted">
             {results.length} candidate{results.length > 1 ? "s" : ""}
             {usedProvider
@@ -519,25 +556,27 @@ export default function CompanySearch({
 
       {results.length > 0 && (
         <ul className="mt-2 space-y-2">
-          {results.map((cand, idx) => (
-            <li key={idx} className="rounded-md border bg-bg p-3">
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-start gap-2.5">
+          {results.map((cand) => {
+            const key = keyOf(cand);
+            return (
+            <li key={key} className="rounded-md border bg-bg p-3">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="flex min-w-0 items-start gap-2.5">
                   <input
                     type="checkbox"
                     aria-label={`Select ${cand.companyName} for enrichment`}
-                    checked={selected.has(idx)}
+                    checked={selected.has(key)}
                     onChange={() =>
                       setSelected((prev) => {
                         const next = new Set(prev);
-                        if (next.has(idx)) next.delete(idx);
-                        else next.add(idx);
+                        if (next.has(key)) next.delete(key);
+                        else next.add(key);
                         return next;
                       })
                     }
-                    className="mt-1 size-3.5 cursor-pointer accent-[var(--primary)]"
+                    className="mt-1 size-3.5 shrink-0 cursor-pointer accent-[var(--primary)]"
                   />
-                  <div>
+                  <div className="min-w-0">
                   <p className="font-medium">
                     {cand.companyName}
                     {fields.country && cand.country && (
@@ -567,9 +606,9 @@ export default function CompanySearch({
                   </div>
                 </div>
                 <button
-                  onClick={() => addCandidate(cand, idx)}
-                  disabled={addingIdx === idx}
-                  className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs hover:bg-surface-2 disabled:opacity-60"
+                  onClick={() => addCandidate(cand)}
+                  disabled={addingKey === key}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-md border px-2.5 py-1 text-xs hover:bg-surface-2 disabled:opacity-60"
                 >
                   <Plus size={13} /> Add
                 </button>
@@ -582,7 +621,8 @@ export default function CompanySearch({
                 </ul>
               )}
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </div>

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, ChevronRight, Database, Search, Settings2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Database, Menu, Search, Settings2, X } from "lucide-react";
 import type { Category } from "@/lib/courses";
 import { getCategoryMeta } from "@/lib/categoryMeta";
 import IconByName from "./IconByName";
@@ -16,6 +16,16 @@ export default function Sidebar({ categories }: { categories: Category[] }) {
   const [showAdditional, setShowAdditional] = useState(false);
   const [managing, setManaging] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  // Below md (768px) the sidebar is an off-canvas drawer, closed by default and
+  // auto-closing on navigation, so it doesn't eat ~80% of a phone's width permanently.
+  // Adjusted during render (React's recommended pattern for "reset state when a prop
+  // changes") rather than in an effect, which would cost an extra commit.
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [lastPathname, setLastPathname] = useState(pathname);
+  if (pathname !== lastPathname) {
+    setLastPathname(pathname);
+    setMobileOpen(false);
+  }
 
   const q = query.trim().toLowerCase();
 
@@ -87,17 +97,50 @@ export default function Sidebar({ categories }: { categories: Category[] }) {
   const nothingMatches = q && view.featured.length === 0 && view.additional.length === 0;
 
   return (
-    <aside className="sticky top-0 flex h-screen w-72 shrink-0 flex-col border-r bg-surface">
+    <>
+      {/* Mobile-only hamburger trigger. Fixed so it's reachable regardless of scroll. */}
+      <button
+        onClick={() => setMobileOpen(true)}
+        aria-label="Open course navigation"
+        aria-expanded={mobileOpen}
+        className="fixed left-3 top-3 z-40 grid size-10 place-items-center rounded-lg border bg-surface text-text shadow-sm md:hidden"
+      >
+        <Menu size={18} />
+      </button>
+
+      {/* Backdrop: only rendered (and only intercepts clicks) while the drawer is open. */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={() => setMobileOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 flex h-screen w-72 shrink-0 flex-col border-r bg-surface transition-transform duration-200 md:sticky md:top-0 md:z-auto md:translate-x-0 ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
       <div className="border-b px-4 py-4">
-        <Link href="/" className="group flex items-center gap-2.5 font-semibold">
-          <span className="btn-gradient grid place-items-center rounded-xl p-2 shadow-sm transition-transform duration-150 group-hover:scale-105">
-            <Database size={17} />
-          </span>
-          <span className="leading-tight">
-            Invensis Learning
-            <span className="block text-xs font-normal text-text-muted">Master Database</span>
-          </span>
-        </Link>
+        <div className="flex items-center justify-between gap-2">
+          <Link href="/" className="group flex items-center gap-2.5 font-semibold">
+            <span className="btn-gradient grid place-items-center rounded-xl p-2 shadow-sm transition-transform duration-150 group-hover:scale-105">
+              <Database size={17} />
+            </span>
+            <span className="leading-tight">
+              Invensis Learning
+              <span className="block text-xs font-normal text-text-muted">Master Database</span>
+            </span>
+          </Link>
+          <button
+            onClick={() => setMobileOpen(false)}
+            aria-label="Close course navigation"
+            className="rounded-lg p-1.5 text-text-muted hover:bg-surface-2 md:hidden"
+          >
+            <X size={18} />
+          </button>
+        </div>
         <div className="relative mt-3.5">
           <Search size={15} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
           <input
@@ -146,6 +189,7 @@ export default function Sidebar({ categories }: { categories: Category[] }) {
       </div>
 
       {managing && <CoursesManager categories={categories} onClose={() => setManaging(false)} />}
-    </aside>
+      </aside>
+    </>
   );
 }

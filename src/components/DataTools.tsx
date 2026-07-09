@@ -12,10 +12,19 @@ export default function DataTools() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const MAX_IMPORT_BYTES = 20 * 1024 * 1024; // 20MB - this dataset is small JSON; a bigger file is almost certainly the wrong file.
+
   const onImportFile = async (file: File) => {
-    setBusy(true);
     setMessage(null);
     setError(null);
+    if (file.size > MAX_IMPORT_BYTES) {
+      setError(
+        `File is ${(file.size / (1024 * 1024)).toFixed(1)}MB, larger than the ${MAX_IMPORT_BYTES / (1024 * 1024)}MB expected for this database's exports. Check you picked the right file.`,
+      );
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+    setBusy(true);
     try {
       const text = await file.text();
       let parsed: Record<string, unknown>;
@@ -89,8 +98,16 @@ export default function DataTools() {
           }}
         />
       </div>
-      {message && <p className="mt-2 text-sm text-accent">{message}</p>}
-      {error && <p className="mt-2 text-sm text-danger">{error}</p>}
+      {message && (
+        <p role="status" aria-live="polite" className="mt-2 text-sm text-accent">
+          {message}
+        </p>
+      )}
+      {error && (
+        <p role="alert" aria-live="assertive" className="mt-2 text-sm text-danger">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
