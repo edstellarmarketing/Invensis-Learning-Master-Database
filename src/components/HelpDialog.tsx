@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { HelpCircle, X } from "lucide-react";
 import { useDialogA11y } from "@/lib/useDialogA11y";
 
@@ -65,7 +66,7 @@ export default function HelpDialog() {
         <HelpCircle size={16} /> Help
       </button>
 
-      {open && (
+      {open && createPortal(
         <div
           style={{ overflowAnchor: "none" }}
           className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/60 p-4"
@@ -109,7 +110,8 @@ export default function HelpDialog() {
               ))}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Pencil, Plus, Star, Trash2, X } from "lucide-react";
 import type { Category } from "@/lib/courses";
@@ -98,7 +99,7 @@ export default function CoursesManager({
   const iconBtnDanger =
     "rounded-md p-1.5 text-danger/70 transition-colors hover:bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] hover:text-danger disabled:opacity-50";
 
-  return (
+  return createPortal(
     <div
       style={{ overflowAnchor: "none" }}
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4"
@@ -222,6 +223,7 @@ export default function CoursesManager({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
