@@ -69,6 +69,35 @@ Chronological record of what was built and why. Newest first.
   Capgemini) with real annual-report URLs and FY training insights.
 
 ## Planned / backlog
-- Database backend (required for writes on Vercel; likely Vercel Postgres or Turso).
-- Automated bulk company scraping across all courses (directories, magazines, databases).
+- Automated bulk company scraping across all courses (see playbook below).
 - Auth for team use.
+- ANTHROPIC_API_KEY on Vercel to enable AI Search in production (optional, paid).
+
+## Data-scraping playbook (future reference, free-first)
+
+Recommended pipeline: ranking lists / registries -> normalize to the sample CSV format ->
+bulk Import CSV per course x industry -> batch AI job fills the 4-5 insight bullets from
+each annual report.
+
+1. **AI Search (built in, live)** - Anthropic web search per course x industry with count +
+   size inputs. Highest quality per effort; a few cents per search. Best for curated batches.
+2. **Official registries (best for Annual Report PDFs, all free)**
+   - SEC EDGAR API (US listed companies, 10-K filings)
+   - UK Companies House API
+   - AnnualReports.com / ResponsibilityReports.com (aggregated PDFs, scrapable)
+   - India: MCA / NSE / BSE filings
+3. **Magazine and ranking lists (best for company names by industry, scrapable HTML)**
+   - Fortune 500 / Global 500, Forbes Global 2000, Inc 5000, FT rankings,
+     Economic Times 500 (India), industry association member lists
+4. **Directories / enrichment APIs**
+   - Apollo.io (free tier) and Hunter.io for company + website + size by industry
+   - Clutch / GoodFirms (IT services, scrapable); D&B / ZoomInfo paid - skip unless needed
+5. **Apify actors** - ready-made scrapers (Google Maps, directories); free monthly credit,
+   pay per result. Middle ground when a site is hard to scrape.
+6. **Custom scrapers (fully free)** - Node/Playwright or Python script per source, output
+   in the sample CSV format, then bulk Import CSV. The CSV format was designed for this.
+7. **Search APIs** - SerpAPI / Google Programmable Search for
+   "annual report 2025 filetype:pdf {company}" to backfill the report column.
+
+Compliance note: LinkedIn, ZoomInfo, and Crunchbase prohibit scraping in their ToS - use
+official APIs/exports or skip them. Registries + ranking lists cover most needs cleanly.
