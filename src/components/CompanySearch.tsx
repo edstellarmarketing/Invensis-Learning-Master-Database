@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2, Plus, PlusCircle, Sparkles } from "lucide-react";
 import type { Company } from "@/lib/companies";
 import { COUNTRIES } from "@/lib/countries";
@@ -63,10 +63,29 @@ export default function CompanySearch({
   const [usedModel, setUsedModel] = useState<string | null>(null);
   const [wasCached, setWasCached] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [addingIdx, setAddingIdx] = useState<number | null>(null);
   const [addingAll, setAddingAll] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [enriching, setEnriching] = useState(false);
+  // Multi-course targeting: all courses as checkboxes, current one pre-selected.
+  const [allCourses, setAllCourses] = useState<{ name: string; slug: string }[]>([]);
+  const [targetCourses, setTargetCourses] = useState<Set<string>>(new Set([courseSlug]));
+  const [showCourses, setShowCourses] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/courses")
+      .then((r) => r.json())
+      .then((cats) => {
+        if (cancelled || !Array.isArray(cats)) return;
+        setAllCourses(cats.flatMap((c: { courses: { name: string; slug: string }[] }) => c.courses));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Large counts run as sequential batches: each batch excludes everything found so
   // far, results append live, and one failed batch keeps earlier batches' results.
@@ -75,6 +94,7 @@ export default function CompanySearch({
   const run = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setNotice(null);
     setResults([]);
     setUsedProvider(null);
     setUsedModel(null);
@@ -107,6 +127,7 @@ export default function CompanySearch({
             model,
             customModel,
             tokenUsage,
+            courseSlugs: [...targetCourses],
             excludeNames: found.map((c) => c.companyName),
           }),
         });
@@ -173,20 +194,27 @@ export default function CompanySearch({
     }
   };
 
+  // Save under every selected target course (same industry slug). The current course's
+  // saved copies update the visible table; others just persist.
+  const saveTo = [...targetCourses].length > 0 ? [...targetCourses] : [courseSlug];
+
   const addAll = async () => {
     if (results.length === 0) return;
     setAddingAll(true);
     setError(null);
     try {
-      const res = await fetch("/api/companies/bulk", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ courseSlug, industrySlug, companies: results }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || `Save failed (${res.status})`);
-      for (const saved of data.companies as Company[]) onAdded(saved);
+      for (const cs of saveTo) {
+        const res = await fetch("/api/companies/bulk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ courseSlug: cs, industrySlug, companies: results }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || `Save failed (${res.status})`);
+        if (cs === courseSlug) for (const saved of data.companies as Company[]) onAdded(saved);
+      }
       setResults([]);
+      if (saveTo.length > 1) setNotice(`Added to ${saveTo.length} courses.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed");
     } finally {
@@ -197,14 +225,16 @@ export default function CompanySearch({
   const addCandidate = async (cand: Candidate, idx: number) => {
     setAddingIdx(idx);
     try {
-      const res = await fetch("/api/companies", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ courseSlug, industrySlug, ...cand }),
-      });
-      if (!res.ok) throw new Error(`Save failed (${res.status})`);
-      const saved = (await res.json()) as Company;
-      onAdded(saved);
+      for (const cs of saveTo) {
+        const res = await fetch("/api/companies", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ courseSlug: cs, industrySlug, ...cand }),
+        });
+        if (!res.ok) throw new Error(`Save failed (${res.status})`);
+        const saved = (await res.json()) as Company;
+        if (cs === courseSlug) onAdded(saved);
+      }
       setResults((prev) => prev.filter((_, i) => i !== idx));
       setSelected(new Set()); // indices shifted
 
@@ -385,6 +415,46 @@ export default function CompanySearch({
         ))}
       </fieldset>
 
+      {allCourses.length > 1 && (
+        <div className="mt-2.5">
+          <button
+            type="button"
+            onClick={() => setShowCourses((s) => !s)}
+            className="text-xs font-medium text-primary hover:underline"
+          >
+            {showCourses ? "Hide target courses" : `Target courses (${targetCourses.size} selected)`}
+          </button>
+          {showCourses && (
+            <div className="mt-1.5 max-h-40 overflow-y-auto rounded-md border bg-bg p-2">
+              <p className="mb-1.5 text-xs text-text-muted">
+                Discovered companies are saved as prospects under every checked course (same
+                industry).
+              </p>
+              <div className="grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
+                {allCourses.map((c) => (
+                  <label key={c.slug} className="inline-flex items-center gap-1.5 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={targetCourses.has(c.slug)}
+                      onChange={() =>
+                        setTargetCourses((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(c.slug)) next.delete(c.slug);
+                          else next.add(c.slug);
+                          return next;
+                        })
+                      }
+                      className="size-3.5 accent-[var(--primary)]"
+                    />
+                    <span className="truncate">{c.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <p className="mt-2 text-xs text-text-muted">
         With OpenRouter, pick the underlying model and how much token budget (search depth) to
         spend per search. Claude uses Anthropic directly with live web search. Groq answers from
@@ -401,6 +471,7 @@ export default function CompanySearch({
         </p>
       )}
       {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
+      {notice && <p className="mt-2 text-sm text-accent">{notice}</p>}
 
       {results.length > 0 && (
         <div className="mt-3 flex items-center justify-between">

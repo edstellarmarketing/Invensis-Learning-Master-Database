@@ -2,6 +2,21 @@
 
 Chronological record of what was built and why. Newest first.
 
+## 2026-07-09 - Session 9: catalog CRUD, theme, help, featured, multi-course search
+- Light/dark theme toggle (localStorage + no-flash script) and a sticky top bar with a
+  Help dialog documenting the whole tool.
+- Courses & categories are now Redis-backed with full CRUD (/api/courses, /api/categories)
+  and a Manage modal; catalog moved to src/data/courses.json behind the storage adapter.
+- Featured vs Additional: PMP, PRINCE2 F&P, LSS Green/Black Belt, ITIL 4/V5 seeded as
+  featured (sidebar default); the other 53 sit under an "Additional courses" expander.
+- The 6 featured courses use predetermined industries Manufacturing/IT/ITES/Pharma/
+  Construction; PMP's 5 seed companies migrated it-technology -> it.
+- Popular-industries palette as quick-pick chips in the Add Industry form.
+- 50 active countries (from the provided Excel) as datalists in AI Search + Add/Edit Company.
+- AI Search multi-course targeting: pick any courses via checkboxes; discovered companies
+  are saved as prospects under every selected course (same industry).
+- Export/import now include the course catalog (format v2).
+
 ## 2026-07-09 - Session 8: AI research overhaul (audit fixes applied)
 - Deep research (High token tier + live-search models): phase 1 lists companies + links,
   phase 2 reads each company's VERIFIED annual report in its own small call for grounded

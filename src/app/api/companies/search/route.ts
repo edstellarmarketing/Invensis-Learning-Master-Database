@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import Anthropic from "@anthropic-ai/sdk";
-import { findCourse } from "@/lib/courses";
+import { readAllCourses } from "@/lib/courses";
 import { readCompanies } from "@/lib/companies";
 import { cacheGet, cacheSet } from "@/lib/storage";
 
@@ -158,8 +158,18 @@ export async function POST(request: Request) {
       );
   }
 
-  const course = await findCourse(courseSlug);
-  const courseName = course?.name ?? courseSlug;
+  // Multi-course targeting: name every selected course in the prompt so the discovered
+  // companies are prospects for all of them at once. Falls back to the single course.
+  const courseSlugs =
+    Array.isArray(body.courseSlugs) && body.courseSlugs.length > 0
+      ? (body.courseSlugs as unknown[]).map(String)
+      : [courseSlug];
+  const allCourses = await readAllCourses();
+  const nameOf = (slug: string) => allCourses.find((c) => c.slug === slug)?.name ?? slug;
+  const courseName =
+    courseSlugs.length === 1
+      ? nameOf(courseSlugs[0])
+      : courseSlugs.map(nameOf).join(", ");
 
   // Extra exclusions from the client (batched searches pass earlier batches' names so
   // batch N+1 keeps discovering new companies).
@@ -189,6 +199,7 @@ export async function POST(request: Request) {
     .update(
       JSON.stringify({
         courseSlug,
+        courseSlugs: [...courseSlugs].sort(),
         industrySlug,
         country,
         size,
