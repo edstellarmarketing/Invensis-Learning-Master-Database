@@ -197,9 +197,11 @@ async function runClaude(prompt: string, count: number): Promise<string> {
 }
 
 // Groq fallback via its OpenAI-compatible REST API (no SDK dependency).
-// Default model groq/compound has built-in web search for live verification, but its
-// per-request token ceiling is much lower than Claude's - keep the budget conservative
-// and retry smaller once on a 413 ("request_too_large") instead of failing outright.
+// Default model groq/compound has built-in web search for live verification, but as an
+// agentic orchestrator it burns tokens-per-minute fast on Groq's free tier and its
+// per-request token ceiling is much lower than Claude's. Handle both failure modes:
+// - 413 (request_too_large): retry once with a smaller completion budget.
+// - 429 (rate limit): Groq's error names the exact wait; sleep that long and retry once.
 async function runGroq(prompt: string, count: number, fields: Fields): Promise<string> {
   const model = process.env.GROQ_MODEL || "groq/compound";
   const perCompany = 120 + (fields.aiInsight ? 220 : 0) + (fields.annualReportUrls ? 40 : 0);
@@ -209,22 +211,38 @@ async function runGroq(prompt: string, count: number, fields: Fields): Promise<s
   ];
 
   let lastErr = "";
-  for (const max_tokens of budgets) {
+  let ratedLimited = false;
+  for (let i = 0; i < budgets.length; i++) {
     const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
       },
-      body: JSON.stringify({ model, max_tokens, messages: [{ role: "user", content: prompt }] }),
+      body: JSON.stringify({ model, max_tokens: budgets[i], messages: [{ role: "user", content: prompt }] }),
     });
     if (res.ok) {
       const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
       return (data.choices?.[0]?.message?.content ?? "").trim();
     }
     const errBody = await res.text().catch(() => "");
-    lastErr = `Groq API error ${res.status}: ${errBody.slice(0, 300)}`;
-    if (res.status !== 413) break; // only retry on request-too-large
+    lastErr = `Groq API error ${res.status}: ${errBody.slice(0, 400)}`;
+
+    if (res.status === 429) {
+      ratedLimited = true;
+      const waitMatch = errBody.match(/try again in ([\d.]+)s/i);
+      const waitMs = Math.min(30000, Math.ceil((waitMatch ? Number(waitMatch[1]) : 8) * 1000) + 500);
+      await new Promise((r) => setTimeout(r, waitMs));
+      continue; // retry same budget after waiting
+    }
+    if (res.status === 413) continue; // next (smaller) budget
+    break; // other errors: don't retry
+  }
+
+  if (ratedLimited) {
+    throw new Error(
+      "Groq's free tier rate limit was hit twice in a row. Wait about a minute and try again, request fewer companies, or switch the provider to Claude.",
+    );
   }
   if (lastErr.includes("413") || lastErr.includes("request_too_large")) {
     throw new Error(
