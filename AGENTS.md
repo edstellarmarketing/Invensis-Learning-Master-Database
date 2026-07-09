@@ -26,11 +26,15 @@ Copy `.env.example` → `.env.local`. All optional:
   **Paid** (Anthropic API usage). `ANTHROPIC_MODEL` defaults to `claude-sonnet-5`. Must be
   a real Anthropic key (starts `sk-ant-`) - an OpenRouter key here 401s, use
   `OPENROUTER_API_KEY` instead.
-- `OPENROUTER_API_KEY` - AI Search via OpenRouter (openrouter.ai). `OPENROUTER_MODEL`
-  defaults to `anthropic/claude-3.5-sonnet:online` (the `:online` suffix enables
-  OpenRouter's paid web-search plugin, live-verified like the direct Claude provider); swap
-  for any `:free` model slug for $0 cost with no live search. Called via plain fetch
-  (OpenAI-compatible), no SDK dep.
+- `OPENROUTER_API_KEY` - AI Search via OpenRouter (openrouter.ai). The UI exposes a model
+  family picker (Claude Sonnet / Gemini Flash / ChatGPT / DeepSeek / Other with a custom
+  slug field) crossed with a token-usage tier (Low/Medium/High) - resolved via
+  `OPENROUTER_MODELS[family][tier]` in the route. Low = cheaper same-family model, no
+  `:online` (answers from training knowledge, hedged like Groq). Medium/High = bigger
+  model + `:online` web search (live-verified, paid, billed by OpenRouter), High also gets
+  the largest token budget. `OPENROUTER_MODEL` env var is only the fallback for the
+  "Other" family when no custom slug is typed. Called via plain fetch (OpenAI-compatible),
+  no SDK dep.
 - `GROQ_API_KEY` - Groq fallback for the same route (free tier). Used when neither Claude
   nor OpenRouter keys are set, or the user picks Groq in the UI. `GROQ_MODEL` defaults to
   `llama-3.3-70b-versatile` (answers from model knowledge, no live browsing - reliable on

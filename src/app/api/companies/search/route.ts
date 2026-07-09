@@ -23,6 +23,47 @@ type Fields = {
 };
 
 type Provider = "claude" | "openrouter" | "groq";
+type TokenUsage = "low" | "medium" | "high";
+type ModelFamily = "claude" | "gemini" | "gpt" | "deepseek" | "other";
+
+// OpenRouter model catalog: family -> token-usage tier -> model slug.
+// "low" skips the :online web-search plugin (cheaper, answers from training knowledge);
+// "medium"/"high" enable it for live-verified results, "high" also steps up to a larger
+// model in the family and a bigger token budget. Note: there is no "Gemini 3.5" - Google's
+// current line is 2.x, so that slot maps to Gemini 2.0 Flash.
+const OPENROUTER_MODELS: Record<ModelFamily, Record<TokenUsage, string>> = {
+  claude: {
+    low: "anthropic/claude-3-haiku",
+    medium: "anthropic/claude-3.5-sonnet:online",
+    high: "anthropic/claude-3-opus:online",
+  },
+  gemini: {
+    low: "google/gemini-2.0-flash-lite-001",
+    medium: "google/gemini-2.0-flash-001:online",
+    high: "google/gemini-pro-1.5:online",
+  },
+  gpt: {
+    low: "openai/gpt-4o-mini",
+    medium: "openai/gpt-4o:online",
+    high: "openai/gpt-4-turbo:online",
+  },
+  deepseek: {
+    low: "deepseek/deepseek-chat",
+    medium: "deepseek/deepseek-chat:online",
+    high: "deepseek/deepseek-r1:online",
+  },
+  other: {
+    low: "",
+    medium: "",
+    high: "",
+  },
+};
+
+const TOKEN_BUDGETS: Record<TokenUsage, (count: number) => number> = {
+  low: (count) => Math.min(4000, 500 + count * 200),
+  medium: (count) => Math.min(12000, 1200 + count * 400),
+  high: (count) => Math.min(24000, 2000 + count * 600),
+};
 
 export async function POST(request: Request) {
   let body: Record<string, unknown>;
@@ -48,6 +89,18 @@ export async function POST(request: Request) {
     annualReportUrls: rawFields.annualReportUrls !== false,
     aiInsight: rawFields.aiInsight !== false,
   };
+
+  // Only meaningful when provider resolves to "openrouter" - which model family + how
+  // much token budget (and whether the paid :online web-search plugin is on).
+  const tokenUsage: TokenUsage = ["low", "medium", "high"].includes(String(body.tokenUsage))
+    ? (body.tokenUsage as TokenUsage)
+    : "medium";
+  const modelFamily: ModelFamily = ["claude", "gemini", "gpt", "deepseek", "other"].includes(
+    String(body.model),
+  )
+    ? (body.model as ModelFamily)
+    : "claude";
+  const customModel = String(body.customModel ?? "").trim();
 
   const hasClaude = Boolean(process.env.ANTHROPIC_API_KEY);
   const hasOpenRouter = Boolean(process.env.OPENROUTER_API_KEY);
@@ -98,6 +151,20 @@ export async function POST(request: Request) {
     // Non-fatal: search still works without the exclusion list.
   }
 
+  let resolvedModel: string | undefined;
+  if (provider === "openrouter") {
+    resolvedModel =
+      modelFamily === "other"
+        ? customModel || process.env.OPENROUTER_MODEL || "anthropic/claude-3.5-sonnet:online"
+        : OPENROUTER_MODELS[modelFamily][tokenUsage];
+    if (!resolvedModel) {
+      return Response.json(
+        { error: "Pick a model or provide a custom OpenRouter model slug." },
+        { status: 400 },
+      );
+    }
+  }
+
   const prompt = buildPrompt({
     courseName,
     industryName,
@@ -107,7 +174,8 @@ export async function POST(request: Request) {
     count,
     existingNames,
     fields,
-    liveSearch: provider === "claude" || provider === "openrouter",
+    liveSearch:
+      provider === "claude" || (provider === "openrouter" && Boolean(resolvedModel?.endsWith(":online"))),
   });
 
   try {
@@ -115,7 +183,7 @@ export async function POST(request: Request) {
       provider === "claude"
         ? await runClaude(prompt, count)
         : provider === "openrouter"
-          ? await runOpenRouter(prompt, count)
+          ? await runOpenRouter(prompt, count, resolvedModel!, tokenUsage)
           : await runGroq(prompt, count, fields);
     let candidates = parseCandidates(text, fields);
 
@@ -128,7 +196,7 @@ export async function POST(request: Request) {
       return true;
     });
 
-    return Response.json({ candidates, provider });
+    return Response.json({ candidates, provider, model: resolvedModel });
   } catch (err) {
     const message = err instanceof Error ? err.message : "AI search failed";
     return Response.json({ error: message, provider }, { status: 502 });
@@ -223,13 +291,16 @@ async function runClaude(prompt: string, count: number): Promise<string> {
     .trim();
 }
 
-// OpenRouter via its OpenAI-compatible REST API (no SDK dependency). Default model is
-// Claude 3.5 Sonnet with the ":online" suffix, which turns on OpenRouter's built-in web
-// search plugin (paid, billed by OpenRouter) so results carry the same live-verification
-// bar as the direct Claude provider. Any OpenRouter model slug can be set via
-// OPENROUTER_MODEL, including free ones (":free" suffix) if live search isn't needed.
-async function runOpenRouter(prompt: string, count: number): Promise<string> {
-  const model = process.env.OPENROUTER_MODEL || "anthropic/claude-3.5-sonnet:online";
+// OpenRouter via its OpenAI-compatible REST API (no SDK dependency). Model + token budget
+// are resolved by the caller from the model-family/token-usage picker (OPENROUTER_MODELS /
+// TOKEN_BUDGETS above). A ":online" suffix on the model turns on OpenRouter's built-in web
+// search plugin (paid, billed by OpenRouter) for live-verified results.
+async function runOpenRouter(
+  prompt: string,
+  count: number,
+  model: string,
+  tokenUsage: TokenUsage,
+): Promise<string> {
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -240,13 +311,13 @@ async function runOpenRouter(prompt: string, count: number): Promise<string> {
     },
     body: JSON.stringify({
       model,
-      max_tokens: Math.min(24000, 1500 + count * 500),
+      max_tokens: TOKEN_BUDGETS[tokenUsage](count),
       messages: [{ role: "user", content: prompt }],
     }),
   });
   if (!res.ok) {
     const errBody = await res.text().catch(() => "");
-    throw new Error(`OpenRouter API error ${res.status}: ${errBody.slice(0, 400)}`);
+    throw new Error(`OpenRouter API error ${res.status} (model ${model}): ${errBody.slice(0, 400)}`);
   }
   const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
   return (data.choices?.[0]?.message?.content ?? "").trim();

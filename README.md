@@ -25,9 +25,10 @@ their training activity.
 - **Add companies** - manual form, or **AI Search** that discovers real companies and drafts
   insights for review before adding. Up to 100 companies per search with keywords, country,
   and company-size filters; already-saved companies are auto-excluded; add results one by one
-  or all at once. Providers: **Claude** (Anthropic), **OpenRouter** (any OpenRouter model,
-  live search via `:online`), or **Groq** as a free fallback - selectable in the UI
-  (Auto / Claude / OpenRouter / Groq).
+  or all at once. Providers: **Claude** (Anthropic), **OpenRouter** with a model picker
+  (Claude Sonnet / Gemini Flash / ChatGPT / DeepSeek / any other model slug) and a
+  **token-usage** tier (Low/Medium/High, trading cost and depth for live web search), or
+  **Groq** as a free fallback - selectable in the UI (Auto / Claude / OpenRouter / Groq).
 
 Ships seeded with 5 real companies under PMP → IT/Technology (Infosys, TCS, Accenture, Wipro,
 Capgemini) with real annual-report URLs.

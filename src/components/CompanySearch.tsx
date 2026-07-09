@@ -29,6 +29,9 @@ export default function CompanySearch({
   const [count, setCount] = useState(5);
   const [size, setSize] = useState("");
   const [provider, setProvider] = useState<"auto" | "claude" | "openrouter" | "groq">("auto");
+  const [model, setModel] = useState<"claude" | "gemini" | "gpt" | "deepseek" | "other">("claude");
+  const [customModel, setCustomModel] = useState("");
+  const [tokenUsage, setTokenUsage] = useState<"low" | "medium" | "high">("medium");
   const [fields, setFields] = useState({
     website: true,
     country: true,
@@ -38,6 +41,7 @@ export default function CompanySearch({
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Candidate[]>([]);
   const [usedProvider, setUsedProvider] = useState<string | null>(null);
+  const [usedModel, setUsedModel] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [addingIdx, setAddingIdx] = useState<number | null>(null);
   const [addingAll, setAddingAll] = useState(false);
@@ -47,6 +51,7 @@ export default function CompanySearch({
     setError(null);
     setResults([]);
     setUsedProvider(null);
+    setUsedModel(null);
     setLoading(true);
     try {
       const res = await fetch("/api/companies/search", {
@@ -62,12 +67,16 @@ export default function CompanySearch({
           size,
           provider,
           fields,
+          model,
+          customModel,
+          tokenUsage,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || `Search failed (${res.status})`);
       setResults(data.candidates ?? []);
       setUsedProvider(data.provider ?? null);
+      setUsedModel(data.model ?? null);
       if ((data.candidates ?? []).length === 0) setError("No candidates returned.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Search failed");
@@ -192,6 +201,61 @@ export default function CompanySearch({
         </button>
       </form>
 
+      {(provider === "openrouter" || provider === "auto") && (
+        <div className="mt-2.5 flex flex-wrap items-end gap-2 rounded-md border border-dashed bg-bg/60 p-2.5">
+          <div className="w-44">
+            <label className="block text-xs font-medium text-text-muted mb-1">
+              OpenRouter model
+            </label>
+            <select
+              className={`${field} w-full`}
+              value={model}
+              onChange={(e) => setModel(e.target.value as typeof model)}
+            >
+              <option value="claude">Claude Sonnet</option>
+              <option value="gemini">Gemini Flash</option>
+              <option value="gpt">ChatGPT (GPT-4o)</option>
+              <option value="deepseek">DeepSeek</option>
+              <option value="other">Other popular model...</option>
+            </select>
+          </div>
+          {model === "other" && (
+            <div className="min-w-[200px] flex-1">
+              <label className="block text-xs font-medium text-text-muted mb-1">
+                Model slug (openrouter.ai/models)
+              </label>
+              <input
+                className={`${field} w-full`}
+                value={customModel}
+                onChange={(e) => setCustomModel(e.target.value)}
+                placeholder="e.g. meta-llama/llama-3.1-405b-instruct"
+              />
+            </div>
+          )}
+          <div className="w-40">
+            <label className="block text-xs font-medium text-text-muted mb-1">
+              Token usage
+            </label>
+            <select
+              className={`${field} w-full`}
+              value={tokenUsage}
+              onChange={(e) => setTokenUsage(e.target.value as typeof tokenUsage)}
+            >
+              <option value="low">Low (fast, cheap)</option>
+              <option value="medium">Medium (live search)</option>
+              <option value="high">High (deepest, priciest)</option>
+            </select>
+          </div>
+          <p className="w-full text-xs text-text-muted">
+            {tokenUsage === "low"
+              ? "Low uses a lighter model with no live web search - fastest and cheapest, insights are estimates."
+              : tokenUsage === "medium"
+                ? "Medium enables OpenRouter's live web-search plugin for verified results at a moderate cost."
+                : "High steps up to the family's strongest model with the largest search budget - most thorough, most expensive."}
+          </p>
+        </div>
+      )}
+
       <fieldset className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-0 p-0">
         <legend className="mb-1 w-full text-xs font-medium text-text-muted sm:mb-0 sm:w-auto">
           Fields to fetch:
@@ -217,9 +281,10 @@ export default function CompanySearch({
       </fieldset>
 
       <p className="mt-2 text-xs text-text-muted">
-        Claude and OpenRouter use live web search with verified annual-report links. Groq answers
-        from model knowledge (no browsing) and marks insights &quot;Likely:&quot; for you to
-        verify. Auto tries Claude (<code>ANTHROPIC_API_KEY</code>), then OpenRouter
+        With OpenRouter, pick the underlying model and how much token budget (search depth) to
+        spend per search. Claude uses Anthropic directly with live web search. Groq answers from
+        model knowledge (no browsing) and marks insights &quot;Likely:&quot; for you to verify.
+        Auto tries Claude (<code>ANTHROPIC_API_KEY</code>), then OpenRouter
         (<code>OPENROUTER_API_KEY</code>), then Groq (<code>GROQ_API_KEY</code>). Already-saved
         companies are excluded automatically. Large counts (50+) can take a few minutes;
         Groq&apos;s free tier has a low rate limit, so retry after a minute if it says to wait.
@@ -234,7 +299,7 @@ export default function CompanySearch({
             {usedProvider
               ? ` · via ${
                   usedProvider === "claude" ? "Claude" : usedProvider === "openrouter" ? "OpenRouter" : "Groq"
-                }`
+                }${usedModel ? ` (${usedModel})` : ""}`
               : ""}
           </p>
           <button

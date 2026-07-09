@@ -346,7 +346,7 @@ npm test        <span class="tok-c"># unit tests (CSV parser)</span></pre>
           <tr>
             <td class="var">OPENROUTER_MODEL</td>
             <td><span class="chip opt">Optional</span></td>
-            <td class="small">Defaults to <code class="inline">anthropic/claude-3.5-sonnet:online</code> (paid, live web search via OpenRouter's plugin). Swap for any <code class="inline">:free</code> model slug from openrouter.ai/models for $0 cost, no live search.</td>
+            <td class="small">Fallback model, only used for the "Other" picker option when no custom slug is typed. The in-app Model + Token usage pickers cover Claude Sonnet, Gemini Flash, ChatGPT, and DeepSeek automatically.</td>
           </tr>
           <tr>
             <td class="var">GROQ_API_KEY</td>
@@ -452,12 +452,20 @@ npm test        <span class="tok-c"># unit tests (CSV parser)</span></pre>
         <p>Env changes require a redeploy. After that, the provider dropdown offers
            <strong>Auto</strong> (Claude, then OpenRouter, then Groq), or any one directly.</p>
       </li>
+      <li>
+        <h3>Pick a model and token usage (OpenRouter only)</h3>
+        <p>Selecting OpenRouter reveals two more pickers: <strong>Model</strong>
+           (Claude Sonnet, Gemini Flash, ChatGPT, DeepSeek, or a custom slug under "Other") and
+           <strong>Token usage</strong> (Low, Medium, High). Low skips live search and uses a
+           lighter model, Medium turns on web search at a moderate budget, High steps up to the
+           family's strongest model with the deepest search.</p>
+      </li>
     </ol>
     <div class="note warn">
       <span class="ic">$</span>
-      <p>Claude and OpenRouter&apos;s default model (<code class="inline">:online</code>) are
-         <strong>paid</strong> per search (web search + tokens) and give live-verified results. Groq's free
-         tier is $0 but answers from model knowledge only, results are marked "Likely:" for you to verify.
+      <p>Claude and OpenRouter&apos;s Medium/High tiers are <strong>paid</strong> per search (web search +
+         tokens) and give live-verified results. Groq, and OpenRouter&apos;s Low tier, are cheaper but answer
+         from model knowledge only, results are marked "Likely:" for you to verify.
          Already-saved companies are excluded automatically so repeat searches keep finding new prospects.</p>
     </div>
   </section>
