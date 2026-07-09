@@ -6,7 +6,7 @@ import {
   GraduationCap,
   Target,
 } from "lucide-react";
-import { CATEGORIES, ALL_COURSES, findCourse } from "@/lib/courses";
+import { readCategories } from "@/lib/courses";
 import { getCategoryMeta } from "@/lib/categoryMeta";
 import IconByName from "@/components/IconByName";
 import { readCompanies } from "@/lib/companies";
@@ -18,7 +18,13 @@ import DataTools from "@/components/DataTools";
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const [companies, industries] = await Promise.all([readCompanies(), readAllIndustries()]);
+  const [companies, industries, categories] = await Promise.all([
+    readCompanies(),
+    readAllIndustries(),
+    readCategories(),
+  ]);
+  const allCourses = categories.flatMap((c) => c.courses);
+  const courseName = (slug: string) => allCourses.find((c) => c.slug === slug)?.name ?? slug;
 
   const industryCount = Object.values(industries).reduce((n, list) => n + list.length, 0);
 
@@ -41,8 +47,8 @@ export default async function Home() {
     .slice(0, 5);
 
   const stats = [
-    { label: "Courses", value: ALL_COURSES.length, icon: GraduationCap, color: "#4f46e5", darkColor: "#a5b4fc", soft: "#eef2ff", darkSoft: "#272a55" },
-    { label: "Categories", value: CATEGORIES.length, icon: FolderKanban, color: "#9333ea", darkColor: "#d8b4fe", soft: "#faf5ff", darkSoft: "#3b2154" },
+    { label: "Courses", value: allCourses.length, icon: GraduationCap, color: "#4f46e5", darkColor: "#a5b4fc", soft: "#eef2ff", darkSoft: "#272a55" },
+    { label: "Categories", value: categories.length, icon: FolderKanban, color: "#9333ea", darkColor: "#d8b4fe", soft: "#faf5ff", darkSoft: "#3b2154" },
     { label: "Target industries", value: industryCount, icon: Target, color: "#d97706", darkColor: "#fcd34d", soft: "#fffbeb", darkSoft: "#42300b" },
     { label: "Companies", value: companies.length, icon: Building, color: "#059669", darkColor: "#6ee7b7", soft: "#ecfdf5", darkSoft: "#0d3b2e" },
   ];
@@ -106,7 +112,7 @@ export default async function Home() {
                   >
                     <span>
                       <span className="font-medium">
-                        {findCourse(c.courseSlug)?.name ?? c.courseSlug}
+                        {courseName(c.courseSlug)}
                       </span>
                       <span className="text-text-muted">
                         {" "}
@@ -154,7 +160,7 @@ export default async function Home() {
 
       {/* Categories */}
       <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {CATEGORIES.map((cat) => {
+        {categories.map((cat) => {
           const meta = getCategoryMeta(cat.slug);
           return (
             <Link

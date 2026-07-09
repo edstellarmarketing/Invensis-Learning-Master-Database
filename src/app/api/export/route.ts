@@ -1,15 +1,21 @@
 import { readCompanies } from "@/lib/companies";
 import { readAllIndustries } from "@/lib/industries";
+import { readCategories } from "@/lib/courses";
 
 export const runtime = "nodejs";
 
 // Full-database JSON export, served as a download.
 export async function GET() {
-  const [companies, industries] = await Promise.all([readCompanies(), readAllIndustries()]);
+  const [companies, industries, categories] = await Promise.all([
+    readCompanies(),
+    readAllIndustries(),
+    readCategories(),
+  ]);
   const payload = {
     format: "invensis-master-db",
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
+    categories,
     industries,
     companies,
   };

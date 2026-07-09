@@ -16,9 +16,9 @@ export default async function IndustryPage({
   params: Promise<{ courseSlug: string; industrySlug: string }>;
 }) {
   const { courseSlug, industrySlug } = await params;
-  const course = findCourse(courseSlug);
+  const course = await findCourse(courseSlug);
   if (!course) notFound();
-  const category = findCategoryForCourse(courseSlug);
+  const category = await findCategoryForCourse(courseSlug);
 
   const industries = await getIndustriesForCourse(courseSlug);
   const industry = industries.find((i) => slugify(i.name) === industrySlug);

@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   if (!courseSlug || !name) {
     return Response.json({ error: "courseSlug and name are required" }, { status: 400 });
   }
-  if (!findCourse(courseSlug)) {
+  if (!(await findCourse(courseSlug))) {
     return Response.json({ error: "Unknown course" }, { status: 404 });
   }
 

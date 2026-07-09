@@ -158,7 +158,7 @@ export async function POST(request: Request) {
       );
   }
 
-  const course = findCourse(courseSlug);
+  const course = await findCourse(courseSlug);
   const courseName = course?.name ?? courseSlug;
 
   // Extra exclusions from the client (batched searches pass earlier batches' names so

@@ -15,7 +15,7 @@ export default async function CoursePage({
   params: Promise<{ courseSlug: string }>;
 }) {
   const { courseSlug } = await params;
-  const course = findCourse(courseSlug);
+  const course = await findCourse(courseSlug);
   if (!course) notFound();
 
   const industries = await getIndustriesForCourse(courseSlug);
