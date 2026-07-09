@@ -26,21 +26,22 @@ type Provider = "claude" | "openrouter" | "groq";
 type TokenUsage = "low" | "medium" | "high";
 type ModelFamily = "claude" | "gemini" | "gpt" | "deepseek" | "other";
 
-// OpenRouter model catalog: family -> token-usage tier -> model slug.
+// OpenRouter model catalog: family -> token-usage tier -> model slug. Verified live
+// against GET https://openrouter.ai/api/v1/models (no auth needed) - re-check there
+// before changing, OpenRouter deprecates/renames slugs over time.
 // "low" skips the :online web-search plugin (cheaper, answers from training knowledge);
 // "medium"/"high" enable it for live-verified results, "high" also steps up to a larger
-// model in the family and a bigger token budget. Note: there is no "Gemini 3.5" - Google's
-// current line is 2.x, so that slot maps to Gemini 2.0 Flash.
+// model in the family and a bigger token budget.
 const OPENROUTER_MODELS: Record<ModelFamily, Record<TokenUsage, string>> = {
   claude: {
-    low: "anthropic/claude-3-haiku",
-    medium: "anthropic/claude-3.5-sonnet:online",
-    high: "anthropic/claude-3-opus:online",
+    low: "anthropic/claude-haiku-4.5",
+    medium: "anthropic/claude-sonnet-5:online",
+    high: "anthropic/claude-opus-4.8:online",
   },
   gemini: {
-    low: "google/gemini-2.0-flash-lite-001",
-    medium: "google/gemini-2.0-flash-001:online",
-    high: "google/gemini-pro-1.5:online",
+    low: "google/gemini-3.1-flash-lite",
+    medium: "google/gemini-3.5-flash:online",
+    high: "google/gemini-2.5-pro:online",
   },
   gpt: {
     low: "openai/gpt-4o-mini",
@@ -49,7 +50,7 @@ const OPENROUTER_MODELS: Record<ModelFamily, Record<TokenUsage, string>> = {
   },
   deepseek: {
     low: "deepseek/deepseek-chat",
-    medium: "deepseek/deepseek-chat:online",
+    medium: "deepseek/deepseek-chat-v3.1:online",
     high: "deepseek/deepseek-r1:online",
   },
   other: {
@@ -155,7 +156,7 @@ export async function POST(request: Request) {
   if (provider === "openrouter") {
     resolvedModel =
       modelFamily === "other"
-        ? customModel || process.env.OPENROUTER_MODEL || "anthropic/claude-3.5-sonnet:online"
+        ? customModel || process.env.OPENROUTER_MODEL || "anthropic/claude-sonnet-5:online"
         : OPENROUTER_MODELS[modelFamily][tokenUsage];
     if (!resolvedModel) {
       return Response.json(
