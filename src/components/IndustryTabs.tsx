@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Pencil, Plus, Settings2, Trash2, X } from "lucide-react";
 import type { Industry } from "@/lib/industries";
+import { POPULAR_INDUSTRIES } from "@/lib/popularIndustries";
 import { slugify } from "@/lib/slug";
 import IconByName from "./IconByName";
 
@@ -195,8 +196,29 @@ export default function IndustryTabs({
       {editState && (
         <form
           onSubmit={save}
-          className="mt-3 flex flex-wrap items-end gap-2 rounded-lg border bg-surface p-3"
+          className="mt-3 rounded-lg border bg-surface p-3"
         >
+          {editState.mode === "add" && (
+            <div className="mb-3">
+              <p className="mb-1.5 text-xs font-medium text-text-muted">Popular industries</p>
+              <div className="flex flex-wrap gap-1.5">
+                {POPULAR_INDUSTRIES.map((pi) => (
+                  <button
+                    key={pi.name}
+                    type="button"
+                    onClick={() => {
+                      setName(pi.name);
+                      setIcon(pi.icon);
+                    }}
+                    className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs text-text-muted transition-colors hover:border-[var(--primary)] hover:text-primary"
+                  >
+                    <IconByName name={pi.icon} size={12} /> {pi.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="flex flex-wrap items-end gap-2">
           <div className="min-w-[160px] flex-1">
             <label className="mb-1 block text-xs font-medium text-text-muted">
               Industry name *
@@ -243,6 +265,7 @@ export default function IndustryTabs({
             Cancel
           </button>
           {error && <p className="w-full text-sm text-red-500">{error}</p>}
+          </div>
         </form>
       )}
     </div>

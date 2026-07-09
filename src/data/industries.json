@@ -1,29 +1,29 @@
 {
   "pmp-certification-training": [
     {
-      "name": "IT/Technology",
-      "icon": "Cpu",
-      "rationale": "Large project portfolios demand certified PMs for delivery governance."
+      "name": "Manufacturing",
+      "icon": "Factory",
+      "rationale": "High-volume operations and quality mandates make PMP project management a core L&D priority."
     },
     {
-      "name": "BFSI",
-      "icon": "Banknote",
-      "rationale": "Regulated transformation programs require formal project management rigor."
+      "name": "IT",
+      "icon": "Cpu",
+      "rationale": "Fast delivery cycles and project-heavy work drive demand for PMP project management."
+    },
+    {
+      "name": "ITES",
+      "icon": "Server",
+      "rationale": "BPO/ITES providers standardize delivery with PMP project management to hit client SLAs."
+    },
+    {
+      "name": "Pharma",
+      "icon": "Pill",
+      "rationale": "Regulated, quality-critical processes push pharma to invest in PMP project management."
     },
     {
       "name": "Construction",
       "icon": "HardHat",
-      "rationale": "Capital projects need PMP-certified managers for schedule and cost control."
-    },
-    {
-      "name": "Healthcare",
-      "icon": "HeartPulse",
-      "rationale": "Hospital IT and facility programs need structured project leadership."
-    },
-    {
-      "name": "Manufacturing",
-      "icon": "Factory",
-      "rationale": "Plant expansions and NPD programs rely on certified project managers."
+      "rationale": "Large capital projects and tight timelines make PMP project management essential."
     }
   ],
   "capm-certification-training": [
@@ -55,29 +55,29 @@
   ],
   "prince2-foundation-practitioner-certification-training": [
     {
-      "name": "Government/Public Sector",
-      "icon": "Landmark",
-      "rationale": "PRINCE2 is the mandated PM standard in many public agencies."
+      "name": "Manufacturing",
+      "icon": "Factory",
+      "rationale": "High-volume operations and quality mandates make the PRINCE2 method a core L&D priority."
     },
     {
-      "name": "IT/Technology",
+      "name": "IT",
       "icon": "Cpu",
-      "rationale": "Structured stage-gate delivery suits large IT programs."
+      "rationale": "Fast delivery cycles and project-heavy work drive demand for the PRINCE2 method."
     },
     {
-      "name": "BFSI",
-      "icon": "Banknote",
-      "rationale": "Audit-friendly governance fits regulated banking projects."
+      "name": "ITES",
+      "icon": "Server",
+      "rationale": "BPO/ITES providers standardize delivery with the PRINCE2 method to hit client SLAs."
     },
     {
-      "name": "Healthcare",
-      "icon": "HeartPulse",
-      "rationale": "Public health systems run PRINCE2-governed change projects."
+      "name": "Pharma",
+      "icon": "Pill",
+      "rationale": "Regulated, quality-critical processes push pharma to invest in the PRINCE2 method."
     },
     {
-      "name": "Telecom",
-      "icon": "RadioTower",
-      "rationale": "Infrastructure programs need controlled, document-driven delivery."
+      "name": "Construction",
+      "icon": "HardHat",
+      "rationale": "Large capital projects and tight timelines make the PRINCE2 method essential."
     }
   ],
   "prince2-foundation-certification-training": [
@@ -703,56 +703,56 @@
   ],
   "itil-v5-foundation-certification-training": [
     {
-      "name": "IT/Technology",
+      "name": "Manufacturing",
+      "icon": "Factory",
+      "rationale": "High-volume operations and quality mandates make ITIL service management a core L&D priority."
+    },
+    {
+      "name": "IT",
       "icon": "Cpu",
-      "rationale": "ITIL is the default service management framework in IT."
+      "rationale": "Fast delivery cycles and project-heavy work drive demand for ITIL service management."
     },
     {
-      "name": "BFSI",
-      "icon": "Banknote",
-      "rationale": "Always-on banking services demand mature ITSM practices."
+      "name": "ITES",
+      "icon": "Server",
+      "rationale": "BPO/ITES providers standardize delivery with ITIL service management to hit client SLAs."
     },
     {
-      "name": "Telecom",
-      "icon": "RadioTower",
-      "rationale": "Carriers run ITIL-based service desks and incident processes."
+      "name": "Pharma",
+      "icon": "Pill",
+      "rationale": "Regulated, quality-critical processes push pharma to invest in ITIL service management."
     },
     {
-      "name": "Government/Public Sector",
-      "icon": "Landmark",
-      "rationale": "Public IT services mandate ITIL-aligned operations."
-    },
-    {
-      "name": "Healthcare",
-      "icon": "HeartPulse",
-      "rationale": "Clinical systems uptime depends on disciplined service management."
+      "name": "Construction",
+      "icon": "HardHat",
+      "rationale": "Large capital projects and tight timelines make ITIL service management essential."
     }
   ],
   "itil-4-foundation-certification-training": [
     {
-      "name": "IT/Technology",
+      "name": "Manufacturing",
+      "icon": "Factory",
+      "rationale": "High-volume operations and quality mandates make ITIL 4 service management a core L&D priority."
+    },
+    {
+      "name": "IT",
       "icon": "Cpu",
-      "rationale": "ITIL 4 remains the baseline certification for IT service teams."
+      "rationale": "Fast delivery cycles and project-heavy work drive demand for ITIL 4 service management."
     },
     {
-      "name": "BFSI",
-      "icon": "Banknote",
-      "rationale": "Regulated uptime requirements drive ITIL adoption in banks."
+      "name": "ITES",
+      "icon": "Server",
+      "rationale": "BPO/ITES providers standardize delivery with ITIL 4 service management to hit client SLAs."
     },
     {
-      "name": "Telecom",
-      "icon": "RadioTower",
-      "rationale": "Service operations at scale require ITIL-trained staff."
+      "name": "Pharma",
+      "icon": "Pill",
+      "rationale": "Regulated, quality-critical processes push pharma to invest in ITIL 4 service management."
     },
     {
-      "name": "Government/Public Sector",
-      "icon": "Landmark",
-      "rationale": "Agencies mandate ITIL for citizen-facing digital services."
-    },
-    {
-      "name": "Healthcare",
-      "icon": "HeartPulse",
-      "rationale": "Hospital IT teams manage critical services with ITIL."
+      "name": "Construction",
+      "icon": "HardHat",
+      "rationale": "Large capital projects and tight timelines make ITIL 4 service management essential."
     }
   ],
   "verism-foundation-certification-training": [
@@ -867,54 +867,54 @@
     {
       "name": "Manufacturing",
       "icon": "Factory",
-      "rationale": "Engineers lead DMAIC projects on yield and defect reduction."
+      "rationale": "High-volume operations and quality mandates make Lean Six Sigma process improvement a core L&D priority."
     },
     {
-      "name": "Healthcare",
-      "icon": "HeartPulse",
-      "rationale": "Quality leads run projects cutting wait times and errors."
+      "name": "IT",
+      "icon": "Cpu",
+      "rationale": "Fast delivery cycles and project-heavy work drive demand for Lean Six Sigma process improvement."
     },
     {
-      "name": "BFSI",
-      "icon": "Banknote",
-      "rationale": "Analysts drive process improvement in operations and claims."
+      "name": "ITES",
+      "icon": "Server",
+      "rationale": "BPO/ITES providers standardize delivery with Lean Six Sigma process improvement to hit client SLAs."
     },
     {
-      "name": "Pharmaceuticals",
+      "name": "Pharma",
       "icon": "Pill",
-      "rationale": "Green Belts improve batch quality and compliance processes."
+      "rationale": "Regulated, quality-critical processes push pharma to invest in Lean Six Sigma process improvement."
     },
     {
-      "name": "Automotive",
-      "icon": "Car",
-      "rationale": "Quality engineers lead supplier and line improvement projects."
+      "name": "Construction",
+      "icon": "HardHat",
+      "rationale": "Large capital projects and tight timelines make Lean Six Sigma process improvement essential."
     }
   ],
   "lean-six-sigma-black-belt-certification-training": [
     {
       "name": "Manufacturing",
       "icon": "Factory",
-      "rationale": "Black Belts lead enterprise-level defect and cost programs."
+      "rationale": "High-volume operations and quality mandates make advanced Lean Six Sigma leadership a core L&D priority."
     },
     {
-      "name": "BFSI",
-      "icon": "Banknote",
-      "rationale": "Senior improvement leaders drive bank-wide process excellence."
-    },
-    {
-      "name": "Healthcare",
-      "icon": "HeartPulse",
-      "rationale": "System-level improvement programs need Black Belt leadership."
-    },
-    {
-      "name": "Pharmaceuticals",
-      "icon": "Pill",
-      "rationale": "Complex quality programs require advanced statistical leadership."
-    },
-    {
-      "name": "IT/Technology",
+      "name": "IT",
       "icon": "Cpu",
-      "rationale": "Shared services optimize delivery processes with Black Belts."
+      "rationale": "Fast delivery cycles and project-heavy work drive demand for advanced Lean Six Sigma leadership."
+    },
+    {
+      "name": "ITES",
+      "icon": "Server",
+      "rationale": "BPO/ITES providers standardize delivery with advanced Lean Six Sigma leadership to hit client SLAs."
+    },
+    {
+      "name": "Pharma",
+      "icon": "Pill",
+      "rationale": "Regulated, quality-critical processes push pharma to invest in advanced Lean Six Sigma leadership."
+    },
+    {
+      "name": "Construction",
+      "icon": "HardHat",
+      "rationale": "Large capital projects and tight timelines make advanced Lean Six Sigma leadership essential."
     }
   ],
   "value-stream-mapping-training": [

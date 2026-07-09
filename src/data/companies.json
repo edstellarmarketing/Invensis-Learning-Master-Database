@@ -2,7 +2,7 @@
   {
     "id": "seed_infosys",
     "courseSlug": "pmp-certification-training",
-    "industrySlug": "it-technology",
+    "industrySlug": "it",
     "companyName": "Infosys Limited",
     "country": "India",
     "website": "https://www.infosys.com",
@@ -22,7 +22,7 @@
   {
     "id": "seed_tcs",
     "courseSlug": "pmp-certification-training",
-    "industrySlug": "it-technology",
+    "industrySlug": "it",
     "companyName": "Tata Consultancy Services (TCS)",
     "country": "India",
     "website": "https://www.tcs.com",
@@ -42,7 +42,7 @@
   {
     "id": "seed_accenture",
     "courseSlug": "pmp-certification-training",
-    "industrySlug": "it-technology",
+    "industrySlug": "it",
     "companyName": "Accenture plc",
     "country": "Ireland",
     "website": "https://www.accenture.com",
@@ -62,7 +62,7 @@
   {
     "id": "seed_wipro",
     "courseSlug": "pmp-certification-training",
-    "industrySlug": "it-technology",
+    "industrySlug": "it",
     "companyName": "Wipro Limited",
     "country": "India",
     "website": "https://www.wipro.com",
@@ -82,7 +82,7 @@
   {
     "id": "seed_capgemini",
     "courseSlug": "pmp-certification-training",
-    "industrySlug": "it-technology",
+    "industrySlug": "it",
     "companyName": "Capgemini SE",
     "country": "France",
     "website": "https://www.capgemini.com",
