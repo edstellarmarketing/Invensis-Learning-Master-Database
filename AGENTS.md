@@ -22,9 +22,14 @@ npm run lint
 
 ## Env vars
 Copy `.env.example` → `.env.local`. All optional:
-- `ANTHROPIC_API_KEY` - enables `/api/companies/search` (AI discovery). Without it the dashboard,
-  seed data, and manual Add Company all still work. **Paid** (Anthropic API usage).
-- `ANTHROPIC_MODEL` - defaults to `claude-sonnet-5`.
+- `ANTHROPIC_API_KEY` - enables `/api/companies/search` via Claude (web-search tool).
+  **Paid** (Anthropic API usage). `ANTHROPIC_MODEL` defaults to `claude-sonnet-5`.
+- `GROQ_API_KEY` - Groq fallback for the same route (free tier). Used when Claude's key is
+  absent or the user picks Groq in the UI. `GROQ_MODEL` defaults to `groq/compound`
+  (built-in web search); called via plain fetch (OpenAI-compatible), no SDK dep.
+- Search route accepts `provider` ("auto"|"claude"|"groq"), `count` (1-100), `size`, and
+  excludes already-saved companies for the course+industry (server-side dedupe).
+  Without any key the dashboard, seed data, CSV import, and manual Add Company all still work.
 
 ## Layout
 ```

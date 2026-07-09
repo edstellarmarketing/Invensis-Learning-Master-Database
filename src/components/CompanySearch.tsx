@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, PlusCircle } from "lucide-react";
 import type { Company } from "@/lib/companies";
 
 type Candidate = {
@@ -28,30 +28,65 @@ export default function CompanySearch({
   const [query, setQuery] = useState("");
   const [count, setCount] = useState(5);
   const [size, setSize] = useState("");
+  const [provider, setProvider] = useState<"auto" | "claude" | "groq">("auto");
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Candidate[]>([]);
+  const [usedProvider, setUsedProvider] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [addingIdx, setAddingIdx] = useState<number | null>(null);
+  const [addingAll, setAddingAll] = useState(false);
 
   const run = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setResults([]);
+    setUsedProvider(null);
     setLoading(true);
     try {
       const res = await fetch("/api/companies/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ courseSlug, industryName, country, query, count, size }),
+        body: JSON.stringify({
+          courseSlug,
+          industrySlug,
+          industryName,
+          country,
+          query,
+          count,
+          size,
+          provider,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || `Search failed (${res.status})`);
       setResults(data.candidates ?? []);
+      setUsedProvider(data.provider ?? null);
       if ((data.candidates ?? []).length === 0) setError("No candidates returned.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Search failed");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const addAll = async () => {
+    if (results.length === 0) return;
+    setAddingAll(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/companies/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ courseSlug, industrySlug, companies: results }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || `Save failed (${res.status})`);
+      for (const saved of data.companies as Company[]) onAdded(saved);
+      setResults([]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Save failed");
+    } finally {
+      setAddingAll(false);
     }
   };
 
@@ -106,11 +141,23 @@ export default function CompanySearch({
             value={count}
             onChange={(e) => setCount(Number(e.target.value))}
           >
-            {[3, 5, 10, 15, 20].map((n) => (
+            {[3, 5, 10, 15, 20, 25, 50, 75, 100].map((n) => (
               <option key={n} value={n}>
                 {n}
               </option>
             ))}
+          </select>
+        </div>
+        <div className="w-32">
+          <label className="block text-xs font-medium text-text-muted mb-1">AI provider</label>
+          <select
+            className={`${field} w-full`}
+            value={provider}
+            onChange={(e) => setProvider(e.target.value as "auto" | "claude" | "groq")}
+          >
+            <option value="auto">Auto</option>
+            <option value="claude">Claude</option>
+            <option value="groq">Groq</option>
           </select>
         </div>
         <div className="w-44">
@@ -138,14 +185,33 @@ export default function CompanySearch({
       </form>
 
       <p className="mt-2 text-xs text-text-muted">
-        AI discovery finds real companies + annual reports and drafts training insights. Requires{" "}
-        <code>ANTHROPIC_API_KEY</code>; review each result before adding.
+        AI discovery finds real companies + annual reports and drafts training insights. Auto uses
+        Claude (<code>ANTHROPIC_API_KEY</code>) and falls back to Groq (<code>GROQ_API_KEY</code>).
+        Already-saved companies are excluded automatically. Large counts (50+) can take a few
+        minutes.
       </p>
 
       {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
 
       {results.length > 0 && (
-        <ul className="mt-3 space-y-2">
+        <div className="mt-3 flex items-center justify-between">
+          <p className="text-xs text-text-muted">
+            {results.length} candidate{results.length > 1 ? "s" : ""}
+            {usedProvider ? ` · via ${usedProvider === "claude" ? "Claude" : "Groq"}` : ""}
+          </p>
+          <button
+            onClick={addAll}
+            disabled={addingAll}
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-contrast disabled:opacity-60"
+          >
+            {addingAll ? <Loader2 size={13} className="animate-spin" /> : <PlusCircle size={13} />}
+            Add all {results.length}
+          </button>
+        </div>
+      )}
+
+      {results.length > 0 && (
+        <ul className="mt-2 space-y-2">
           {results.map((cand, idx) => (
             <li key={idx} className="rounded-md border bg-bg p-3">
               <div className="flex items-start justify-between gap-2">

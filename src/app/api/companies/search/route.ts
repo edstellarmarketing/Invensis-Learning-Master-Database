@@ -1,8 +1,10 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { findCourse } from "@/lib/courses";
+import { readCompanies } from "@/lib/companies";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// Large counts take a while; Vercel clamps this to the plan's ceiling.
+export const maxDuration = 300;
 
 type Candidate = {
   companyName: string;
@@ -13,18 +15,9 @@ type Candidate = {
   source?: string;
 };
 
-export async function POST(request: Request) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return Response.json(
-      {
-        error:
-          "AI search is disabled. Set ANTHROPIC_API_KEY in .env.local to enable live discovery, or use Add Company to enter records manually.",
-      },
-      { status: 400 },
-    );
-  }
+type Provider = "claude" | "groq";
 
+export async function POST(request: Request) {
   let body: Record<string, unknown>;
   try {
     body = await request.json();
@@ -33,62 +26,160 @@ export async function POST(request: Request) {
   }
 
   const courseSlug = String(body.courseSlug ?? "");
+  const industrySlug = String(body.industrySlug ?? "");
   const industryName = String(body.industryName ?? "");
   const country = String(body.country ?? "").trim();
   const query = String(body.query ?? "").trim();
-  const size = String(body.size ?? "").trim(); // e.g. "Enterprise (1000+ employees)"
-  const count = Math.min(20, Math.max(1, Number(body.count) || 5));
+  const size = String(body.size ?? "").trim();
+  const count = Math.min(100, Math.max(1, Number(body.count) || 5));
+  const requested = String(body.provider ?? "auto"); // "auto" | "claude" | "groq"
+
+  const hasClaude = Boolean(process.env.ANTHROPIC_API_KEY);
+  const hasGroq = Boolean(process.env.GROQ_API_KEY);
+
+  let provider: Provider;
+  if (requested === "claude") {
+    if (!hasClaude)
+      return Response.json({ error: "Claude is not configured (set ANTHROPIC_API_KEY)." }, { status: 400 });
+    provider = "claude";
+  } else if (requested === "groq") {
+    if (!hasGroq)
+      return Response.json({ error: "Groq is not configured (set GROQ_API_KEY)." }, { status: 400 });
+    provider = "groq";
+  } else {
+    if (hasClaude) provider = "claude";
+    else if (hasGroq) provider = "groq";
+    else
+      return Response.json(
+        {
+          error:
+            "AI search is disabled. Set ANTHROPIC_API_KEY (Claude) or GROQ_API_KEY (Groq) to enable live discovery, or use Add Company / Import CSV.",
+        },
+        { status: 400 },
+      );
+  }
+
   const course = findCourse(courseSlug);
   const courseName = course?.name ?? courseSlug;
 
-  const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
-  const client = new Anthropic({ apiKey });
+  // Research quality: exclude companies already saved for this course+industry so
+  // repeated searches keep discovering NEW prospects.
+  let existingNames: string[] = [];
+  try {
+    const all = await readCompanies();
+    existingNames = all
+      .filter((c) => c.courseSlug === courseSlug && (!industrySlug || c.industrySlug === industrySlug))
+      .map((c) => c.companyName);
+  } catch {
+    // Non-fatal: search still works without the exclusion list.
+  }
 
-  const prompt = `You are a B2B sales-research assistant for Invensis Learning, which sells "${courseName}" corporate training.
-
-Find ${count} REAL companies in the "${industryName}" industry${
-    country ? ` based in ${country}` : ""
-  }${size ? `, company size: ${size}` : ""} that are strong prospects for this training${
-    query ? `. Extra criteria: ${query}` : ""
-  }.
-
-For each company use web search to verify:
-- official corporate website URL
-- a real URL to their most recent annual report (PDF preferred, else the investor-relations annual-report page)
-- 4-5 concise bullet points on the training / learning & development / upskilling activity they reported in their most recent financial year (base on real disclosures; if a specific figure is not verifiable, phrase the bullet qualitatively, do NOT invent numbers)
-
-Respond with ONLY a JSON array (no markdown fences, no prose) of objects with keys:
-companyName (string), country (string), website (string), annualReportUrls (string[]), aiInsight (string[] of 4-5 items), source (string).`;
+  const prompt = buildPrompt({ courseName, industryName, country, size, query, count, existingNames });
 
   try {
-    const resp = await client.messages.create({
-      model,
-      // Scale output budget and search allowance with the requested company count.
-      max_tokens: Math.min(8000, 1000 + count * 550),
-      // Server-side web search tool. Cast: older SDK type defs don't list server tools,
-      // but the API accepts the JSON passthrough.
-      tools: [
-        {
-          type: "web_search_20250305",
-          name: "web_search",
-          max_uses: Math.min(12, count + 3),
-        } as unknown as Anthropic.Tool,
-      ],
-      messages: [{ role: "user", content: prompt }],
+    const text =
+      provider === "claude" ? await runClaude(prompt, count) : await runGroq(prompt, count);
+    let candidates = parseCandidates(text);
+
+    // Server-side dedupe: drop rows that match saved companies or repeat within the batch.
+    const seen = new Set(existingNames.map((n) => n.toLowerCase().trim()));
+    candidates = candidates.filter((c) => {
+      const key = c.companyName.toLowerCase().trim();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
     });
 
-    const text = resp.content
-      .filter((b): b is Anthropic.TextBlock => b.type === "text")
-      .map((b) => b.text)
-      .join("\n")
-      .trim();
-
-    const candidates = parseCandidates(text);
-    return Response.json({ candidates });
+    return Response.json({ candidates, provider });
   } catch (err) {
     const message = err instanceof Error ? err.message : "AI search failed";
-    return Response.json({ error: message }, { status: 502 });
+    return Response.json({ error: message, provider }, { status: 502 });
   }
+}
+
+function buildPrompt(p: {
+  courseName: string;
+  industryName: string;
+  country: string;
+  size: string;
+  query: string;
+  count: number;
+  existingNames: string[];
+}): string {
+  const exclusions =
+    p.existingNames.length > 0
+      ? `\nEXCLUDE these companies (already in our database): ${p.existingNames.slice(0, 200).join(", ")}.`
+      : "";
+  return `You are a B2B sales-research assistant for Invensis Learning, which sells "${p.courseName}" corporate training.
+
+Find ${p.count} REAL companies in the "${p.industryName}" industry${
+    p.country ? ` based in ${p.country}` : ""
+  }${p.size ? `, company size: ${p.size}` : ""} that are strong prospects for this training${
+    p.query ? `. Extra criteria: ${p.query}` : ""
+  }.${exclusions}
+
+Research rules:
+- Prefer companies that publish annual reports (listed companies, large private firms) so training activity is verifiable.
+- Mix well-known leaders with less obvious mid-tier prospects; do not pad with subsidiaries of the same group.
+- website: the official corporate site URL (https, no tracking params).
+- annualReportUrls: a real URL to the most recent annual report (PDF preferred, else the investor-relations annual-report page). Empty array if none exists.
+- aiInsight: 4-5 concise bullets on the training / learning & development / upskilling activity in their most recent financial year. Base every bullet on real disclosures (annual report, ESG/sustainability report, press releases). If a figure is not verifiable, phrase qualitatively - NEVER invent numbers.
+- country: the company's headquarters country name.
+- source: where the insight came from (e.g. "FY2025 annual report", "2025 ESG report").
+
+Respond with ONLY a JSON array (no markdown fences, no prose before or after) of ${p.count} objects with keys:
+companyName (string), country (string), website (string), annualReportUrls (string[]), aiInsight (string[] of 4-5 items), source (string).`;
+}
+
+async function runClaude(prompt: string, count: number): Promise<string> {
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
+  const resp = await client.messages.create({
+    model,
+    // Scale output budget and search allowance with the requested company count.
+    max_tokens: Math.min(24000, 1500 + count * 500),
+    // Server-side web search tool. Cast: older SDK type defs don't list server tools,
+    // but the API accepts the JSON passthrough.
+    tools: [
+      {
+        type: "web_search_20250305",
+        name: "web_search",
+        max_uses: Math.min(20, Math.ceil(count / 2) + 4),
+      } as unknown as Anthropic.Tool,
+    ],
+    messages: [{ role: "user", content: prompt }],
+  });
+  return resp.content
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("\n")
+    .trim();
+}
+
+// Groq fallback via its OpenAI-compatible REST API (no SDK dependency).
+// Default model groq/compound has built-in web search for live verification.
+async function runGroq(prompt: string, count: number): Promise<string> {
+  const model = process.env.GROQ_MODEL || "groq/compound";
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: Math.min(16000, 1500 + count * 400),
+      messages: [{ role: "user", content: prompt }],
+    }),
+  });
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => "");
+    throw new Error(`Groq API error ${res.status}: ${errBody.slice(0, 300)}`);
+  }
+  const data = (await res.json()) as {
+    choices?: { message?: { content?: string } }[];
+  };
+  return (data.choices?.[0]?.message?.content ?? "").trim();
 }
 
 function parseCandidates(text: string): Candidate[] {
