@@ -331,7 +331,7 @@ npm test        <span class="tok-c"># unit tests (CSV parser)</span></pre>
           <tr>
             <td class="var">ANTHROPIC_API_KEY</td>
             <td><span class="chip opt">Optional</span></td>
-            <td class="small">Enables AI Search via Claude (web search). Paid Anthropic usage.</td>
+            <td class="small">Enables AI Search via Claude (web search). Must be a real Anthropic key, starts <code class="inline">sk-ant-</code>. Paid Anthropic usage.</td>
           </tr>
           <tr>
             <td class="var">ANTHROPIC_MODEL</td>
@@ -339,9 +339,19 @@ npm test        <span class="tok-c"># unit tests (CSV parser)</span></pre>
             <td class="small">Override the Claude model. Defaults to <code class="inline">claude-sonnet-5</code>.</td>
           </tr>
           <tr>
+            <td class="var">OPENROUTER_API_KEY</td>
+            <td><span class="chip opt">Optional</span></td>
+            <td class="small">AI Search via OpenRouter. Use this (not <code class="inline">ANTHROPIC_API_KEY</code>) if your key starts <code class="inline">sk-or-v1-</code>. Anthropic rejects OpenRouter keys with a 401.</td>
+          </tr>
+          <tr>
+            <td class="var">OPENROUTER_MODEL</td>
+            <td><span class="chip opt">Optional</span></td>
+            <td class="small">Defaults to <code class="inline">anthropic/claude-3.5-sonnet:online</code> (paid, live web search via OpenRouter's plugin). Swap for any <code class="inline">:free</code> model slug from openrouter.ai/models for $0 cost, no live search.</td>
+          </tr>
+          <tr>
             <td class="var">GROQ_API_KEY</td>
             <td><span class="chip opt">Optional</span></td>
-            <td class="small">AI Search fallback via Groq. Free tier at console.groq.com. Used when Claude's key is absent or "Groq" is picked in the UI.</td>
+            <td class="small">AI Search fallback via Groq. Free tier at console.groq.com. Used when neither Claude nor OpenRouter keys are set, or "Groq" is picked in the UI.</td>
           </tr>
           <tr>
             <td class="var">GROQ_MODEL</td>
@@ -416,29 +426,39 @@ npm test        <span class="tok-c"># unit tests (CSV parser)</span></pre>
   <section id="ai">
     <h2><span class="num">06</span> Enable AI Search</h2>
     <p class="lede">Optional. Adds "AI Search" to the companies table, it finds up to 100 real companies
-       per industry with annual-report links and training insights. Two providers, selectable in the UI.</p>
+       per industry with annual-report links and training insights. Three providers, selectable in the UI.</p>
     <ol class="steps">
       <li>
         <h3>Get a key</h3>
-        <p><strong>Groq</strong> (free) at <code class="inline">console.groq.com</code>, and/or
-           <strong>Anthropic</strong> (paid, higher quality) at <code class="inline">console.anthropic.com</code>.</p>
+        <p><strong>Groq</strong> (free) at <code class="inline">console.groq.com</code>,
+           <strong>Anthropic</strong> (paid, direct Claude) at <code class="inline">console.anthropic.com</code>,
+           or <strong>OpenRouter</strong> (paid, many models incl. Claude) at <code class="inline">openrouter.ai</code>.</p>
+      </li>
+      <li>
+        <h3>Match the key to the right variable</h3>
+        <p>An Anthropic key starts <code class="inline">sk-ant-</code> &rarr; use
+           <code class="inline">ANTHROPIC_API_KEY</code>. An OpenRouter key starts
+           <code class="inline">sk-or-v1-</code> &rarr; use <code class="inline">OPENROUTER_API_KEY</code>
+           instead. Putting an OpenRouter key into <code class="inline">ANTHROPIC_API_KEY</code> fails with a
+           401 "invalid x-api-key" error.</p>
       </li>
       <li>
         <h3>Add it in Vercel</h3>
-        <p>Settings → Environment Variables → add <code class="inline">GROQ_API_KEY</code> and/or
-           <code class="inline">ANTHROPIC_API_KEY</code> → scope to <strong>Production</strong> → Save.</p>
+        <p>Settings → Environment Variables → add the matching variable(s) → scope to
+           <strong>Production</strong> → Save.</p>
       </li>
       <li>
         <h3>Redeploy</h3>
         <p>Env changes require a redeploy. After that, the provider dropdown offers
-           <strong>Auto</strong> (Claude first, else Groq), <strong>Claude</strong>, or <strong>Groq</strong>.</p>
+           <strong>Auto</strong> (Claude, then OpenRouter, then Groq), or any one directly.</p>
       </li>
     </ol>
     <div class="note warn">
       <span class="ic">$</span>
-      <p>Anthropic AI Search is <strong>paid</strong> per search (web search + tokens). Groq's free tier
-         covers most needs, start there. Already-saved companies are excluded automatically so repeat
-         searches keep finding new prospects.</p>
+      <p>Claude and OpenRouter&apos;s default model (<code class="inline">:online</code>) are
+         <strong>paid</strong> per search (web search + tokens) and give live-verified results. Groq's free
+         tier is $0 but answers from model knowledge only, results are marked "Likely:" for you to verify.
+         Already-saved companies are excluded automatically so repeat searches keep finding new prospects.</p>
     </div>
   </section>
 
@@ -485,8 +505,15 @@ node scripts/discover-companies.mjs --help</pre>
     <p>You're viewing a cached/previous deployment. Open the latest one from the Deployments tab, or hard-refresh.</p>
 
     <h3>AI Search says "disabled"</h3>
-    <p>No provider key is set. Add <code class="inline">GROQ_API_KEY</code> or
-       <code class="inline">ANTHROPIC_API_KEY</code> and redeploy (step 06).</p>
+    <p>No provider key is set. Add <code class="inline">GROQ_API_KEY</code>,
+       <code class="inline">ANTHROPIC_API_KEY</code>, or <code class="inline">OPENROUTER_API_KEY</code>
+       and redeploy (step 06).</p>
+
+    <h3>Claude provider returns "401 invalid x-api-key"</h3>
+    <p>The value in <code class="inline">ANTHROPIC_API_KEY</code> is not a real Anthropic key, the most
+       common cause is pasting an OpenRouter key (starts <code class="inline">sk-or-v1-</code>) there
+       instead. Move it to <code class="inline">OPENROUTER_API_KEY</code> and pick "OpenRouter" in the
+       provider dropdown, or get a genuine key at console.anthropic.com.</p>
 
     <h3>Discovery script returns nothing</h3>
     <p>The city name must match OpenStreetMap's area label. Try a different spelling, another preset, or a

@@ -25,8 +25,9 @@ their training activity.
 - **Add companies** - manual form, or **AI Search** that discovers real companies and drafts
   insights for review before adding. Up to 100 companies per search with keywords, country,
   and company-size filters; already-saved companies are auto-excluded; add results one by one
-  or all at once. Providers: **Claude** (Anthropic web search) with **Groq** as fallback -
-  selectable in the UI (Auto / Claude / Groq).
+  or all at once. Providers: **Claude** (Anthropic), **OpenRouter** (any OpenRouter model,
+  live search via `:online`), or **Groq** as a free fallback - selectable in the UI
+  (Auto / Claude / OpenRouter / Groq).
 
 Ships seeded with 5 real companies under PMP → IT/Technology (Infosys, TCS, Accenture, Wipro,
 Capgemini) with real annual-report URLs.
@@ -45,9 +46,10 @@ npm run dev                  # http://localhost:3000
 2. **Enable saving (required for CRUD/CSV import in production):** in the Vercel project go to
    **Storage → Create Database → Upstash (Redis)** (free tier), and connect it to the project.
    This auto-injects `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`.
-3. Optionally set `ANTHROPIC_API_KEY` (Claude) and/or `GROQ_API_KEY` (Groq, free tier at
-   console.groq.com) to enable AI Search. With both set, Auto prefers Claude and the UI can
-   switch per search. Optional model overrides: `ANTHROPIC_MODEL`, `GROQ_MODEL`.
+3. Optionally set `ANTHROPIC_API_KEY` (Claude), `OPENROUTER_API_KEY` (OpenRouter, if that's
+   the key you have), and/or `GROQ_API_KEY` (Groq, free tier at console.groq.com) to enable
+   AI Search. Auto tries Claude, then OpenRouter, then Groq; the UI can also force one.
+   Optional model overrides: `ANTHROPIC_MODEL`, `OPENROUTER_MODEL`, `GROQ_MODEL`.
 4. Deploy (or redeploy after adding the integration).
 
 **How storage works** (`src/lib/storage.ts`): with Upstash configured, both datasets live in

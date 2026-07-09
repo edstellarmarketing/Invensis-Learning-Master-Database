@@ -28,7 +28,7 @@ export default function CompanySearch({
   const [query, setQuery] = useState("");
   const [count, setCount] = useState(5);
   const [size, setSize] = useState("");
-  const [provider, setProvider] = useState<"auto" | "claude" | "groq">("auto");
+  const [provider, setProvider] = useState<"auto" | "claude" | "openrouter" | "groq">("auto");
   const [fields, setFields] = useState({
     website: true,
     country: true,
@@ -160,10 +160,11 @@ export default function CompanySearch({
           <select
             className={`${field} w-full`}
             value={provider}
-            onChange={(e) => setProvider(e.target.value as "auto" | "claude" | "groq")}
+            onChange={(e) => setProvider(e.target.value as "auto" | "claude" | "openrouter" | "groq")}
           >
             <option value="auto">Auto</option>
             <option value="claude">Claude</option>
+            <option value="openrouter">OpenRouter</option>
             <option value="groq">Groq</option>
           </select>
         </div>
@@ -216,12 +217,12 @@ export default function CompanySearch({
       </fieldset>
 
       <p className="mt-2 text-xs text-text-muted">
-        Claude uses live web search and verified annual-report links. Groq answers from model
-        knowledge (no browsing) and marks insights &quot;Likely:&quot; for you to verify. Auto
-        prefers Claude (<code>ANTHROPIC_API_KEY</code>) and falls back to Groq
-        (<code>GROQ_API_KEY</code>). Already-saved companies are excluded automatically. Large
-        counts (50+) can take a few minutes; Groq&apos;s free tier has a low rate limit, so retry
-        after a minute if it says to wait.
+        Claude and OpenRouter use live web search with verified annual-report links. Groq answers
+        from model knowledge (no browsing) and marks insights &quot;Likely:&quot; for you to
+        verify. Auto tries Claude (<code>ANTHROPIC_API_KEY</code>), then OpenRouter
+        (<code>OPENROUTER_API_KEY</code>), then Groq (<code>GROQ_API_KEY</code>). Already-saved
+        companies are excluded automatically. Large counts (50+) can take a few minutes;
+        Groq&apos;s free tier has a low rate limit, so retry after a minute if it says to wait.
       </p>
 
       {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
@@ -230,7 +231,11 @@ export default function CompanySearch({
         <div className="mt-3 flex items-center justify-between">
           <p className="text-xs text-text-muted">
             {results.length} candidate{results.length > 1 ? "s" : ""}
-            {usedProvider ? ` · via ${usedProvider === "claude" ? "Claude" : "Groq"}` : ""}
+            {usedProvider
+              ? ` · via ${
+                  usedProvider === "claude" ? "Claude" : usedProvider === "openrouter" ? "OpenRouter" : "Groq"
+                }`
+              : ""}
           </p>
           <button
             onClick={addAll}

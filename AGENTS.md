@@ -23,14 +23,23 @@ npm run lint
 ## Env vars
 Copy `.env.example` → `.env.local`. All optional:
 - `ANTHROPIC_API_KEY` - enables `/api/companies/search` via Claude (web-search tool).
-  **Paid** (Anthropic API usage). `ANTHROPIC_MODEL` defaults to `claude-sonnet-5`.
-- `GROQ_API_KEY` - Groq fallback for the same route (free tier). Used when Claude's key is
-  absent or the user picks Groq in the UI. `GROQ_MODEL` defaults to
+  **Paid** (Anthropic API usage). `ANTHROPIC_MODEL` defaults to `claude-sonnet-5`. Must be
+  a real Anthropic key (starts `sk-ant-`) - an OpenRouter key here 401s, use
+  `OPENROUTER_API_KEY` instead.
+- `OPENROUTER_API_KEY` - AI Search via OpenRouter (openrouter.ai). `OPENROUTER_MODEL`
+  defaults to `anthropic/claude-3.5-sonnet:online` (the `:online` suffix enables
+  OpenRouter's paid web-search plugin, live-verified like the direct Claude provider); swap
+  for any `:free` model slug for $0 cost with no live search. Called via plain fetch
+  (OpenAI-compatible), no SDK dep.
+- `GROQ_API_KEY` - Groq fallback for the same route (free tier). Used when neither Claude
+  nor OpenRouter keys are set, or the user picks Groq in the UI. `GROQ_MODEL` defaults to
   `llama-3.3-70b-versatile` (answers from model knowledge, no live browsing - reliable on
   the free tier; `groq/compound` has web search but its agentic tool chain exhausts the
   free 30k TPM limit on a single call). Called via plain fetch (OpenAI-compatible), no SDK
-  dep. Prompt is provider-aware: Groq results are hedged ("Likely:" prefix, empty report
-  URLs unless confident) since they aren't live-verified.
+  dep.
+- Auto order: Claude -> OpenRouter -> Groq. Prompt is provider-aware via `liveSearch`
+  (true for Claude/OpenRouter, false for Groq): non-live-search results are hedged
+  ("Likely:" prefix, empty report URLs unless confident) since they aren't verified.
 - Search route accepts `provider` ("auto"|"claude"|"groq"), `count` (1-100), `size`, and
   excludes already-saved companies for the course+industry (server-side dedupe).
   Without any key the dashboard, seed data, CSV import, and manual Add Company all still work.
