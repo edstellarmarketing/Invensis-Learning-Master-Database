@@ -67,10 +67,8 @@ export default function HelpDialog() {
 
       {open && (
         <div
-          ref={(el) => {
-            if (el) el.scrollTop = 0;
-          }}
-          className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm"
+          style={{ overflowAnchor: "none" }}
+          className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/60 p-4"
           onClick={() => setOpen(false)}
         >
           <div
@@ -91,9 +89,7 @@ export default function HelpDialog() {
               </button>
             </div>
             <div
-              ref={(el) => {
-                if (el) el.scrollTop = 0;
-              }}
+              style={{ overflowAnchor: "none" }}
               className="max-h-[70vh] space-y-5 overflow-y-auto px-6 py-5"
             >
               {SECTIONS.map((s) => (

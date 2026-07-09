@@ -104,9 +104,7 @@ export default function CountryFilter({
           <div
             role="listbox"
             aria-label="Select countries"
-            ref={(el) => {
-              if (el) el.scrollTop = 0;
-            }}
+            style={{ overflowAnchor: "none" }}
             className="absolute left-0 top-full z-50 mt-1.5 w-64 rounded-lg border bg-surface p-2 shadow-lg"
           >
             <div className="relative mb-2">

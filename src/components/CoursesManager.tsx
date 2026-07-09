@@ -98,10 +98,8 @@ export default function CoursesManager({
 
   return (
     <div
-      ref={(el) => {
-        if (el) el.scrollTop = 0;
-      }}
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm"
+      style={{ overflowAnchor: "none" }}
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4"
       onClick={onClose}
     >
       <div
@@ -121,11 +119,7 @@ export default function CoursesManager({
         </div>
 
         <div
-          ref={(el) => {
-            // Force the list to open at the top - some browsers auto-scroll a freshly
-            // mounted scroll container to bring the last-focused element into view.
-            if (el) el.scrollTop = 0;
-          }}
+          style={{ overflowAnchor: "none" }}
           className="max-h-[70vh] overflow-y-auto px-6 py-4"
         >
           {error && (
