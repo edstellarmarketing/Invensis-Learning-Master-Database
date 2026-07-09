@@ -24,7 +24,7 @@ type Fields = {
 
 type Provider = "claude" | "openrouter" | "groq";
 type TokenUsage = "low" | "medium" | "high";
-type ModelFamily = "claude" | "gemini" | "gpt" | "deepseek" | "other";
+type ModelFamily = "claude" | "gemini" | "gpt" | "deepseek" | "free" | "other";
 
 // OpenRouter model catalog: family -> token-usage tier -> model slug. Verified live
 // against GET https://openrouter.ai/api/v1/models (no auth needed) - re-check there
@@ -52,6 +52,13 @@ const OPENROUTER_MODELS: Record<ModelFamily, Record<TokenUsage, string>> = {
     low: "deepseek/deepseek-chat",
     medium: "deepseek/deepseek-chat-v3.1:online",
     high: "deepseek/deepseek-r1:online",
+  },
+  // Genuinely $0 open models (:free). No :online web search (that plugin is billable),
+  // so results are model-knowledge only and get hedged like Groq.
+  free: {
+    low: "meta-llama/llama-3.2-3b-instruct:free",
+    medium: "meta-llama/llama-3.3-70b-instruct:free",
+    high: "qwen/qwen3-next-80b-a3b-instruct:free",
   },
   other: {
     low: "",
@@ -96,7 +103,7 @@ export async function POST(request: Request) {
   const tokenUsage: TokenUsage = ["low", "medium", "high"].includes(String(body.tokenUsage))
     ? (body.tokenUsage as TokenUsage)
     : "medium";
-  const modelFamily: ModelFamily = ["claude", "gemini", "gpt", "deepseek", "other"].includes(
+  const modelFamily: ModelFamily = ["claude", "gemini", "gpt", "deepseek", "free", "other"].includes(
     String(body.model),
   )
     ? (body.model as ModelFamily)

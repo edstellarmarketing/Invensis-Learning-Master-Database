@@ -13,6 +13,20 @@ type Candidate = {
   source?: string;
 };
 
+function CostBadge({ free }: { free: boolean }) {
+  return (
+    <span
+      className={`ml-1.5 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+        free
+          ? "bg-[color-mix(in_srgb,var(--success)_18%,transparent)] text-success"
+          : "bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-warning"
+      }`}
+    >
+      {free ? "Free" : "Paid"}
+    </span>
+  );
+}
+
 export default function CompanySearch({
   courseSlug,
   industrySlug,
@@ -29,7 +43,9 @@ export default function CompanySearch({
   const [count, setCount] = useState(5);
   const [size, setSize] = useState("");
   const [provider, setProvider] = useState<"auto" | "claude" | "openrouter" | "groq">("auto");
-  const [model, setModel] = useState<"claude" | "gemini" | "gpt" | "deepseek" | "other">("claude");
+  const [model, setModel] = useState<
+    "claude" | "gemini" | "gpt" | "deepseek" | "free" | "other"
+  >("claude");
   const [customModel, setCustomModel] = useState("");
   const [tokenUsage, setTokenUsage] = useState<"low" | "medium" | "high">("medium");
   const [fields, setFields] = useState({
@@ -127,6 +143,10 @@ export default function CompanySearch({
 
   const field = "rounded-md border bg-bg px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-[var(--ring)]";
 
+  // Free path: Groq, or OpenRouter with the free open-model family. Everything else bills.
+  // (Auto prefers paid Claude/OpenRouter first, so it is not free.)
+  const isFree = provider === "groq" || (provider === "openrouter" && model === "free");
+
   return (
     <div>
       <form onSubmit={run} className="flex flex-wrap items-end gap-2">
@@ -164,17 +184,19 @@ export default function CompanySearch({
             ))}
           </select>
         </div>
-        <div className="w-32">
-          <label className="block text-xs font-medium text-text-muted mb-1">AI provider</label>
+        <div className="w-40">
+          <label className="flex items-center text-xs font-medium text-text-muted mb-1">
+            AI provider <CostBadge free={isFree} />
+          </label>
           <select
             className={`${field} w-full`}
             value={provider}
             onChange={(e) => setProvider(e.target.value as "auto" | "claude" | "openrouter" | "groq")}
           >
             <option value="auto">Auto</option>
-            <option value="claude">Claude</option>
+            <option value="claude">Claude (Paid)</option>
             <option value="openrouter">OpenRouter</option>
-            <option value="groq">Groq</option>
+            <option value="groq">Groq (Free)</option>
           </select>
         </div>
         <div className="w-44">
@@ -203,20 +225,21 @@ export default function CompanySearch({
 
       {(provider === "openrouter" || provider === "auto") && (
         <div className="mt-2.5 flex flex-wrap items-end gap-2 rounded-md border border-dashed bg-bg/60 p-2.5">
-          <div className="w-44">
-            <label className="block text-xs font-medium text-text-muted mb-1">
-              OpenRouter model
+          <div className="w-52">
+            <label className="flex items-center text-xs font-medium text-text-muted mb-1">
+              OpenRouter model <CostBadge free={model === "free"} />
             </label>
             <select
               className={`${field} w-full`}
               value={model}
               onChange={(e) => setModel(e.target.value as typeof model)}
             >
-              <option value="claude">Claude Sonnet</option>
-              <option value="gemini">Gemini Flash</option>
-              <option value="gpt">ChatGPT (GPT-4o)</option>
-              <option value="deepseek">DeepSeek</option>
-              <option value="other">Other popular model...</option>
+              <option value="claude">Claude Sonnet (Paid)</option>
+              <option value="gemini">Gemini Flash (Paid)</option>
+              <option value="gpt">ChatGPT / GPT-4o (Paid)</option>
+              <option value="deepseek">DeepSeek (Paid)</option>
+              <option value="free">Free open models (Llama/Qwen)</option>
+              <option value="other">Other model slug...</option>
             </select>
           </div>
           {model === "other" && (
@@ -241,17 +264,19 @@ export default function CompanySearch({
               value={tokenUsage}
               onChange={(e) => setTokenUsage(e.target.value as typeof tokenUsage)}
             >
-              <option value="low">Low (fast, cheap)</option>
+              <option value="low">Low (fast, cheapest)</option>
               <option value="medium">Medium (live search)</option>
-              <option value="high">High (deepest, priciest)</option>
+              <option value="high">High (deepest)</option>
             </select>
           </div>
           <p className="w-full text-xs text-text-muted">
-            {tokenUsage === "low"
-              ? "Low uses a lighter model with no live web search - fastest and cheapest, insights are estimates."
-              : tokenUsage === "medium"
-                ? "Medium enables OpenRouter's live web-search plugin for verified results at a moderate cost."
-                : "High steps up to the family's strongest model with the largest search budget - most thorough, most expensive."}
+            {model === "free"
+              ? "Free open models answer from model knowledge (no live web search) at $0 cost; results are marked \"Likely:\" for you to verify. Higher tiers just use a larger free model."
+              : tokenUsage === "low"
+                ? "Low uses a lighter model with no live web search - fastest and cheapest, insights are estimates."
+                : tokenUsage === "medium"
+                  ? "Medium enables OpenRouter's live web-search plugin for verified results at a moderate cost."
+                  : "High steps up to the family's strongest model with the largest search budget - most thorough, most expensive."}
           </p>
         </div>
       )}
