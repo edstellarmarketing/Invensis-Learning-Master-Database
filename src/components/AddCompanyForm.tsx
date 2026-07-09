@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Company } from "@/lib/companies";
+import { COUNTRIES } from "@/lib/countries";
 
 export default function AddCompanyForm({
   courseSlug,
@@ -77,7 +78,17 @@ export default function AddCompanyForm({
       </div>
       <div>
         <label className={label}>Country</label>
-        <input className={field} value={country} onChange={(e) => setCountry(e.target.value)} />
+        <input
+          className={field}
+          value={country}
+          onChange={(e) => setCountry(e.target.value)}
+          list="country-options"
+        />
+        <datalist id="country-options">
+          {COUNTRIES.map((c) => (
+            <option key={c} value={c} />
+          ))}
+        </datalist>
       </div>
       <div className="sm:col-span-2">
         <label className={label}>Website</label>

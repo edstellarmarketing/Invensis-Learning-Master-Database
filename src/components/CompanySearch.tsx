@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Loader2, Plus, PlusCircle, Sparkles } from "lucide-react";
 import type { Company } from "@/lib/companies";
+import { COUNTRIES } from "@/lib/countries";
 
 type Candidate = {
   companyName: string;
@@ -234,14 +235,20 @@ export default function CompanySearch({
             placeholder={`e.g. large ${industryName} firms hiring PMs`}
           />
         </div>
-        <div className="w-36">
+        <div className="w-40">
           <label className="block text-xs font-medium text-text-muted mb-1">Country</label>
           <input
             className={`${field} w-full`}
             value={country}
             onChange={(e) => setCountry(e.target.value)}
             placeholder="Any"
+            list="ai-country-options"
           />
+          <datalist id="ai-country-options">
+            {COUNTRIES.map((c) => (
+              <option key={c} value={c} />
+            ))}
+          </datalist>
         </div>
         <div className="w-28">
           <label className="block text-xs font-medium text-text-muted mb-1">Companies</label>
