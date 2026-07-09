@@ -72,13 +72,13 @@ export default function HelpDialog() {
           onClick={() => setOpen(false)}
         >
           <div
-            className="my-8 w-full max-w-2xl rounded-2xl border bg-surface shadow-lg"
+            className="my-8 flex max-h-[85vh] w-full max-w-2xl flex-col rounded-2xl border bg-surface shadow-lg"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
             aria-label="How to use the Invensis Master Database"
           >
-            <div className="band-gradient-soft flex items-center justify-between rounded-t-2xl border-b px-6 py-4">
+            <div className="band-gradient-soft flex shrink-0 items-center justify-between rounded-t-2xl border-b px-6 py-4">
               <h2 className="text-lg font-bold">How to use this tool</h2>
               <button
                 onClick={() => setOpen(false)}
@@ -88,9 +88,14 @@ export default function HelpDialog() {
                 <X size={18} />
               </button>
             </div>
+            {/* The card itself is height-capped (max-h-[85vh] above) and this is its
+                only scroll region, so header+content can never together exceed the
+                viewport with no way to reach the rest - the previous version capped
+                only this inner div, leaving the card's total height (header + 70vh +
+                margins) free to overflow the viewport on shorter screens. */}
             <div
               style={{ overflowAnchor: "none" }}
-              className="max-h-[70vh] space-y-5 overflow-y-auto px-6 py-5"
+              className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5"
             >
               {SECTIONS.map((s) => (
                 <section key={s.title}>

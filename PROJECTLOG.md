@@ -2,6 +2,40 @@
 
 Chronological record of what was built and why. Newest first.
 
+## 2026-07-09 - Session 11: modal overflow fix, enrich-mode website bug
+- Fixed the real modal overflow bug (Help dialog, then found the identical flaw in
+  CoursesManager): the dialog CARD had no height cap, only its inner content div did
+  (`max-h-[70vh]`), so total height = header + 70vh + margins could exceed the viewport
+  on shorter screens with two nested independently-scrolling regions. Rebuilt both as a
+  height-capped flex column (`max-h-[85vh] flex flex-col`) with exactly one scroll region
+  (`flex-1 min-h-0 overflow-y-auto`) - the standard bulletproof modal pattern.
+- Fixed "enrich feature not working": `verifyLinks()`'s stated policy was "ambiguous
+  responses (403 bot-blocks, timeouts) are kept, only confirmed-dead (404/410) is
+  removed," but the actual code returned `false` (dead, removed) whenever BOTH the HEAD
+  and GET probes threw an exception - which happens for timeouts, redirect loops, and
+  bot-protection connection drops, not just genuinely nonexistent domains. Real company
+  that surfaced this: ovhcloud.com redirects "/" <-> "" forever (a live site). Now only a
+  confirmed DNS failure (`ENOTFOUND`, i.e. the hostname genuinely doesn't resolve) counts
+  as dead; every other network failure is treated as ambiguous and the website/report URL
+  is kept. Verified: OVHcloud's website is now preserved through enrich; a fabricated
+  nonexistent domain is still correctly removed.
+
+## 2026-07-09 - Session 10: deep UI/UX audit round 2
+- Two parallel full-file-read agents (not grep-based) audited every component.
+- CRITICAL: fixed a dashboard crash whenever any category has zero courses
+  (`cat.courses[0].slug` on an empty array - reproducible since CoursesManager allows
+  creating empty categories). Falls back to "/" and dims the card instead of crashing.
+- Data-loss risks: row selection surviving filter changes could let "Delete selected" hit
+  rows no longer visible; AI Search's per-row Add tracked candidates by array index,
+  risking the wrong row being removed after a fast double-add. Both fixed (selection/page
+  reset on filter change via render-time state adjustment; stable company-name key
+  instead of index).
+- Sidebar had zero mobile responsiveness (fixed w-72 column, no collapse) - now an
+  off-canvas drawer below md with a hamburger trigger, backdrop, and auto-close on nav.
+- Added `loading.tsx` (force-dynamic pages had no fallback UI), loading states on
+  bulk/row delete, a 20MB import file-size guard, aria-expanded/aria-live consistency,
+  and an always-on danger tint on delete icons (previously identical to Edit at rest).
+
 ## 2026-07-09 - Session 9: catalog CRUD, theme, help, featured, multi-course search
 - Light/dark theme toggle (localStorage + no-flash script) and a sticky top bar with a
   Help dialog documenting the whole tool.

@@ -543,17 +543,29 @@ async function verifyLinks(candidates: Candidate[], fields: Fields): Promise<Can
         clearTimeout(timer);
       }
     };
+    // DNS resolution failure (ENOTFOUND) is the one network-level error that reliably
+    // means "this domain does not exist" - a typo'd or fabricated hostname. Everything
+    // else that throws (timeout, redirect loop, connection reset, TLS error,
+    // bot-protection dropping the connection) is ambiguous and, per the policy above,
+    // should be KEPT rather than treated as dead.
+    const isDnsFailure = (err: unknown): boolean =>
+      (err as { cause?: { code?: string } })?.cause?.code === "ENOTFOUND";
+
     try {
       let res = await probe("HEAD");
       if (res.status === 405 || res.status === 501) res = await probe("GET");
       if (res.status === 404 || res.status === 410) return false;
       return true;
-    } catch {
+    } catch (err1) {
+      if (isDnsFailure(err1)) return false;
       try {
         const res = await probe("GET");
         return res.status !== 404 && res.status !== 410;
-      } catch {
-        return false; // unreachable host / timeout twice
+      } catch (err2) {
+        // Real example that surfaced this: ovhcloud.com redirects "/" -> "" -> "/" -> ...
+        // forever (too-many-redirects) - a live site our probe couldn't resolve, not a
+        // dead one. Only a confirmed DNS failure counts as dead here.
+        return !isDnsFailure(err2);
       }
     }
   };

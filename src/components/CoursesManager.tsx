@@ -105,13 +105,13 @@ export default function CoursesManager({
       onClick={onClose}
     >
       <div
-        className="my-8 w-full max-w-2xl rounded-2xl border bg-surface shadow-lg"
+        className="my-8 flex max-h-[85vh] w-full max-w-2xl flex-col rounded-2xl border bg-surface shadow-lg"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="courses-manager-title"
       >
-        <div className="band-gradient-soft flex items-center justify-between rounded-t-2xl border-b px-6 py-4">
+        <div className="band-gradient-soft flex shrink-0 items-center justify-between rounded-t-2xl border-b px-6 py-4">
           <h2 id="courses-manager-title" className="text-lg font-bold">
             Manage courses &amp; categories
           </h2>
@@ -120,9 +120,11 @@ export default function CoursesManager({
           </button>
         </div>
 
+        {/* Card is height-capped (max-h-[85vh] above) with this as its only scroll
+            region, so header+content can never together exceed the viewport. */}
         <div
           style={{ overflowAnchor: "none" }}
-          className="max-h-[70vh] overflow-y-auto px-6 py-4"
+          className="min-h-0 flex-1 overflow-y-auto px-6 py-4"
         >
           {error && (
             <p className="mb-3 rounded-md bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] px-3 py-2 text-sm text-danger">
