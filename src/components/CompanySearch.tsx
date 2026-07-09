@@ -54,12 +54,15 @@ export default function CompanySearch({
   const [query, setQuery] = useState("");
   const [count, setCount] = useState(5);
   const [size, setSize] = useState("");
-  const [provider, setProvider] = useState<"auto" | "claude" | "openrouter" | "groq">("auto");
+  // Default to a free provider/model/tier so opening AI Search and hitting "Search"
+  // without touching anything never silently costs money. Paid options (Claude, OpenRouter
+  // Medium/High) stay fully available - just not pre-selected.
+  const [provider, setProvider] = useState<"auto" | "claude" | "openrouter" | "groq">("groq");
   const [model, setModel] = useState<
     "claude" | "gemini" | "gpt" | "deepseek" | "free" | "other"
-  >("claude");
+  >("free");
   const [customModel, setCustomModel] = useState("");
-  const [tokenUsage, setTokenUsage] = useState<"low" | "medium" | "high">("medium");
+  const [tokenUsage, setTokenUsage] = useState<"low" | "medium" | "high">("low");
   const [fields, setFields] = useState({
     website: true,
     country: true,
