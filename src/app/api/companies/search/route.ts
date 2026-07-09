@@ -71,6 +71,16 @@ const OPENROUTER_MODELS: Record<ModelFamily, Record<TokenUsage, string>> = {
   },
 };
 
+// Rotation pool for the free family: OpenRouter's :free models share a heavily
+// rate-limited pool per model, so on a 429 we hop to the next free model instead of
+// failing. Ordered by capability. All slugs verified against /api/v1/models.
+const FREE_MODEL_POOL = [
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "nousresearch/hermes-3-llama-3.1-405b:free",
+  "meta-llama/llama-3.2-3b-instruct:free",
+];
+
 const TOKEN_BUDGETS: Record<TokenUsage, (count: number) => number> = {
   low: (count) => Math.min(4000, 500 + count * 200),
   medium: (count) => Math.min(12000, 1200 + count * 400),
@@ -178,7 +188,9 @@ export async function POST(request: Request) {
   }
 
   // Auto mode cascades through every configured provider on failure; an explicit
-  // provider choice fails fast with that provider's error.
+  // provider choice fails fast with that provider's error - with one exception:
+  // the free OpenRouter family falls through to Groq (also $0) when the whole free
+  // pool is rate-limited, since the user's cost expectation is identical.
   const chain: Provider[] =
     requested === "auto"
       ? ([
@@ -186,7 +198,9 @@ export async function POST(request: Request) {
           hasOpenRouter ? "openrouter" : null,
           hasGroq ? "groq" : null,
         ].filter(Boolean) as Provider[])
-      : [provider];
+      : provider === "openrouter" && modelFamily === "free" && hasGroq
+        ? ["openrouter", "groq"]
+        : [provider];
 
   const errors: string[] = [];
   for (const p of chain) {
@@ -249,7 +263,7 @@ export async function POST(request: Request) {
   }
 
   return Response.json(
-    { error: errors.join(" | ") || "AI search failed", provider },
+    { error: errors.join(" | ").replace(/RATE_LIMITED: /g, "") || "AI search failed", provider },
     { status: 502 },
   );
 }
@@ -416,11 +430,17 @@ async function runOpenRouter(
   tokenUsage: TokenUsage,
 ): Promise<string> {
   const isFreeModel = model.endsWith(":free");
-  // Free models share a heavily rate-limited pool; give one retry after a short wait.
-  const attempts = isFreeModel ? 2 : 1;
+  // Free family: rotate through the whole free pool on 429s - each :free model has its
+  // own rate bucket, so the next one usually has capacity when the first is saturated.
+  const modelQueue = isFreeModel
+    ? [model, ...FREE_MODEL_POOL.filter((m) => m !== model)]
+    : [model, model]; // paid models: one retry on the same slug after a short wait
+
   let lastStatus = 0;
   let lastBody = "";
-  for (let i = 0; i < attempts; i++) {
+  let lastModel = model;
+  for (let i = 0; i < modelQueue.length; i++) {
+    const currentModel = modelQueue[i];
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -430,7 +450,7 @@ async function runOpenRouter(
         "X-Title": "Invensis Learning Master Database",
       },
       body: JSON.stringify({
-        model,
+        model: currentModel,
         max_tokens: TOKEN_BUDGETS[tokenUsage](count),
         messages: [{ role: "user", content: prompt }],
       }),
@@ -440,23 +460,20 @@ async function runOpenRouter(
     }
     lastStatus = res.status;
     lastBody = await res.text().catch(() => "");
-    if (res.status === 429 && i < attempts - 1) {
-      await new Promise((r) => setTimeout(r, 3000));
-      continue;
+    lastModel = currentModel;
+    if ((res.status === 429 || res.status === 503) && i < modelQueue.length - 1) {
+      await new Promise((r) => setTimeout(r, isFreeModel ? 1500 : 3000));
+      continue; // next model in the queue (or same model once, for paid)
     }
     break;
   }
-  if (lastStatus === 429 && isFreeModel) {
+  if (lastStatus === 429 || lastStatus === 503) {
+    // Marker prefix lets the caller know a free-tier fallback to Groq is appropriate.
     throw new Error(
-      "OpenRouter's free model pool is rate-limited right now. Try again shortly, or switch to a paid model (Claude/Gemini/GPT/DeepSeek) or the Groq provider.",
+      `RATE_LIMITED: OpenRouter ${isFreeModel ? "free model pool is" : "rate limits are"} saturated right now (tried ${modelQueue.length} model${modelQueue.length > 1 ? "s" : ""}).`,
     );
   }
-  if (lastStatus === 429) {
-    throw new Error(
-      "OpenRouter rate-limited this request. Wait a moment and retry, or lower the token-usage tier.",
-    );
-  }
-  throw new Error(`OpenRouter API error ${lastStatus} (model ${model}): ${lastBody.slice(0, 300)}`);
+  throw new Error(`OpenRouter API error ${lastStatus} (model ${lastModel}): ${lastBody.slice(0, 300)}`);
 }
 
 // Groq fallback via its OpenAI-compatible REST API (no SDK dependency).
