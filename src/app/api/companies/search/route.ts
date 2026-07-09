@@ -13,6 +13,10 @@ type Candidate = {
   annualReportUrls: string[];
   aiInsight: string[];
   source?: string;
+  // Set by server-side link verification (same bar as the hand-verified seed rows):
+  // true = at least one report URL fetched OK; false = URLs were dead and removed;
+  // undefined = nothing to verify.
+  reportVerified?: boolean;
 };
 
 type Fields = {
@@ -173,42 +177,144 @@ export async function POST(request: Request) {
     }
   }
 
-  const prompt = buildPrompt({
-    courseName,
-    industryName,
-    country,
-    size,
-    query,
-    count,
-    existingNames,
-    fields,
-    liveSearch:
-      provider === "claude" || (provider === "openrouter" && Boolean(resolvedModel?.endsWith(":online"))),
-  });
+  // Auto mode cascades through every configured provider on failure; an explicit
+  // provider choice fails fast with that provider's error.
+  const chain: Provider[] =
+    requested === "auto"
+      ? ([
+          hasClaude ? "claude" : null,
+          hasOpenRouter ? "openrouter" : null,
+          hasGroq ? "groq" : null,
+        ].filter(Boolean) as Provider[])
+      : [provider];
 
-  try {
-    const text =
-      provider === "claude"
-        ? await runClaude(prompt, count)
-        : provider === "openrouter"
-          ? await runOpenRouter(prompt, count, resolvedModel!, tokenUsage)
-          : await runGroq(prompt, count, fields);
-    let candidates = parseCandidates(text, fields);
-
-    // Server-side dedupe: drop rows that match saved companies or repeat within the batch.
-    const seen = new Set(existingNames.map((n) => n.toLowerCase().trim()));
-    candidates = candidates.filter((c) => {
-      const key = c.companyName.toLowerCase().trim();
-      if (!key || seen.has(key)) return false;
-      seen.add(key);
-      return true;
+  const errors: string[] = [];
+  for (const p of chain) {
+    const orModel =
+      resolvedModel ??
+      OPENROUTER_MODELS[modelFamily][tokenUsage] ??
+      "anthropic/claude-sonnet-5:online";
+    // Rebuild per provider so the live-search framing matches what actually runs.
+    const prompt = buildPrompt({
+      courseName,
+      industryName,
+      country,
+      size,
+      query,
+      count,
+      existingNames,
+      fields,
+      liveSearch: p === "claude" || (p === "openrouter" && orModel.endsWith(":online")),
     });
+    try {
+      const run = () =>
+        p === "claude"
+          ? runClaude(prompt, count)
+          : p === "openrouter"
+            ? runOpenRouter(prompt, count, orModel, tokenUsage)
+            : runGroq(prompt, count, fields);
 
-    return Response.json({ candidates, provider, model: resolvedModel });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "AI search failed";
-    return Response.json({ error: message, provider }, { status: 502 });
+      let text = await run();
+      let candidates = parseCandidates(text, fields);
+      if (candidates.length === 0 && text) {
+        // One strict retry: some models wrap the array in prose despite instructions.
+        text = await run();
+        candidates = parseCandidates(text, fields);
+      }
+      if (candidates.length === 0) {
+        throw new Error(
+          `Model returned no parseable results${text ? ` (started with: "${text.slice(0, 120)}...")` : " (empty response)"}`,
+        );
+      }
+
+      // Server-side dedupe: drop rows that match saved companies or repeat within the batch.
+      const seen = new Set(existingNames.map((n) => n.toLowerCase().trim()));
+      candidates = candidates.filter((c) => {
+        const key = c.companyName.toLowerCase().trim();
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      // Link verification - the same bar the hand-verified seed rows met: fetch every
+      // annual-report URL and drop the dead ones instead of shipping 404s to the table.
+      if (fields.annualReportUrls) {
+        candidates = await verifyReportLinks(candidates);
+      }
+
+      return Response.json({ candidates, provider: p, model: p === "openrouter" ? orModel : undefined });
+    } catch (err) {
+      errors.push(`${p}: ${err instanceof Error ? err.message : "failed"}`);
+    }
   }
+
+  return Response.json(
+    { error: errors.join(" | ") || "AI search failed", provider },
+    { status: 502 },
+  );
+}
+
+// Fetch each annual-report URL (HEAD, falling back to a ranged GET when HEAD is blocked)
+// and remove URLs that are definitively dead (404/410, DNS failure, timeout). Ambiguous
+// responses (403 bot-blocks, 405) are kept - better an occasional challenge page than a
+// dropped real report. Capped concurrency; ~6s per URL.
+async function verifyReportLinks(candidates: Candidate[]): Promise<Candidate[]> {
+  const checkUrl = async (url: string): Promise<boolean> => {
+    if (!/^https?:\/\//i.test(url)) return false;
+    const probe = async (method: "HEAD" | "GET") => {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 6000);
+      try {
+        return await fetch(url, {
+          method,
+          redirect: "follow",
+          signal: ctrl.signal,
+          headers: {
+            "User-Agent": "Mozilla/5.0 (compatible; InvensisMasterDB/1.0; link-check)",
+            ...(method === "GET" ? { Range: "bytes=0-2047" } : {}),
+          },
+        });
+      } finally {
+        clearTimeout(timer);
+      }
+    };
+    try {
+      let res = await probe("HEAD");
+      if (res.status === 405 || res.status === 501) res = await probe("GET");
+      if (res.status === 404 || res.status === 410) return false;
+      return true;
+    } catch {
+      try {
+        const res = await probe("GET");
+        return res.status !== 404 && res.status !== 410;
+      } catch {
+        return false; // unreachable host / timeout twice
+      }
+    }
+  };
+
+  // Flatten all URLs, verify with bounded parallelism, then map results back.
+  const jobs: { c: Candidate; url: string }[] = [];
+  for (const c of candidates) for (const url of c.annualReportUrls.slice(0, 3)) jobs.push({ c, url });
+  const results = new Map<string, boolean>();
+  const POOL = 8;
+  for (let i = 0; i < jobs.length; i += POOL) {
+    await Promise.all(
+      jobs.slice(i, i + POOL).map(async ({ url }) => {
+        if (!results.has(url)) results.set(url, await checkUrl(url));
+      }),
+    );
+  }
+
+  return candidates.map((c) => {
+    if (c.annualReportUrls.length === 0) return c;
+    const alive = c.annualReportUrls.filter((u) => results.get(u) === true);
+    return {
+      ...c,
+      annualReportUrls: alive,
+      reportVerified: alive.length > 0 ? true : false,
+    };
+  });
 }
 
 function buildPrompt(p: {
@@ -330,8 +436,7 @@ async function runOpenRouter(
       }),
     });
     if (res.ok) {
-      const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-      return (data.choices?.[0]?.message?.content ?? "").trim();
+      return extractOpenAIContent(await res.json());
     }
     lastStatus = res.status;
     lastBody = await res.text().catch(() => "");
@@ -384,8 +489,7 @@ async function runGroq(prompt: string, count: number, fields: Fields): Promise<s
       body: JSON.stringify({ model, max_tokens: budgets[i], messages: [{ role: "user", content: prompt }] }),
     });
     if (res.ok) {
-      const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-      return (data.choices?.[0]?.message?.content ?? "").trim();
+      return extractOpenAIContent(await res.json());
     }
     const errBody = await res.text().catch(() => "");
     lastErr = `Groq API error ${res.status}: ${errBody.slice(0, 400)}`;
@@ -414,6 +518,27 @@ async function runGroq(prompt: string, count: number, fields: Fields): Promise<s
   throw new Error(lastErr || "Groq API request failed");
 }
 
+// OpenAI-compatible responses differ per model: content may be a plain string, an array
+// of typed parts (some Gemini routes), or empty with the real output in a "reasoning"
+// field (DeepSeek R1 style). Missing these shapes is why some models "returned nothing".
+function extractOpenAIContent(data: unknown): string {
+  const msg = (data as { choices?: { message?: Record<string, unknown> }[] })?.choices?.[0]?.message;
+  if (!msg) return "";
+  const { content, reasoning } = msg as { content?: unknown; reasoning?: unknown };
+  if (typeof content === "string" && content.trim()) return content.trim();
+  if (Array.isArray(content)) {
+    const joined = content
+      .map((part) =>
+        typeof part === "string" ? part : String((part as { text?: string })?.text ?? ""),
+      )
+      .join("\n")
+      .trim();
+    if (joined) return joined;
+  }
+  if (typeof reasoning === "string" && reasoning.trim()) return reasoning.trim();
+  return "";
+}
+
 function parseCandidates(text: string, fields: Fields): Candidate[] {
   // Strip code fences if present, then extract the first JSON array.
   const cleaned = text.replace(/```json/gi, "").replace(/```/g, "").trim();
@@ -421,7 +546,9 @@ function parseCandidates(text: string, fields: Fields): Candidate[] {
   const end = cleaned.lastIndexOf("]");
   if (start === -1 || end === -1 || end <= start) return [];
   try {
-    const parsed = JSON.parse(cleaned.slice(start, end + 1));
+    // Repair the most common model JSON slip: trailing commas before ] or }.
+    const slice = cleaned.slice(start, end + 1).replace(/,\s*([\]}])/g, "$1");
+    const parsed = JSON.parse(slice);
     if (!Array.isArray(parsed)) return [];
     return parsed.map((c: Record<string, unknown>) => ({
       companyName: String(c.companyName ?? ""),

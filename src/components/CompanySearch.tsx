@@ -11,6 +11,7 @@ type Candidate = {
   annualReportUrls: string[];
   aiInsight: string[];
   source?: string;
+  reportVerified?: boolean;
 };
 
 function CostBadge({ free }: { free: boolean }) {
@@ -348,6 +349,16 @@ export default function CompanySearch({
                     {cand.companyName}
                     {fields.country && cand.country && (
                       <span className="text-text-muted font-normal"> · {cand.country}</span>
+                    )}
+                    {fields.annualReportUrls && cand.reportVerified === true && (
+                      <span className="ml-1.5 rounded bg-[color-mix(in_srgb,var(--success)_18%,transparent)] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-success">
+                        Report link verified
+                      </span>
+                    )}
+                    {fields.annualReportUrls && cand.reportVerified === false && (
+                      <span className="ml-1.5 rounded bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-warning">
+                        Report link removed (dead)
+                      </span>
                     )}
                   </p>
                   {fields.website && cand.website && (
