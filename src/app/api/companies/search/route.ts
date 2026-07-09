@@ -309,26 +309,49 @@ async function runOpenRouter(
   model: string,
   tokenUsage: TokenUsage,
 ): Promise<string> {
-  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-      "HTTP-Referer": process.env.OPENROUTER_SITE_URL || "https://invensis-learning-master-database.vercel.app",
-      "X-Title": "Invensis Learning Master Database",
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: TOKEN_BUDGETS[tokenUsage](count),
-      messages: [{ role: "user", content: prompt }],
-    }),
-  });
-  if (!res.ok) {
-    const errBody = await res.text().catch(() => "");
-    throw new Error(`OpenRouter API error ${res.status} (model ${model}): ${errBody.slice(0, 400)}`);
+  const isFreeModel = model.endsWith(":free");
+  // Free models share a heavily rate-limited pool; give one retry after a short wait.
+  const attempts = isFreeModel ? 2 : 1;
+  let lastStatus = 0;
+  let lastBody = "";
+  for (let i = 0; i < attempts; i++) {
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        "HTTP-Referer": process.env.OPENROUTER_SITE_URL || "https://invensis-learning-master-database.vercel.app",
+        "X-Title": "Invensis Learning Master Database",
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: TOKEN_BUDGETS[tokenUsage](count),
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+    if (res.ok) {
+      const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+      return (data.choices?.[0]?.message?.content ?? "").trim();
+    }
+    lastStatus = res.status;
+    lastBody = await res.text().catch(() => "");
+    if (res.status === 429 && i < attempts - 1) {
+      await new Promise((r) => setTimeout(r, 3000));
+      continue;
+    }
+    break;
   }
-  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-  return (data.choices?.[0]?.message?.content ?? "").trim();
+  if (lastStatus === 429 && isFreeModel) {
+    throw new Error(
+      "OpenRouter's free model pool is rate-limited right now. Try again shortly, or switch to a paid model (Claude/Gemini/GPT/DeepSeek) or the Groq provider.",
+    );
+  }
+  if (lastStatus === 429) {
+    throw new Error(
+      "OpenRouter rate-limited this request. Wait a moment and retry, or lower the token-usage tier.",
+    );
+  }
+  throw new Error(`OpenRouter API error ${lastStatus} (model ${model}): ${lastBody.slice(0, 300)}`);
 }
 
 // Groq fallback via its OpenAI-compatible REST API (no SDK dependency).
