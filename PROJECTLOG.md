@@ -2,6 +2,25 @@
 
 Chronological record of what was built and why. Newest first.
 
+## 2026-07-09 - Session 8: AI research overhaul (audit fixes applied)
+- Deep research (High token tier + live-search models): phase 1 lists companies + links,
+  phase 2 reads each company's VERIFIED annual report in its own small call for grounded
+  insights - the productized version of how the original 5 PMP seed rows were researched.
+- Link verification extended to websites (dead corporate site -> blanked, company kept);
+  report URLs already verified server-side with dead ones removed.
+- Client-side batching: counts over 15 run as sequential batches with live progress
+  ("Batch 2 of 5 - 18 found"), accumulated exclusions so batches never overlap, and
+  partial results survive a failed batch.
+- 24h Redis result cache (first-batch requests only): repeat searches cost zero tokens;
+  UI shows "from cache".
+- Free-pool resilience: rotation through 4 verified :free models on 429/503; explicit
+  Free-family requests fall through to Groq automatically when the whole pool is
+  saturated (same $0 cost expectation).
+- Earlier in session: OpenRouter provider (model families Claude/Gemini/GPT/DeepSeek/
+  Free/custom slug x low/medium/high token tiers with Paid/Free labels), Gemini
+  response-shape parsing fix, auto provider cascade, field-selection checkboxes.
+- Backlog note: EDGAR/Companies House enrichment for registry-accurate report URLs.
+
 ## 2026-07-08 - Session 6: Upstash Redis backend (writes on Vercel)
 - Storage adapter (`src/lib/storage.ts`): Upstash Redis when env is configured, local JSON
   files otherwise. Both datasets stored whole under two keys; first read seeds Redis from the

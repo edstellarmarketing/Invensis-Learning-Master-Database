@@ -56,12 +56,18 @@ export default function CompanySearch({
     aiInsight: true,
   });
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState<string | null>(null);
   const [results, setResults] = useState<Candidate[]>([]);
   const [usedProvider, setUsedProvider] = useState<string | null>(null);
   const [usedModel, setUsedModel] = useState<string | null>(null);
+  const [wasCached, setWasCached] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [addingIdx, setAddingIdx] = useState<number | null>(null);
   const [addingAll, setAddingAll] = useState(false);
+
+  // Large counts run as sequential batches: each batch excludes everything found so
+  // far, results append live, and one failed batch keeps earlier batches' results.
+  const BATCH_SIZE = 15;
 
   const run = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,36 +75,52 @@ export default function CompanySearch({
     setResults([]);
     setUsedProvider(null);
     setUsedModel(null);
+    setWasCached(false);
+    setProgress(null);
     setLoading(true);
+
+    const totalBatches = Math.ceil(count / BATCH_SIZE);
+    const found: Candidate[] = [];
     try {
-      const res = await fetch("/api/companies/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          courseSlug,
-          industrySlug,
-          industryName,
-          country,
-          query,
-          count,
-          size,
-          provider,
-          fields,
-          model,
-          customModel,
-          tokenUsage,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || `Search failed (${res.status})`);
-      setResults(data.candidates ?? []);
-      setUsedProvider(data.provider ?? null);
-      setUsedModel(data.model ?? null);
-      if ((data.candidates ?? []).length === 0) setError("No candidates returned.");
+      for (let b = 0; b < totalBatches; b++) {
+        const batchCount = Math.min(BATCH_SIZE, count - b * BATCH_SIZE);
+        if (totalBatches > 1) {
+          setProgress(`Batch ${b + 1} of ${totalBatches} · ${found.length} found so far...`);
+        }
+        const res = await fetch("/api/companies/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            courseSlug,
+            industrySlug,
+            industryName,
+            country,
+            query,
+            count: batchCount,
+            size,
+            provider,
+            fields,
+            model,
+            customModel,
+            tokenUsage,
+            excludeNames: found.map((c) => c.companyName),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || `Search failed (${res.status})`);
+        found.push(...((data.candidates ?? []) as Candidate[]));
+        setResults([...found]);
+        setUsedProvider(data.provider ?? null);
+        setUsedModel(data.model ?? null);
+        if (data.cached) setWasCached(true);
+      }
+      if (found.length === 0) setError("No candidates returned.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Search failed");
+      const msg = err instanceof Error ? err.message : "Search failed";
+      setError(found.length > 0 ? `Stopped after ${found.length} companies: ${msg}` : msg);
     } finally {
       setLoading(false);
+      setProgress(null);
     }
   };
 
@@ -277,7 +299,7 @@ export default function CompanySearch({
                 ? "Low uses a lighter model with no live web search - fastest and cheapest, insights are estimates."
                 : tokenUsage === "medium"
                   ? "Medium enables OpenRouter's live web-search plugin for verified results at a moderate cost."
-                  : "High steps up to the family's strongest model with the largest search budget - most thorough, most expensive."}
+                  : "High runs deep research: the family's strongest model lists companies, then reads each company's verified annual report in its own pass - most thorough, most expensive."}
           </p>
         </div>
       )}
@@ -316,6 +338,11 @@ export default function CompanySearch({
         Groq&apos;s free tier has a low rate limit, so retry after a minute if it says to wait.
       </p>
 
+      {progress && (
+        <p className="mt-2 inline-flex items-center gap-1.5 text-sm text-primary">
+          <Loader2 size={14} className="animate-spin" /> {progress}
+        </p>
+      )}
       {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
 
       {results.length > 0 && (
@@ -327,6 +354,7 @@ export default function CompanySearch({
                   usedProvider === "claude" ? "Claude" : usedProvider === "openrouter" ? "OpenRouter" : "Groq"
                 }${usedModel ? ` (${usedModel})` : ""}`
               : ""}
+            {wasCached ? " · from cache (no tokens spent)" : ""}
           </p>
           <button
             onClick={addAll}

@@ -74,6 +74,28 @@ export async function writeDataset<T>(name: string, value: T): Promise<void> {
   }
 }
 
+// Short-lived cache entries (e.g. AI search results). No-ops without Redis - local dev
+// always misses, which is the right behavior for testing live searches.
+export async function cacheGet<T>(key: string): Promise<T | null> {
+  const r = getRedis();
+  if (!r) return null;
+  try {
+    return (await r.get<T>(`${KEY_PREFIX}cache:${key}`)) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function cacheSet<T>(key: string, value: T, ttlSeconds: number): Promise<void> {
+  const r = getRedis();
+  if (!r) return;
+  try {
+    await r.set(`${KEY_PREFIX}cache:${key}`, value, { ex: ttlSeconds });
+  } catch {
+    // Cache write failures are non-fatal.
+  }
+}
+
 // Read-only serverless filesystems: surface clearly instead of a 500.
 export function friendlyWriteError(err: unknown): Error {
   const code = (err as NodeJS.ErrnoException)?.code;

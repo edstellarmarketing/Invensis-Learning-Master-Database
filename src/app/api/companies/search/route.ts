@@ -1,6 +1,8 @@
+import { createHash } from "node:crypto";
 import Anthropic from "@anthropic-ai/sdk";
 import { findCourse } from "@/lib/courses";
 import { readCompanies } from "@/lib/companies";
+import { cacheGet, cacheSet } from "@/lib/storage";
 
 export const runtime = "nodejs";
 // Large counts take a while; Vercel clamps this to the plan's ceiling.
@@ -159,18 +161,52 @@ export async function POST(request: Request) {
   const course = findCourse(courseSlug);
   const courseName = course?.name ?? courseSlug;
 
+  // Extra exclusions from the client (batched searches pass earlier batches' names so
+  // batch N+1 keeps discovering new companies).
+  const excludeNames = Array.isArray(body.excludeNames)
+    ? (body.excludeNames as unknown[]).map(String).filter(Boolean)
+    : [];
+
   // Research quality: exclude companies already saved for this course+industry so
   // repeated searches keep discovering NEW prospects. Cap the list so it can't blow
   // up the prompt (and the Groq per-request token ceiling) on a well-populated table.
-  let existingNames: string[] = [];
+  let existingNames: string[] = [...excludeNames];
   try {
     const all = await readCompanies();
-    existingNames = all
-      .filter((c) => c.courseSlug === courseSlug && (!industrySlug || c.industrySlug === industrySlug))
-      .map((c) => c.companyName)
-      .slice(0, provider === "groq" ? 40 : 150);
+    existingNames.push(
+      ...all
+        .filter((c) => c.courseSlug === courseSlug && (!industrySlug || c.industrySlug === industrySlug))
+        .map((c) => c.companyName),
+    );
   } catch {
     // Non-fatal: search still works without the exclusion list.
+  }
+  existingNames = existingNames.slice(0, provider === "groq" ? 40 : 150);
+
+  // 24h result cache (Redis; no-op locally). Only for first-batch requests - once
+  // exclusions accumulate, results are inherently unique per call.
+  const cacheKey = createHash("sha1")
+    .update(
+      JSON.stringify({
+        courseSlug,
+        industrySlug,
+        country,
+        size,
+        query,
+        count,
+        requested,
+        modelFamily,
+        customModel,
+        tokenUsage,
+        fields,
+      }),
+    )
+    .digest("hex");
+  if (excludeNames.length === 0) {
+    const hit = await cacheGet<{ candidates: Candidate[]; provider: Provider; model?: string }>(cacheKey);
+    if (hit && Array.isArray(hit.candidates) && hit.candidates.length > 0) {
+      return Response.json({ ...hit, cached: true });
+    }
   }
 
   let resolvedModel: string | undefined;
@@ -208,6 +244,12 @@ export async function POST(request: Request) {
       resolvedModel ??
       OPENROUTER_MODELS[modelFamily][tokenUsage] ??
       "anthropic/claude-sonnet-5:online";
+    const liveSearch = p === "claude" || (p === "openrouter" && orModel.endsWith(":online"));
+    // Deep research (High tier + live search): phase 1 only lists companies + links,
+    // phase 2 reads each company's VERIFIED report for grounded insights - the same
+    // two-step process the hand-verified seed rows went through.
+    const deep = tokenUsage === "high" && fields.aiInsight && liveSearch;
+    const phase1Fields: Fields = deep ? { ...fields, aiInsight: false } : fields;
     // Rebuild per provider so the live-search framing matches what actually runs.
     const prompt = buildPrompt({
       courseName,
@@ -217,8 +259,8 @@ export async function POST(request: Request) {
       query,
       count,
       existingNames,
-      fields,
-      liveSearch: p === "claude" || (p === "openrouter" && orModel.endsWith(":online")),
+      fields: phase1Fields,
+      liveSearch,
     });
     try {
       const run = () =>
@@ -226,14 +268,14 @@ export async function POST(request: Request) {
           ? runClaude(prompt, count)
           : p === "openrouter"
             ? runOpenRouter(prompt, count, orModel, tokenUsage)
-            : runGroq(prompt, count, fields);
+            : runGroq(prompt, count, phase1Fields);
 
       let text = await run();
-      let candidates = parseCandidates(text, fields);
+      let candidates = parseCandidates(text, phase1Fields);
       if (candidates.length === 0 && text) {
         // One strict retry: some models wrap the array in prose despite instructions.
         text = await run();
-        candidates = parseCandidates(text, fields);
+        candidates = parseCandidates(text, phase1Fields);
       }
       if (candidates.length === 0) {
         throw new Error(
@@ -251,12 +293,27 @@ export async function POST(request: Request) {
       });
 
       // Link verification - the same bar the hand-verified seed rows met: fetch every
-      // annual-report URL and drop the dead ones instead of shipping 404s to the table.
-      if (fields.annualReportUrls) {
-        candidates = await verifyReportLinks(candidates);
+      // annual-report URL (and website) and drop the dead ones instead of shipping 404s.
+      if (fields.annualReportUrls || fields.website) {
+        candidates = await verifyLinks(candidates, fields);
       }
 
-      return Response.json({ candidates, provider: p, model: p === "openrouter" ? orModel : undefined });
+      // Deep research phase 2: read each company's verified report (or search the web
+      // for its L&D disclosures) in its own small call - grounded, per-company insights.
+      if (deep) {
+        candidates = await deepResearch(candidates, p, orModel, courseName);
+      }
+
+      const payload = {
+        candidates,
+        provider: p,
+        model: p === "openrouter" ? orModel : undefined,
+        deep,
+      };
+      if (excludeNames.length === 0 && candidates.length > 0) {
+        await cacheSet(cacheKey, payload, 86400);
+      }
+      return Response.json(payload);
     } catch (err) {
       errors.push(`${p}: ${err instanceof Error ? err.message : "failed"}`);
     }
@@ -268,11 +325,61 @@ export async function POST(request: Request) {
   );
 }
 
-// Fetch each annual-report URL (HEAD, falling back to a ranged GET when HEAD is blocked)
-// and remove URLs that are definitively dead (404/410, DNS failure, timeout). Ambiguous
-// responses (403 bot-blocks, 405) are kept - better an occasional challenge page than a
-// dropped real report. Capped concurrency; ~6s per URL.
-async function verifyReportLinks(candidates: Candidate[]): Promise<Candidate[]> {
+// Deep research: one small live-search call per company, grounded in its verified
+// report URL when available. Pool of 3 to stay inside the route deadline; failures
+// degrade to an empty insight list rather than dropping the company.
+async function deepResearch(
+  candidates: Candidate[],
+  p: Provider,
+  orModel: string,
+  courseName: string,
+): Promise<Candidate[]> {
+  const researchOne = async (c: Candidate): Promise<Candidate> => {
+    const grounding =
+      c.reportVerified && c.annualReportUrls[0]
+        ? `Read their latest annual report at ${c.annualReportUrls[0]} (verified live).`
+        : `Search the web for their latest annual report, ESG/sustainability report, or L&D press coverage.`;
+    const prompt = `Research the company "${c.companyName}"${c.website ? ` (${c.website})` : ""} as a corporate-training prospect for "${courseName}".
+
+${grounding}
+
+Extract 4-5 concise bullets on their training / learning & development / upskilling activity in the most recent financial year. Every bullet must be grounded in a real disclosure; if a figure is not verifiable, phrase it qualitatively - NEVER invent numbers.
+
+Respond with ONLY a JSON object (no fences, no prose): {"aiInsight": string[4-5], "source": string}`;
+    try {
+      const text =
+        p === "claude" ? await runClaude(prompt, 2) : await runOpenRouter(prompt, 2, orModel, "medium");
+      const start = text.indexOf("{");
+      const end = text.lastIndexOf("}");
+      if (start === -1 || end <= start) throw new Error("no JSON");
+      const obj = JSON.parse(text.slice(start, end + 1).replace(/,\s*([\]}])/g, "$1")) as {
+        aiInsight?: unknown;
+        source?: unknown;
+      };
+      return {
+        ...c,
+        aiInsight: Array.isArray(obj.aiInsight) ? obj.aiInsight.map(String).slice(0, 5) : [],
+        source: obj.source ? String(obj.source) : c.source,
+      };
+    } catch {
+      return { ...c, aiInsight: [], source: "Deep research failed for this company - retry or edit manually" };
+    }
+  };
+
+  const out: Candidate[] = [...candidates];
+  const POOL = 3;
+  for (let i = 0; i < out.length; i += POOL) {
+    const chunk = await Promise.all(out.slice(i, i + POOL).map(researchOne));
+    for (let j = 0; j < chunk.length; j++) out[i + j] = chunk[j];
+  }
+  return out;
+}
+
+// Fetch each annual-report URL and website (HEAD, falling back to a ranged GET when HEAD
+// is blocked) and remove URLs that are definitively dead (404/410, DNS failure, timeout).
+// Ambiguous responses (403 bot-blocks, 405) are kept - better an occasional challenge
+// page than a dropped real report. Capped concurrency; ~6s per URL.
+async function verifyLinks(candidates: Candidate[], fields: Fields): Promise<Candidate[]> {
   const checkUrl = async (url: string): Promise<boolean> => {
     if (!/^https?:\/\//i.test(url)) return false;
     const probe = async (method: "HEAD" | "GET") => {
@@ -308,26 +415,33 @@ async function verifyReportLinks(candidates: Candidate[]): Promise<Candidate[]> 
   };
 
   // Flatten all URLs, verify with bounded parallelism, then map results back.
-  const jobs: { c: Candidate; url: string }[] = [];
-  for (const c of candidates) for (const url of c.annualReportUrls.slice(0, 3)) jobs.push({ c, url });
+  const urls = new Set<string>();
+  for (const c of candidates) {
+    if (fields.annualReportUrls) for (const url of c.annualReportUrls.slice(0, 3)) urls.add(url);
+    if (fields.website && c.website) urls.add(c.website);
+  }
+  const jobs = [...urls];
   const results = new Map<string, boolean>();
   const POOL = 8;
   for (let i = 0; i < jobs.length; i += POOL) {
     await Promise.all(
-      jobs.slice(i, i + POOL).map(async ({ url }) => {
-        if (!results.has(url)) results.set(url, await checkUrl(url));
+      jobs.slice(i, i + POOL).map(async (url) => {
+        results.set(url, await checkUrl(url));
       }),
     );
   }
 
   return candidates.map((c) => {
-    if (c.annualReportUrls.length === 0) return c;
-    const alive = c.annualReportUrls.filter((u) => results.get(u) === true);
-    return {
-      ...c,
-      annualReportUrls: alive,
-      reportVerified: alive.length > 0 ? true : false,
-    };
+    let next = c;
+    if (fields.annualReportUrls && c.annualReportUrls.length > 0) {
+      const alive = c.annualReportUrls.filter((u) => results.get(u) === true);
+      next = { ...next, annualReportUrls: alive, reportVerified: alive.length > 0 };
+    }
+    // Dead corporate site: blank it rather than dropping the company.
+    if (fields.website && next.website && results.get(next.website) === false) {
+      next = { ...next, website: "" };
+    }
+    return next;
   });
 }
 
