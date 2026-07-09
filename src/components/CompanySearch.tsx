@@ -29,6 +29,12 @@ export default function CompanySearch({
   const [count, setCount] = useState(5);
   const [size, setSize] = useState("");
   const [provider, setProvider] = useState<"auto" | "claude" | "groq">("auto");
+  const [fields, setFields] = useState({
+    website: true,
+    country: true,
+    annualReportUrls: true,
+    aiInsight: true,
+  });
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Candidate[]>([]);
   const [usedProvider, setUsedProvider] = useState<string | null>(null);
@@ -55,6 +61,7 @@ export default function CompanySearch({
           count,
           size,
           provider,
+          fields,
         }),
       });
       const data = await res.json();
@@ -184,6 +191,30 @@ export default function CompanySearch({
         </button>
       </form>
 
+      <fieldset className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-0 p-0">
+        <legend className="mb-1 w-full text-xs font-medium text-text-muted sm:mb-0 sm:w-auto">
+          Fields to fetch:
+        </legend>
+        {(
+          [
+            ["website", "Website"],
+            ["country", "Country"],
+            ["annualReportUrls", "Annual Reports"],
+            ["aiInsight", "AI Insights"],
+          ] as const
+        ).map(([key, label]) => (
+          <label key={key} className="inline-flex items-center gap-1.5 text-sm">
+            <input
+              type="checkbox"
+              checked={fields[key]}
+              onChange={(e) => setFields((f) => ({ ...f, [key]: e.target.checked }))}
+              className="size-3.5 cursor-pointer accent-[var(--primary)]"
+            />
+            {label}
+          </label>
+        ))}
+      </fieldset>
+
       <p className="mt-2 text-xs text-text-muted">
         AI discovery finds real companies + annual reports and drafts training insights. Auto uses
         Claude (<code>ANTHROPIC_API_KEY</code>) and falls back to Groq (<code>GROQ_API_KEY</code>).
@@ -217,10 +248,12 @@ export default function CompanySearch({
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="font-medium">
-                    {cand.companyName}{" "}
-                    <span className="text-text-muted font-normal">· {cand.country}</span>
+                    {cand.companyName}
+                    {fields.country && cand.country && (
+                      <span className="text-text-muted font-normal"> · {cand.country}</span>
+                    )}
                   </p>
-                  {cand.website && (
+                  {fields.website && cand.website && (
                     <a
                       href={cand.website}
                       target="_blank"
@@ -239,7 +272,7 @@ export default function CompanySearch({
                   <Plus size={13} /> Add
                 </button>
               </div>
-              {cand.aiInsight?.length > 0 && (
+              {fields.aiInsight && cand.aiInsight?.length > 0 && (
                 <ul className="mt-2 list-disc space-y-0.5 pl-5 text-xs text-text-muted">
                   {cand.aiInsight.slice(0, 5).map((p, i) => (
                     <li key={i}>{p}</li>

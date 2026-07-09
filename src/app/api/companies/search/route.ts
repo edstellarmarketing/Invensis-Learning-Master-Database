@@ -15,6 +15,13 @@ type Candidate = {
   source?: string;
 };
 
+type Fields = {
+  country: boolean;
+  website: boolean;
+  annualReportUrls: boolean;
+  aiInsight: boolean;
+};
+
 type Provider = "claude" | "groq";
 
 export async function POST(request: Request) {
@@ -33,6 +40,14 @@ export async function POST(request: Request) {
   const size = String(body.size ?? "").trim();
   const count = Math.min(100, Math.max(1, Number(body.count) || 5));
   const requested = String(body.provider ?? "auto"); // "auto" | "claude" | "groq"
+
+  const rawFields = (body.fields ?? {}) as Partial<Record<keyof Fields, unknown>>;
+  const fields: Fields = {
+    country: rawFields.country !== false,
+    website: rawFields.website !== false,
+    annualReportUrls: rawFields.annualReportUrls !== false,
+    aiInsight: rawFields.aiInsight !== false,
+  };
 
   const hasClaude = Boolean(process.env.ANTHROPIC_API_KEY);
   const hasGroq = Boolean(process.env.GROQ_API_KEY);
@@ -63,23 +78,25 @@ export async function POST(request: Request) {
   const courseName = course?.name ?? courseSlug;
 
   // Research quality: exclude companies already saved for this course+industry so
-  // repeated searches keep discovering NEW prospects.
+  // repeated searches keep discovering NEW prospects. Cap the list so it can't blow
+  // up the prompt (and the Groq per-request token ceiling) on a well-populated table.
   let existingNames: string[] = [];
   try {
     const all = await readCompanies();
     existingNames = all
       .filter((c) => c.courseSlug === courseSlug && (!industrySlug || c.industrySlug === industrySlug))
-      .map((c) => c.companyName);
+      .map((c) => c.companyName)
+      .slice(0, provider === "groq" ? 40 : 200);
   } catch {
     // Non-fatal: search still works without the exclusion list.
   }
 
-  const prompt = buildPrompt({ courseName, industryName, country, size, query, count, existingNames });
+  const prompt = buildPrompt({ courseName, industryName, country, size, query, count, existingNames, fields });
 
   try {
     const text =
-      provider === "claude" ? await runClaude(prompt, count) : await runGroq(prompt, count);
-    let candidates = parseCandidates(text);
+      provider === "claude" ? await runClaude(prompt, count) : await runGroq(prompt, count, fields);
+    let candidates = parseCandidates(text, fields);
 
     // Server-side dedupe: drop rows that match saved companies or repeat within the batch.
     const seen = new Set(existingNames.map((n) => n.toLowerCase().trim()));
@@ -105,11 +122,38 @@ function buildPrompt(p: {
   query: string;
   count: number;
   existingNames: string[];
+  fields: Fields;
 }): string {
   const exclusions =
     p.existingNames.length > 0
-      ? `\nEXCLUDE these companies (already in our database): ${p.existingNames.slice(0, 200).join(", ")}.`
+      ? `\nEXCLUDE these companies (already in our database): ${p.existingNames.join(", ")}.`
       : "";
+
+  const fieldSpecs: string[] = ["companyName (string, required)"];
+  const rules: string[] = [];
+  if (p.fields.website) {
+    fieldSpecs.push("website (string)");
+    rules.push("- website: the official corporate site URL (https, no tracking params).");
+  }
+  if (p.fields.country) {
+    fieldSpecs.push("country (string)");
+    rules.push("- country: the company's headquarters country name.");
+  }
+  if (p.fields.annualReportUrls) {
+    fieldSpecs.push("annualReportUrls (string[])");
+    rules.push(
+      "- annualReportUrls: a real URL to the most recent annual report (PDF preferred, else the investor-relations annual-report page). Empty array if none exists.",
+    );
+  }
+  if (p.fields.aiInsight) {
+    fieldSpecs.push("aiInsight (string[] of 4-5 items)");
+    fieldSpecs.push("source (string)");
+    rules.push(
+      "- aiInsight: 4-5 concise bullets on the training / learning & development / upskilling activity in their most recent financial year. Base every bullet on real disclosures (annual report, ESG/sustainability report, press releases). If a figure is not verifiable, phrase qualitatively - NEVER invent numbers.",
+      '- source: where the insight came from (e.g. "FY2025 annual report", "2025 ESG report").',
+    );
+  }
+
   return `You are a B2B sales-research assistant for Invensis Learning, which sells "${p.courseName}" corporate training.
 
 Find ${p.count} REAL companies in the "${p.industryName}" industry${
@@ -121,14 +165,10 @@ Find ${p.count} REAL companies in the "${p.industryName}" industry${
 Research rules:
 - Prefer companies that publish annual reports (listed companies, large private firms) so training activity is verifiable.
 - Mix well-known leaders with less obvious mid-tier prospects; do not pad with subsidiaries of the same group.
-- website: the official corporate site URL (https, no tracking params).
-- annualReportUrls: a real URL to the most recent annual report (PDF preferred, else the investor-relations annual-report page). Empty array if none exists.
-- aiInsight: 4-5 concise bullets on the training / learning & development / upskilling activity in their most recent financial year. Base every bullet on real disclosures (annual report, ESG/sustainability report, press releases). If a figure is not verifiable, phrase qualitatively - NEVER invent numbers.
-- country: the company's headquarters country name.
-- source: where the insight came from (e.g. "FY2025 annual report", "2025 ESG report").
+${rules.join("\n")}
 
 Respond with ONLY a JSON array (no markdown fences, no prose before or after) of ${p.count} objects with keys:
-companyName (string), country (string), website (string), annualReportUrls (string[]), aiInsight (string[] of 4-5 items), source (string).`;
+${fieldSpecs.join(", ")}.`;
 }
 
 async function runClaude(prompt: string, count: number): Promise<string> {
@@ -157,32 +197,44 @@ async function runClaude(prompt: string, count: number): Promise<string> {
 }
 
 // Groq fallback via its OpenAI-compatible REST API (no SDK dependency).
-// Default model groq/compound has built-in web search for live verification.
-async function runGroq(prompt: string, count: number): Promise<string> {
+// Default model groq/compound has built-in web search for live verification, but its
+// per-request token ceiling is much lower than Claude's - keep the budget conservative
+// and retry smaller once on a 413 ("request_too_large") instead of failing outright.
+async function runGroq(prompt: string, count: number, fields: Fields): Promise<string> {
   const model = process.env.GROQ_MODEL || "groq/compound";
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: Math.min(16000, 1500 + count * 400),
-      messages: [{ role: "user", content: prompt }],
-    }),
-  });
-  if (!res.ok) {
+  const perCompany = 120 + (fields.aiInsight ? 220 : 0) + (fields.annualReportUrls ? 40 : 0);
+  const budgets = [
+    Math.min(4096, 500 + count * perCompany),
+    Math.min(2048, 300 + count * Math.round(perCompany * 0.6)),
+  ];
+
+  let lastErr = "";
+  for (const max_tokens of budgets) {
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+      },
+      body: JSON.stringify({ model, max_tokens, messages: [{ role: "user", content: prompt }] }),
+    });
+    if (res.ok) {
+      const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+      return (data.choices?.[0]?.message?.content ?? "").trim();
+    }
     const errBody = await res.text().catch(() => "");
-    throw new Error(`Groq API error ${res.status}: ${errBody.slice(0, 300)}`);
+    lastErr = `Groq API error ${res.status}: ${errBody.slice(0, 300)}`;
+    if (res.status !== 413) break; // only retry on request-too-large
   }
-  const data = (await res.json()) as {
-    choices?: { message?: { content?: string } }[];
-  };
-  return (data.choices?.[0]?.message?.content ?? "").trim();
+  if (lastErr.includes("413") || lastErr.includes("request_too_large")) {
+    throw new Error(
+      "Groq rejected the request as too large for this model. Try a lower company count, fewer fields, or switch the provider to Claude.",
+    );
+  }
+  throw new Error(lastErr || "Groq API request failed");
 }
 
-function parseCandidates(text: string): Candidate[] {
+function parseCandidates(text: string, fields: Fields): Candidate[] {
   // Strip code fences if present, then extract the first JSON array.
   const cleaned = text.replace(/```json/gi, "").replace(/```/g, "").trim();
   const start = cleaned.indexOf("[");
@@ -193,13 +245,15 @@ function parseCandidates(text: string): Candidate[] {
     if (!Array.isArray(parsed)) return [];
     return parsed.map((c: Record<string, unknown>) => ({
       companyName: String(c.companyName ?? ""),
-      country: String(c.country ?? ""),
-      website: String(c.website ?? ""),
-      annualReportUrls: Array.isArray(c.annualReportUrls)
-        ? (c.annualReportUrls as unknown[]).map(String)
-        : [],
-      aiInsight: Array.isArray(c.aiInsight) ? (c.aiInsight as unknown[]).map(String) : [],
-      source: c.source ? String(c.source) : undefined,
+      country: fields.country ? String(c.country ?? "") : "",
+      website: fields.website ? String(c.website ?? "") : "",
+      annualReportUrls:
+        fields.annualReportUrls && Array.isArray(c.annualReportUrls)
+          ? (c.annualReportUrls as unknown[]).map(String)
+          : [],
+      aiInsight:
+        fields.aiInsight && Array.isArray(c.aiInsight) ? (c.aiInsight as unknown[]).map(String) : [],
+      source: fields.aiInsight && c.source ? String(c.source) : undefined,
     }));
   } catch {
     return [];
