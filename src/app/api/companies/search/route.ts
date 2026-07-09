@@ -91,7 +91,17 @@ export async function POST(request: Request) {
     // Non-fatal: search still works without the exclusion list.
   }
 
-  const prompt = buildPrompt({ courseName, industryName, country, size, query, count, existingNames, fields });
+  const prompt = buildPrompt({
+    courseName,
+    industryName,
+    country,
+    size,
+    query,
+    count,
+    existingNames,
+    fields,
+    liveSearch: provider === "claude",
+  });
 
   try {
     const text =
@@ -123,6 +133,7 @@ function buildPrompt(p: {
   count: number;
   existingNames: string[];
   fields: Fields;
+  liveSearch: boolean;
 }): string {
   const exclusions =
     p.existingNames.length > 0
@@ -142,19 +153,24 @@ function buildPrompt(p: {
   if (p.fields.annualReportUrls) {
     fieldSpecs.push("annualReportUrls (string[])");
     rules.push(
-      "- annualReportUrls: a real URL to the most recent annual report (PDF preferred, else the investor-relations annual-report page). Empty array if none exists.",
+      p.liveSearch
+        ? "- annualReportUrls: a real URL to the most recent annual report (PDF preferred, else the investor-relations annual-report page). Empty array if none exists."
+        : "- annualReportUrls: you do NOT have live web access. Only include a URL if you are highly confident it is correct (e.g. a well-known investor-relations domain pattern); otherwise return an empty array rather than guessing a URL.",
     );
   }
   if (p.fields.aiInsight) {
     fieldSpecs.push("aiInsight (string[] of 4-5 items)");
     fieldSpecs.push("source (string)");
     rules.push(
-      "- aiInsight: 4-5 concise bullets on the training / learning & development / upskilling activity in their most recent financial year. Base every bullet on real disclosures (annual report, ESG/sustainability report, press releases). If a figure is not verifiable, phrase qualitatively - NEVER invent numbers.",
-      '- source: where the insight came from (e.g. "FY2025 annual report", "2025 ESG report").',
+      p.liveSearch
+        ? "- aiInsight: 4-5 concise bullets on the training / learning & development / upskilling activity in their most recent financial year. Base every bullet on real disclosures (annual report, ESG/sustainability report, press releases). If a figure is not verifiable, phrase qualitatively - NEVER invent numbers."
+        : "- aiInsight: you do NOT have live web access. Give 4-5 plausible, qualitatively-phrased bullets on likely L&D / upskilling activity based on general knowledge of the company and industry. NEVER state specific figures or dates as fact - phrase everything as general characterization, and prefix each bullet with \"Likely:\" so it reads as an estimate, not a verified disclosure.",
+      '- source: where the insight came from (e.g. "FY2025 annual report") if live search, or "AI estimate, not verified" if not.',
     );
   }
 
   return `You are a B2B sales-research assistant for Invensis Learning, which sells "${p.courseName}" corporate training.
+${p.liveSearch ? "" : "\nYou do NOT have live web search in this mode - answer from general knowledge and be conservative about anything you cannot verify.\n"}
 
 Find ${p.count} REAL companies in the "${p.industryName}" industry${
     p.country ? ` based in ${p.country}` : ""
@@ -197,13 +213,17 @@ async function runClaude(prompt: string, count: number): Promise<string> {
 }
 
 // Groq fallback via its OpenAI-compatible REST API (no SDK dependency).
-// Default model groq/compound has built-in web search for live verification, but as an
-// agentic orchestrator it burns tokens-per-minute fast on Groq's free tier and its
-// per-request token ceiling is much lower than Claude's. Handle both failure modes:
+// Default model is a standard (non-agentic) chat model. groq/compound (Groq's built-in
+// web-search orchestrator) was tried first but its internal multi-model tool chain burns
+// 10-20k+ tokens per request even for 2-3 companies, exhausting the free tier's 30k
+// tokens-per-minute limit on a single call - retries just collide with themselves.
+// llama-3.3-70b-versatile answers from model knowledge instead of live browsing, which
+// is far more reliable on the free tier; the tradeoff is that annual report URLs and
+// insights should be spot-checked (the UI copy says so). Handle both failure modes:
 // - 413 (request_too_large): retry once with a smaller completion budget.
 // - 429 (rate limit): Groq's error names the exact wait; sleep that long and retry once.
 async function runGroq(prompt: string, count: number, fields: Fields): Promise<string> {
-  const model = process.env.GROQ_MODEL || "groq/compound";
+  const model = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
   const perCompany = 120 + (fields.aiInsight ? 220 : 0) + (fields.annualReportUrls ? 40 : 0);
   const budgets = [
     Math.min(4096, 500 + count * perCompany),

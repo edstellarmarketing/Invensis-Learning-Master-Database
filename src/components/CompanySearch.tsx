@@ -216,11 +216,12 @@ export default function CompanySearch({
       </fieldset>
 
       <p className="mt-2 text-xs text-text-muted">
-        AI discovery finds real companies + annual reports and drafts training insights. Auto uses
-        Claude (<code>ANTHROPIC_API_KEY</code>) and falls back to Groq (<code>GROQ_API_KEY</code>).
-        Already-saved companies are excluded automatically. Large counts (50+) can take a few
-        minutes. Groq&apos;s free tier has a low rate limit; if it says to wait, retry after a
-        minute or pick a smaller count.
+        Claude uses live web search and verified annual-report links. Groq answers from model
+        knowledge (no browsing) and marks insights &quot;Likely:&quot; for you to verify. Auto
+        prefers Claude (<code>ANTHROPIC_API_KEY</code>) and falls back to Groq
+        (<code>GROQ_API_KEY</code>). Already-saved companies are excluded automatically. Large
+        counts (50+) can take a few minutes; Groq&apos;s free tier has a low rate limit, so retry
+        after a minute if it says to wait.
       </p>
 
       {error && <p className="mt-2 text-sm text-red-500">{error}</p>}

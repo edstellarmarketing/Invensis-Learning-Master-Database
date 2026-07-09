@@ -25,8 +25,12 @@ Copy `.env.example` → `.env.local`. All optional:
 - `ANTHROPIC_API_KEY` - enables `/api/companies/search` via Claude (web-search tool).
   **Paid** (Anthropic API usage). `ANTHROPIC_MODEL` defaults to `claude-sonnet-5`.
 - `GROQ_API_KEY` - Groq fallback for the same route (free tier). Used when Claude's key is
-  absent or the user picks Groq in the UI. `GROQ_MODEL` defaults to `groq/compound`
-  (built-in web search); called via plain fetch (OpenAI-compatible), no SDK dep.
+  absent or the user picks Groq in the UI. `GROQ_MODEL` defaults to
+  `llama-3.3-70b-versatile` (answers from model knowledge, no live browsing - reliable on
+  the free tier; `groq/compound` has web search but its agentic tool chain exhausts the
+  free 30k TPM limit on a single call). Called via plain fetch (OpenAI-compatible), no SDK
+  dep. Prompt is provider-aware: Groq results are hedged ("Likely:" prefix, empty report
+  URLs unless confident) since they aren't live-verified.
 - Search route accepts `provider` ("auto"|"claude"|"groq"), `count` (1-100), `size`, and
   excludes already-saved companies for the course+industry (server-side dedupe).
   Without any key the dashboard, seed data, CSV import, and manual Add Company all still work.
