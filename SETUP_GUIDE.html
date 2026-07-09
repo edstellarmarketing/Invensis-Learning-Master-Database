@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Invensis Learning Master Database — Setup & Vercel Deploy Guide</title>
+<title>Invensis Learning Master Database, Setup & Vercel Deploy Guide</title>
 
 <style>
   :root {
@@ -259,7 +259,7 @@
       <li><strong>Node.js 18.18+</strong> (Node 20 or 22 recommended) and npm.</li>
       <li>A <strong>GitHub account</strong> with access to the
         <code class="inline">edstellarmarketing</code> repository.</li>
-      <li>A <strong>Vercel account</strong> (sign in with GitHub — free Hobby plan is enough).</li>
+      <li>A <strong>Vercel account</strong> (sign in with GitHub, free Hobby plan is enough).</li>
       <li>Optional: an <strong>Anthropic</strong> and/or <strong>Groq</strong> API key for AI Search.</li>
     </ul>
     <div class="note free">
@@ -272,7 +272,7 @@
   <section id="local">
     <h2><span class="num">02</span> Run it locally</h2>
     <p class="lede">Clone, install, and start the dev server. Locally the app reads and writes
-       the JSON files in <code class="inline">src/data/</code> — no database needed.</p>
+       the JSON files in <code class="inline">src/data/</code>, no database needed.</p>
     <div class="code">
       <button class="copy" type="button">Copy</button>
 <pre><span class="tok-c"># clone and enter</span>
@@ -321,7 +321,7 @@ npm test        <span class="tok-c"># unit tests (CSV parser)</span></pre>
           <tr>
             <td class="var">KV_REST_API_URL</td>
             <td><span class="chip opt">Alt</span></td>
-            <td class="small">Accepted alternative name — Vercel's Upstash integration may inject this instead. The app reads either pair.</td>
+            <td class="small">Accepted alternative name, Vercel's Upstash integration may inject this instead. The app reads either pair.</td>
           </tr>
           <tr>
             <td class="var">KV_REST_API_TOKEN</td>
@@ -353,7 +353,7 @@ npm test        <span class="tok-c"># unit tests (CSV parser)</span></pre>
     </div>
     <div class="note warn">
       <span class="ic">!</span>
-      <p>You never type the two Upstash values by hand — connecting the integration in step 05 injects them
+      <p>You never type the two Upstash values by hand, connecting the integration in step 05 injects them
          automatically. The two API keys are the only ones you add manually.</p>
     </div>
   </section>
@@ -375,7 +375,7 @@ npm test        <span class="tok-c"># unit tests (CSV parser)</span></pre>
       <li>
         <h3>Deploy</h3>
         <p>Click <strong>Deploy</strong>. The first build ships with the seed data baked in, so the site
-           is browsable immediately — saving is switched on in the next step.</p>
+           is browsable immediately, saving is switched on in the next step.</p>
       </li>
     </ol>
   </section>
@@ -392,7 +392,7 @@ npm test        <span class="tok-c"># unit tests (CSV parser)</span></pre>
       <li>
         <h3>Choose Upstash → Redis</h3>
         <p>Under <strong>Marketplace Database Providers</strong> pick <strong>Upstash</strong>, then
-           <strong>Redis</strong>, then the <strong>Free</strong> plan. Do not pick "Redis (Official Redis for Vercel)" — different product, different variable names.</p>
+           <strong>Redis</strong>, then the <strong>Free</strong> plan. Do not pick "Redis (Official Redis for Vercel)", different product, different variable names.</p>
       </li>
       <li>
         <h3>Leave the prefix empty</h3>
@@ -415,7 +415,7 @@ npm test        <span class="tok-c"># unit tests (CSV parser)</span></pre>
 
   <section id="ai">
     <h2><span class="num">06</span> Enable AI Search</h2>
-    <p class="lede">Optional. Adds "AI Search" to the companies table — it finds up to 100 real companies
+    <p class="lede">Optional. Adds "AI Search" to the companies table, it finds up to 100 real companies
        per industry with annual-report links and training insights. Two providers, selectable in the UI.</p>
     <ol class="steps">
       <li>
@@ -437,7 +437,7 @@ npm test        <span class="tok-c"># unit tests (CSV parser)</span></pre>
     <div class="note warn">
       <span class="ic">$</span>
       <p>Anthropic AI Search is <strong>paid</strong> per search (web search + tokens). Groq's free tier
-         covers most needs — start there. Already-saved companies are excluded automatically so repeat
+         covers most needs, start there. Already-saved companies are excluded automatically so repeat
          searches keep finding new prospects.</p>
     </div>
   </section>
@@ -467,7 +467,7 @@ node scripts/discover-companies.mjs --help</pre>
     <p class="lede">Open your Vercel URL and confirm each works. All of these were tested green on production.</p>
     <div class="verify">
       <div class="row"><span class="ok">✓</span><span class="t">Dashboard loads with stat cards and research coverage.</span></div>
-      <div class="row"><span class="ok">✓</span><span class="t">Add a company, refresh — it persists (database is connected).</span></div>
+      <div class="row"><span class="ok">✓</span><span class="t">Add a company, refresh, it persists (database is connected).</span></div>
       <div class="row"><span class="ok">✓</span><span class="t">Import a CSV, then bulk-select and delete rows.</span></div>
       <div class="row"><span class="ok">✓</span><span class="t">Edit and delete industries via the "Manage" toggle.</span></div>
       <div class="row"><span class="ok">✓</span><span class="t">Export JSON downloads a full backup; import restores it.</span></div>
