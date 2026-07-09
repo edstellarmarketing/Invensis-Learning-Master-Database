@@ -89,6 +89,8 @@ theme, light/dark) · lucide-react · @anthropic-ai/sdk
 
 ## Docs
 
+- [SETUP_GUIDE.html](SETUP_GUIDE.html) - full local setup + Vercel deploy guide with every env
+  variable (open in a browser).
 - [AGENTS.md](AGENTS.md) - architecture, data model, conventions, gotchas (read first if you're
   an AI agent or new contributor).
 - [PROJECTLOG.md](PROJECTLOG.md) - session-by-session build history and backlog.

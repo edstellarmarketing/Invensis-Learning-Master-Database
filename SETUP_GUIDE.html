@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Invensis Learning Master Database — Setup & Vercel Deploy Guide</title>
+
+<style>
+  :root {
+    --bg: #f2f4fb;
+    --surface: #ffffff;
+    --surface-2: #eceffa;
+    --border: #dbe0f0;
+    --ink: #10182b;
+    --muted: #5a6785;
+    --indigo: #4f46e5;
+    --violet: #7c3aed;
+    --grad: linear-gradient(135deg, #4f46e5 0%, #7c3aed 55%, #9333ea 100%);
+    --req: #dc2626;
+    --req-bg: #fef2f2;
+    --ok: #0f9d6b;
+    --ok-bg: #eafaf3;
+    --warn: #b7791f;
+    --warn-bg: #fdf6e7;
+    --code-bg: #f4f5fb;
+    --shadow: 0 1px 3px rgba(30, 27, 75, 0.08);
+    --shadow-lg: 0 10px 34px rgba(30, 27, 75, 0.12);
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b0f1e;
+      --surface: #141a30;
+      --surface-2: #1c2440;
+      --border: #2b3457;
+      --ink: #e9edfb;
+      --muted: #98a3c4;
+      --indigo: #8b91ff;
+      --violet: #b98bff;
+      --grad: linear-gradient(135deg, #6366f1 0%, #8b5cf6 55%, #a855f7 100%);
+      --req: #f87171;
+      --req-bg: #2a1620;
+      --ok: #34d399;
+      --ok-bg: #0f2a24;
+      --warn: #fbbf24;
+      --warn-bg: #2a2411;
+      --code-bg: #0f152a;
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+      --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.5);
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f2f4fb; --surface: #fff; --surface-2: #eceffa; --border: #dbe0f0;
+    --ink: #10182b; --muted: #5a6785; --indigo: #4f46e5; --violet: #7c3aed;
+    --grad: linear-gradient(135deg, #4f46e5 0%, #7c3aed 55%, #9333ea 100%);
+    --req: #dc2626; --req-bg: #fef2f2; --ok: #0f9d6b; --ok-bg: #eafaf3;
+    --warn: #b7791f; --warn-bg: #fdf6e7; --code-bg: #f4f5fb;
+    --shadow: 0 1px 3px rgba(30,27,75,.08); --shadow-lg: 0 10px 34px rgba(30,27,75,.12);
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b0f1e; --surface: #141a30; --surface-2: #1c2440; --border: #2b3457;
+    --ink: #e9edfb; --muted: #98a3c4; --indigo: #8b91ff; --violet: #b98bff;
+    --grad: linear-gradient(135deg, #6366f1 0%, #8b5cf6 55%, #a855f7 100%);
+    --req: #f87171; --req-bg: #2a1620; --ok: #34d399; --ok-bg: #0f2a24;
+    --warn: #fbbf24; --warn-bg: #2a2411; --code-bg: #0f152a;
+    --shadow: 0 1px 3px rgba(0,0,0,.4); --shadow-lg: 0 12px 40px rgba(0,0,0,.5);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 24px 96px; }
+
+  /* Hero */
+  header.hero {
+    background: var(--grad);
+    color: #fff;
+    padding: 52px 0 44px;
+    margin-bottom: 40px;
+    box-shadow: var(--shadow-lg);
+  }
+  .hero .wrap { padding-bottom: 0; }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    opacity: 0.85;
+    margin: 0 0 12px;
+  }
+  .hero h1 {
+    font-size: clamp(28px, 5vw, 42px);
+    line-height: 1.1;
+    margin: 0 0 14px;
+    text-wrap: balance;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+  .hero p { font-size: 17px; max-width: 60ch; margin: 0 0 22px; opacity: 0.94; }
+  .hero-links { display: flex; flex-wrap: wrap; gap: 10px; }
+  .hero-links a {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-family: var(--mono); font-size: 13px; text-decoration: none;
+    color: #fff; background: rgba(255,255,255,0.16);
+    border: 1px solid rgba(255,255,255,0.28);
+    padding: 8px 14px; border-radius: 9px; transition: background .15s;
+  }
+  .hero-links a:hover { background: rgba(255,255,255,0.28); }
+
+  /* TOC */
+  nav.toc {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 18px 22px; margin-bottom: 44px;
+    box-shadow: var(--shadow);
+  }
+  nav.toc p { margin: 0 0 12px; font-family: var(--mono); font-size: 11px;
+    letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+  nav.toc ol { margin: 0; padding: 0; list-style: none; display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 4px 24px; counter-reset: t; }
+  nav.toc li { counter-increment: t; }
+  nav.toc a { display: flex; gap: 10px; align-items: baseline; text-decoration: none;
+    color: var(--ink); padding: 6px 0; font-size: 15px; }
+  nav.toc a::before { content: counter(t, decimal-leading-zero); font-family: var(--mono);
+    font-size: 12px; color: var(--violet); font-weight: 600; }
+  nav.toc a:hover { color: var(--indigo); }
+
+  section { margin-bottom: 52px; scroll-margin-top: 20px; }
+  h2 {
+    font-size: 25px; margin: 0 0 6px; letter-spacing: -0.01em; text-wrap: balance;
+    display: flex; align-items: baseline; gap: 12px;
+  }
+  h2 .num { font-family: var(--mono); font-size: 14px; color: var(--violet);
+    font-weight: 700; }
+  h2 + .lede { color: var(--muted); margin: 0 0 24px; font-size: 16px; max-width: 64ch; }
+  h3 { font-size: 17px; margin: 28px 0 10px; }
+  p { max-width: 68ch; }
+  a { color: var(--indigo); }
+
+  /* Step rail */
+  .steps { list-style: none; margin: 0; padding: 0; counter-reset: s; display: grid; gap: 16px; }
+  .steps > li {
+    position: relative; counter-increment: s;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 20px 22px 20px 68px; box-shadow: var(--shadow);
+  }
+  .steps > li::before {
+    content: counter(s); position: absolute; left: 18px; top: 18px;
+    width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center;
+    background: var(--grad); color: #fff; font-family: var(--mono); font-weight: 700; font-size: 15px;
+  }
+  .steps h3 { margin: 0 0 6px; font-size: 17px; }
+  .steps p { margin: 0 0 4px; color: var(--muted); font-size: 15px; }
+  .steps strong { color: var(--ink); }
+
+  /* Code */
+  .code {
+    position: relative; background: var(--code-bg); border: 1px solid var(--border);
+    border-radius: 11px; margin: 14px 0; overflow: hidden;
+  }
+  .code pre { margin: 0; padding: 15px 52px 15px 17px; overflow-x: auto;
+    font-family: var(--mono); font-size: 13.5px; line-height: 1.7; color: var(--ink); }
+  .code .tok-c { color: var(--muted); }
+  .code .tok-k { color: var(--violet); font-weight: 600; }
+  .copy {
+    position: absolute; top: 9px; right: 9px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--muted); font-family: var(--mono);
+    font-size: 11px; padding: 5px 9px; border-radius: 7px; cursor: pointer; transition: all .15s;
+  }
+  .copy:hover { color: var(--indigo); border-color: var(--indigo); }
+  .copy.done { color: var(--ok); border-color: var(--ok); }
+  code.inline { font-family: var(--mono); font-size: 0.88em; background: var(--surface-2);
+    padding: 2px 6px; border-radius: 5px; border: 1px solid var(--border); white-space: nowrap; }
+
+  /* Env table */
+  .tablewrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); }
+  table { border-collapse: collapse; width: 100%; min-width: 640px; background: var(--surface); }
+  th, td { text-align: left; padding: 13px 16px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--muted); background: var(--surface-2); }
+  tr:last-child td { border-bottom: none; }
+  td.var { font-family: var(--mono); font-size: 13px; color: var(--indigo); font-weight: 600; white-space: nowrap; }
+  td.small { font-size: 14px; color: var(--muted); }
+  .chip { display: inline-block; font-family: var(--mono); font-size: 10.5px; font-weight: 700;
+    letter-spacing: 0.05em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+  .chip.req { color: var(--req); background: var(--req-bg); }
+  .chip.opt { color: var(--ok); background: var(--ok-bg); }
+
+  /* Callouts */
+  .note { border-radius: 12px; padding: 15px 18px; margin: 20px 0; font-size: 15px;
+    border: 1px solid var(--border); display: flex; gap: 12px; }
+  .note .ic { font-family: var(--mono); font-weight: 700; flex-shrink: 0; }
+  .note p { margin: 0; max-width: none; }
+  .note.warn { background: var(--warn-bg); border-color: color-mix(in srgb, var(--warn) 40%, var(--border)); }
+  .note.warn .ic { color: var(--warn); }
+  .note.free { background: var(--ok-bg); border-color: color-mix(in srgb, var(--ok) 40%, var(--border)); }
+  .note.free .ic { color: var(--ok); }
+
+  ul.plain { padding-left: 20px; }
+  ul.plain li { margin: 6px 0; }
+
+  .verify { display: grid; gap: 8px; margin-top: 12px; }
+  .verify .row { display: flex; gap: 11px; align-items: baseline; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 10px; padding: 11px 15px; }
+  .verify .row .ok { color: var(--ok); font-family: var(--mono); font-weight: 700; flex-shrink: 0; }
+  .verify .row span.t { font-size: 15px; }
+
+  footer { border-top: 1px solid var(--border); padding-top: 22px; color: var(--muted); font-size: 14px; }
+  footer code { font-family: var(--mono); }
+
+  a:focus-visible, .copy:focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; border-radius: 4px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  @media (max-width: 560px) {
+    .steps > li { padding-left: 20px; padding-top: 58px; }
+    .steps > li::before { top: 16px; }
+  }
+</style>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Deployment &amp; Setup Guide</p>
+    <h1>Invensis Learning Master Database</h1>
+    <p>Everything needed to run the dashboard locally and deploy it to Vercel with saving,
+       AI research, and geographic discovery fully working.</p>
+    <div class="hero-links">
+      <a href="https://github.com/edstellarmarketing/Invensis-Learning-Master-Database" target="_blank" rel="noopener">↗ GitHub repo</a>
+      <a href="https://invensis-learning-master-database.vercel.app/" target="_blank" rel="noopener">↗ Live site</a>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <nav class="toc" aria-label="Contents">
+    <p>On this page</p>
+    <ol>
+      <li><a href="#prereq">Prerequisites</a></li>
+      <li><a href="#local">Run it locally</a></li>
+      <li><a href="#env">Environment variables</a></li>
+      <li><a href="#deploy">Deploy to Vercel</a></li>
+      <li><a href="#storage">Connect the database</a></li>
+      <li><a href="#ai">Enable AI Search</a></li>
+      <li><a href="#discover">Geographic discovery</a></li>
+      <li><a href="#verify">Verify the deploy</a></li>
+      <li><a href="#trouble">Troubleshooting</a></li>
+    </ol>
+  </nav>
+
+  <section id="prereq">
+    <h2><span class="num">01</span> Prerequisites</h2>
+    <p class="lede">A short checklist before you start. Everything here is free.</p>
+    <ul class="plain">
+      <li><strong>Node.js 18.18+</strong> (Node 20 or 22 recommended) and npm.</li>
+      <li>A <strong>GitHub account</strong> with access to the
+        <code class="inline">edstellarmarketing</code> repository.</li>
+      <li>A <strong>Vercel account</strong> (sign in with GitHub — free Hobby plan is enough).</li>
+      <li>Optional: an <strong>Anthropic</strong> and/or <strong>Groq</strong> API key for AI Search.</li>
+    </ul>
+    <div class="note free">
+      <span class="ic">✓</span>
+      <p>The app runs with zero keys. Keys only unlock two extras: saving on Vercel (database)
+         and AI-assisted company research. Browsing, seed data, CSV import, and manual editing work without any.</p>
+    </div>
+  </section>
+
+  <section id="local">
+    <h2><span class="num">02</span> Run it locally</h2>
+    <p class="lede">Clone, install, and start the dev server. Locally the app reads and writes
+       the JSON files in <code class="inline">src/data/</code> — no database needed.</p>
+    <div class="code">
+      <button class="copy" type="button">Copy</button>
+<pre><span class="tok-c"># clone and enter</span>
+git clone https://github.com/edstellarmarketing/Invensis-Learning-Master-Database.git
+cd Invensis-Learning-Master-Database
+
+<span class="tok-c"># install dependencies</span>
+npm install
+
+<span class="tok-c"># optional: create a local env file for AI keys</span>
+cp .env.example .env.local
+
+<span class="tok-c"># start the dev server → http://localhost:3000</span>
+npm run dev</pre>
+    </div>
+    <h3>Other useful commands</h3>
+    <div class="code">
+      <button class="copy" type="button">Copy</button>
+<pre>npm run build   <span class="tok-c"># production build</span>
+npm run lint    <span class="tok-c"># eslint</span>
+npm test        <span class="tok-c"># unit tests (CSV parser)</span></pre>
+    </div>
+  </section>
+
+  <section id="env">
+    <h2><span class="num">03</span> Environment variables</h2>
+    <p class="lede">The complete list. In Vercel these go under
+       <strong>Project → Settings → Environment Variables</strong>; locally they live in
+       <code class="inline">.env.local</code>.</p>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Variable</th><th>Status</th><th>What it does</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="var">UPSTASH_REDIS_REST_URL</td>
+            <td><span class="chip req">Prod save</span></td>
+            <td class="small">Database endpoint. Auto-added by the Upstash integration. Required to save on Vercel.</td>
+          </tr>
+          <tr>
+            <td class="var">UPSTASH_REDIS_REST_TOKEN</td>
+            <td><span class="chip req">Prod save</span></td>
+            <td class="small">Database auth token. Auto-added by the Upstash integration.</td>
+          </tr>
+          <tr>
+            <td class="var">KV_REST_API_URL</td>
+            <td><span class="chip opt">Alt</span></td>
+            <td class="small">Accepted alternative name — Vercel's Upstash integration may inject this instead. The app reads either pair.</td>
+          </tr>
+          <tr>
+            <td class="var">KV_REST_API_TOKEN</td>
+            <td><span class="chip opt">Alt</span></td>
+            <td class="small">Alternative token name, paired with <code class="inline">KV_REST_API_URL</code>.</td>
+          </tr>
+          <tr>
+            <td class="var">ANTHROPIC_API_KEY</td>
+            <td><span class="chip opt">Optional</span></td>
+            <td class="small">Enables AI Search via Claude (web search). Paid Anthropic usage.</td>
+          </tr>
+          <tr>
+            <td class="var">ANTHROPIC_MODEL</td>
+            <td><span class="chip opt">Optional</span></td>
+            <td class="small">Override the Claude model. Defaults to <code class="inline">claude-sonnet-5</code>.</td>
+          </tr>
+          <tr>
+            <td class="var">GROQ_API_KEY</td>
+            <td><span class="chip opt">Optional</span></td>
+            <td class="small">AI Search fallback via Groq. Free tier at console.groq.com. Used when Claude's key is absent or "Groq" is picked in the UI.</td>
+          </tr>
+          <tr>
+            <td class="var">GROQ_MODEL</td>
+            <td><span class="chip opt">Optional</span></td>
+            <td class="small">Override the Groq model. Defaults to <code class="inline">groq/compound</code> (built-in web search).</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note warn">
+      <span class="ic">!</span>
+      <p>You never type the two Upstash values by hand — connecting the integration in step 05 injects them
+         automatically. The two API keys are the only ones you add manually.</p>
+    </div>
+  </section>
+
+  <section id="deploy">
+    <h2><span class="num">04</span> Deploy to Vercel</h2>
+    <p class="lede">Import the repo. The framework, build command, and output are auto-detected (Next.js).</p>
+    <ol class="steps">
+      <li>
+        <h3>Import the project</h3>
+        <p>Vercel dashboard → <strong>Add New → Project</strong> → pick the
+           <code class="inline">Invensis-Learning-Master-Database</code> repo → <strong>Import</strong>.</p>
+      </li>
+      <li>
+        <h3>Keep the defaults</h3>
+        <p>Framework <strong>Next.js</strong>, build <code class="inline">next build</code>, install
+           <code class="inline">npm install</code>. No changes needed.</p>
+      </li>
+      <li>
+        <h3>Deploy</h3>
+        <p>Click <strong>Deploy</strong>. The first build ships with the seed data baked in, so the site
+           is browsable immediately — saving is switched on in the next step.</p>
+      </li>
+    </ol>
+  </section>
+
+  <section id="storage">
+    <h2><span class="num">05</span> Connect the database <span style="font-size:13px;color:var(--req);font-weight:700;font-family:var(--mono)">(required to save)</span></h2>
+    <p class="lede">Vercel's filesystem is read-only, so writes need a database. Upstash Redis (free) stores
+       both datasets and makes every edit, CSV import, and bulk action work in production.</p>
+    <ol class="steps">
+      <li>
+        <h3>Open Storage</h3>
+        <p>Project → <strong>Storage</strong> tab → <strong>Create Database</strong>.</p>
+      </li>
+      <li>
+        <h3>Choose Upstash → Redis</h3>
+        <p>Under <strong>Marketplace Database Providers</strong> pick <strong>Upstash</strong>, then
+           <strong>Redis</strong>, then the <strong>Free</strong> plan. Do not pick "Redis (Official Redis for Vercel)" — different product, different variable names.</p>
+      </li>
+      <li>
+        <h3>Leave the prefix empty</h3>
+        <p>On the connect screen, keep <strong>Production</strong> and <strong>Preview</strong> checked and
+           leave <strong>Custom Prefix</strong> blank. A prefix would rename the variables and the app wouldn't find them.</p>
+      </li>
+      <li>
+        <h3>Connect &amp; redeploy</h3>
+        <p><strong>Connect to Project</strong> injects the Upstash variables. Then
+           <strong>Deployments → ⋯ → Redeploy</strong> so they take effect.</p>
+      </li>
+    </ol>
+    <div class="note warn">
+      <span class="ic">!</span>
+      <p>Once the database is live, edits made on the site are stored in Redis, <em>not</em> in the repo's
+         JSON files. Use <strong>Export JSON</strong> on the dashboard for backups. On first run the database
+         is auto-seeded from the bundled data.</p>
+    </div>
+  </section>
+
+  <section id="ai">
+    <h2><span class="num">06</span> Enable AI Search</h2>
+    <p class="lede">Optional. Adds "AI Search" to the companies table — it finds up to 100 real companies
+       per industry with annual-report links and training insights. Two providers, selectable in the UI.</p>
+    <ol class="steps">
+      <li>
+        <h3>Get a key</h3>
+        <p><strong>Groq</strong> (free) at <code class="inline">console.groq.com</code>, and/or
+           <strong>Anthropic</strong> (paid, higher quality) at <code class="inline">console.anthropic.com</code>.</p>
+      </li>
+      <li>
+        <h3>Add it in Vercel</h3>
+        <p>Settings → Environment Variables → add <code class="inline">GROQ_API_KEY</code> and/or
+           <code class="inline">ANTHROPIC_API_KEY</code> → scope to <strong>Production</strong> → Save.</p>
+      </li>
+      <li>
+        <h3>Redeploy</h3>
+        <p>Env changes require a redeploy. After that, the provider dropdown offers
+           <strong>Auto</strong> (Claude first, else Groq), <strong>Claude</strong>, or <strong>Groq</strong>.</p>
+      </li>
+    </ol>
+    <div class="note warn">
+      <span class="ic">$</span>
+      <p>Anthropic AI Search is <strong>paid</strong> per search (web search + tokens). Groq's free tier
+         covers most needs — start there. Already-saved companies are excluded automatically so repeat
+         searches keep finding new prospects.</p>
+    </div>
+  </section>
+
+  <section id="discover">
+    <h2><span class="num">07</span> Geographic discovery (free, no key)</h2>
+    <p class="lede">A local script finds companies by industry and city via OpenStreetMap and writes a
+       CSV in the app's import format. Load it with the <strong>Import CSV</strong> button on any course × industry table.</p>
+    <div class="code">
+      <button class="copy" type="button">Copy</button>
+<pre><span class="tok-c"># names + websites for IT companies in Bengaluru</span>
+node scripts/discover-companies.mjs --industry it --city "Bengaluru" --country India
+
+<span class="tok-c"># see all options and industry presets</span>
+node scripts/discover-companies.mjs --help</pre>
+    </div>
+    <p>Presets: <code class="inline">it</code>, <code class="inline">software</code>,
+       <code class="inline">construction</code>, <code class="inline">healthcare</code>,
+       <code class="inline">bfsi</code>, <code class="inline">logistics</code>,
+       <code class="inline">manufacturing</code>, <code class="inline">telecom</code>,
+       <code class="inline">education</code>, <code class="inline">energy</code>. Then run AI Search on the
+       same industry to backfill annual reports and insights.</p>
+  </section>
+
+  <section id="verify">
+    <h2><span class="num">08</span> Verify the deploy</h2>
+    <p class="lede">Open your Vercel URL and confirm each works. All of these were tested green on production.</p>
+    <div class="verify">
+      <div class="row"><span class="ok">✓</span><span class="t">Dashboard loads with stat cards and research coverage.</span></div>
+      <div class="row"><span class="ok">✓</span><span class="t">Add a company, refresh — it persists (database is connected).</span></div>
+      <div class="row"><span class="ok">✓</span><span class="t">Import a CSV, then bulk-select and delete rows.</span></div>
+      <div class="row"><span class="ok">✓</span><span class="t">Edit and delete industries via the "Manage" toggle.</span></div>
+      <div class="row"><span class="ok">✓</span><span class="t">Export JSON downloads a full backup; import restores it.</span></div>
+      <div class="row"><span class="ok">✓</span><span class="t">AI Search returns candidates (only if a key is set).</span></div>
+    </div>
+  </section>
+
+  <section id="trouble">
+    <h2><span class="num">09</span> Troubleshooting</h2>
+
+    <h3>"This deployment has a read-only filesystem…"</h3>
+    <p>The database isn't connected (or you didn't redeploy after connecting). Do step 05, then redeploy.</p>
+
+    <h3>Saves work but an old deployment still errors</h3>
+    <p>You're viewing a cached/previous deployment. Open the latest one from the Deployments tab, or hard-refresh.</p>
+
+    <h3>AI Search says "disabled"</h3>
+    <p>No provider key is set. Add <code class="inline">GROQ_API_KEY</code> or
+       <code class="inline">ANTHROPIC_API_KEY</code> and redeploy (step 06).</p>
+
+    <h3>Discovery script returns nothing</h3>
+    <p>The city name must match OpenStreetMap's area label. Try a different spelling, another preset, or a
+       raw <code class="inline">--tag key=value</code> filter.</p>
+
+    <h3>Large AI searches time out</h3>
+    <p>Counts of 50–100 take a few minutes. The route allows up to 300s; if your Vercel plan caps function
+       duration lower, request fewer companies per search.</p>
+  </section>
+
+  <footer>
+    <p>Invensis Learning Master Database · Next.js 16 · Upstash Redis · deployed on Vercel.
+       Repo: <code>edstellarmarketing/Invensis-Learning-Master-Database</code>. See
+       <code>README.md</code>, <code>AGENTS.md</code>, and <code>PROJECTLOG.md</code> for architecture and history.</p>
+  </footer>
+</div>
+
+<script>
+  document.querySelectorAll(".copy").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var pre = btn.parentElement.querySelector("pre");
+      var text = pre.innerText.replace(/^\s*#.*$/gm, function (l) { return l; });
+      navigator.clipboard.writeText(pre.innerText.trim()).then(function () {
+        btn.textContent = "Copied";
+        btn.classList.add("done");
+        setTimeout(function () { btn.textContent = "Copy"; btn.classList.remove("done"); }, 1600);
+      });
+    });
+  });
+</script>
+
+</body>
+</html>
