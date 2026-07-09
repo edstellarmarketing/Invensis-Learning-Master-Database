@@ -23,6 +23,7 @@ import type { Company } from "@/lib/companies";
 import { csvToCompanies, sampleCsv } from "@/lib/csv";
 import AddCompanyForm from "./AddCompanyForm";
 import CompanySearch from "./CompanySearch";
+import CountryFilter from "./CountryFilter";
 
 export default function CompaniesTable({
   courseSlug,
@@ -42,7 +43,7 @@ export default function CompaniesTable({
   const [showSearch, setShowSearch] = useState(false);
   const [editing, setEditing] = useState<Company | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [countryFilter, setCountryFilter] = useState("");
+  const [countryFilters, setCountryFilters] = useState<Set<string>>(new Set());
   const [reportFilter, setReportFilter] = useState<"" | "with" | "without">("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [importing, setImporting] = useState(false);
@@ -61,12 +62,12 @@ export default function CompaniesTable({
     return companies.filter((c) => {
       if (q && !c.companyName.toLowerCase().includes(q) && !c.country.toLowerCase().includes(q))
         return false;
-      if (countryFilter && c.country !== countryFilter) return false;
+      if (countryFilters.size > 0 && !countryFilters.has(c.country)) return false;
       if (reportFilter === "with" && c.annualReportUrls.length === 0) return false;
       if (reportFilter === "without" && c.annualReportUrls.length > 0) return false;
       return true;
     });
-  }, [companies, query, countryFilter, reportFilter]);
+  }, [companies, query, countryFilters, reportFilter]);
 
   // Pagination over the filtered set. The stored page is clamped at render time so
   // shrinking the list (filters, deletes) snaps back without a state cascade.
@@ -229,19 +230,7 @@ export default function CompaniesTable({
             className="w-full rounded-lg border bg-surface pl-8 pr-2 py-2 text-sm outline-none transition-shadow focus:ring-2 focus:ring-[var(--ring)]"
           />
         </div>
-        <select
-          value={countryFilter}
-          onChange={(e) => setCountryFilter(e.target.value)}
-          aria-label="Filter by country"
-          className="rounded-lg border bg-surface px-2.5 py-2 text-sm text-text-muted outline-none focus:ring-2 focus:ring-[var(--ring)]"
-        >
-          <option value="">All countries</option>
-          {countries.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
+        <CountryFilter selected={countryFilters} onChange={setCountryFilters} dataCountries={countries} />
         <select
           value={reportFilter}
           onChange={(e) => setReportFilter(e.target.value as "" | "with" | "without")}
