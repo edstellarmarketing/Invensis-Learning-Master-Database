@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Pencil, Plus, Settings2, Trash2, X } from "lucide-react";
@@ -35,6 +35,9 @@ export default function IndustryTabs({
   const [icon, setIcon] = useState("Briefcase");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  const focusName = () => requestAnimationFrame(() => nameInputRef.current?.focus({ preventScroll: true }));
 
   const openAdd = () => {
     setEditState({ mode: "add" });
@@ -42,6 +45,7 @@ export default function IndustryTabs({
     setRationale("");
     setIcon("Briefcase");
     setError(null);
+    focusName();
   };
 
   const openEdit = (ind: Industry) => {
@@ -50,6 +54,7 @@ export default function IndustryTabs({
     setRationale(ind.rationale);
     setIcon(ind.icon || "Briefcase");
     setError(null);
+    focusName();
   };
 
   const save = async (e: React.FormEvent) => {
@@ -145,7 +150,7 @@ export default function IndustryTabs({
                     onClick={() => openEdit(ind)}
                     disabled={busy}
                     aria-label={`Edit ${ind.name}`}
-                    className="px-1.5 py-2.5 text-text-muted hover:text-primary"
+                    className="px-1.5 py-2.5 text-text-muted transition-colors hover:bg-surface-2 hover:text-primary"
                   >
                     <Pencil size={13} />
                   </button>
@@ -153,7 +158,7 @@ export default function IndustryTabs({
                     onClick={() => remove(ind)}
                     disabled={busy}
                     aria-label={`Delete ${ind.name}`}
-                    className="px-1.5 py-2.5 text-text-muted hover:text-red-500"
+                    className="px-1.5 py-2.5 text-text-muted transition-colors hover:bg-surface-2 hover:text-danger"
                   >
                     <Trash2 size={13} />
                   </button>
@@ -191,7 +196,7 @@ export default function IndustryTabs({
         </button>
       </div>
 
-      {error && !editState && <p className="mt-2 text-sm text-red-500">{error}</p>}
+      {error && !editState && <p className="mt-2 text-sm text-danger">{error}</p>}
 
       {editState && (
         <form
@@ -224,10 +229,10 @@ export default function IndustryTabs({
               Industry name *
             </label>
             <input
+              ref={nameInputRef}
               className={`${field} w-full`}
               value={name}
               onChange={(e) => setName(e.target.value)}
-              autoFocus
             />
           </div>
           <div className="min-w-[200px] flex-[2]">
@@ -253,18 +258,18 @@ export default function IndustryTabs({
           <button
             type="submit"
             disabled={busy || !name.trim()}
-            className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-contrast disabled:opacity-60"
+            className="btn-solid rounded-lg px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-60"
           >
             {busy ? "Saving..." : editState.mode === "add" ? "Add" : "Save"}
           </button>
           <button
             type="button"
             onClick={() => setEditState(null)}
-            className="rounded-md border px-3 py-1.5 text-sm hover:bg-surface-2"
+            className="rounded-lg border px-3 py-1.5 text-sm transition-colors hover:bg-surface-2"
           >
             Cancel
           </button>
-          {error && <p className="w-full text-sm text-red-500">{error}</p>}
+          {error && <p className="w-full text-sm text-danger">{error}</p>}
           </div>
         </form>
       )}

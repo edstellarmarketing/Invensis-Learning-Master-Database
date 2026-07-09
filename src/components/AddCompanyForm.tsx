@@ -106,19 +106,19 @@ export default function AddCompanyForm({
         <label className={label}>Source (optional)</label>
         <input className={field} value={source} onChange={(e) => setSource(e.target.value)} />
       </div>
-      {error && <p className="sm:col-span-2 text-sm text-red-500">{error}</p>}
+      {error && <p className="sm:col-span-2 text-sm text-danger">{error}</p>}
       <div className="sm:col-span-2 flex gap-2">
         <button
           type="submit"
           disabled={saving}
-          className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-contrast disabled:opacity-60"
+          className="btn-solid rounded-lg px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-60"
         >
           {saving ? "Saving..." : isEdit ? "Update company" : "Save company"}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-md border px-3 py-1.5 text-sm hover:bg-surface-2"
+          className="rounded-lg border px-3 py-1.5 text-sm transition-colors hover:bg-surface-2"
         >
           Cancel
         </button>

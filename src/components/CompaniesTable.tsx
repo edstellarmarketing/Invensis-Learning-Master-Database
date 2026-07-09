@@ -360,7 +360,7 @@ export default function CompaniesTable({
             </button>
             <button
               onClick={bulkDelete}
-              className="inline-flex items-center gap-1.5 rounded-md border border-[var(--danger)] px-3 py-1.5 text-sm font-medium text-danger transition-colors hover:bg-danger hover:text-white"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--danger)] px-3 py-1.5 text-sm font-medium text-danger transition-colors hover:bg-danger hover:text-bg"
             >
               <Trash2 size={14} /> Delete selected
             </button>
@@ -487,7 +487,7 @@ export default function CompaniesTable({
                         <button
                           onClick={() => remove(c)}
                           aria-label={`Delete ${c.companyName}`}
-                          className="rounded-md p-1.5 text-text-muted transition-colors hover:bg-surface-2 hover:text-red-500"
+                          className="rounded-md p-1.5 text-text-muted transition-colors hover:bg-surface-2 hover:text-danger"
                         >
                           <Trash2 size={15} />
                         </button>

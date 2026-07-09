@@ -326,7 +326,7 @@ export default function CompanySearch({
         <button
           type="submit"
           disabled={loading}
-          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-contrast disabled:opacity-60"
+          className="btn-solid inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-60"
         >
           {loading ? <Loader2 size={15} className="animate-spin" /> : null}
           {loading ? "Searching..." : "Search"}
@@ -420,12 +420,21 @@ export default function CompanySearch({
           <button
             type="button"
             onClick={() => setShowCourses((s) => !s)}
+            aria-expanded={showCourses}
+            aria-controls="target-courses-panel"
             className="text-xs font-medium text-primary hover:underline"
           >
             {showCourses ? "Hide target courses" : `Target courses (${targetCourses.size} selected)`}
           </button>
           {showCourses && (
-            <div className="mt-1.5 max-h-40 overflow-y-auto rounded-md border bg-bg p-2">
+            <div
+              id="target-courses-panel"
+              role="region"
+              ref={(el) => {
+                if (el) el.scrollTop = 0;
+              }}
+              className="mt-1.5 max-h-40 overflow-y-auto rounded-md border bg-bg p-2"
+            >
               <p className="mb-1.5 text-xs text-text-muted">
                 Discovered companies are saved as prospects under every checked course (same
                 industry).
@@ -470,7 +479,7 @@ export default function CompanySearch({
           <Loader2 size={14} className="animate-spin" /> {progress}
         </p>
       )}
-      {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
+      {error && <p className="mt-2 text-sm text-danger">{error}</p>}
       {notice && <p className="mt-2 text-sm text-accent">{notice}</p>}
 
       {results.length > 0 && (
@@ -490,7 +499,7 @@ export default function CompanySearch({
                 onClick={enrichSelected}
                 disabled={enriching}
                 title="Re-research the selected companies for the currently checked fields"
-                className="inline-flex items-center gap-1.5 rounded-md border border-[var(--primary)] px-3 py-1.5 text-xs font-medium text-primary disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--primary)] px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary-soft disabled:opacity-60"
               >
                 {enriching ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
                 {enriching ? "Enriching..." : `Enrich selected (${selected.size})`}
@@ -499,7 +508,7 @@ export default function CompanySearch({
             <button
               onClick={addAll}
               disabled={addingAll || enriching}
-              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-contrast disabled:opacity-60"
+              className="btn-solid inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-60"
             >
               {addingAll ? <Loader2 size={13} className="animate-spin" /> : <PlusCircle size={13} />}
               Add all {results.length}

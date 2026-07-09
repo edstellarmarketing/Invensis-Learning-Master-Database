@@ -104,6 +104,15 @@
   background-image: var(--gradient-soft);
 }
 
+/* Solid primary buttons: shared hover state so --primary-hover isn't dead CSS. */
+.btn-solid {
+  background-color: var(--primary);
+  color: var(--primary-contrast);
+}
+.btn-solid:hover:not(:disabled) {
+  background-color: var(--primary-hover);
+}
+
 * {
   border-color: var(--border);
 }

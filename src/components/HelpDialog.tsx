@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { HelpCircle, X } from "lucide-react";
+import { useDialogA11y } from "@/lib/useDialogA11y";
 
 const SECTIONS: { title: string; points: string[] }[] = [
   {
@@ -51,13 +52,7 @@ const SECTIONS: { title: string; points: string[] }[] = [
 
 export default function HelpDialog() {
   const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+  useDialogA11y(open, () => setOpen(false));
 
   return (
     <>
@@ -72,7 +67,10 @@ export default function HelpDialog() {
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm"
+          ref={(el) => {
+            if (el) el.scrollTop = 0;
+          }}
+          className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm"
           onClick={() => setOpen(false)}
         >
           <div
@@ -92,7 +90,12 @@ export default function HelpDialog() {
                 <X size={18} />
               </button>
             </div>
-            <div className="max-h-[70vh] space-y-5 overflow-y-auto px-6 py-5">
+            <div
+              ref={(el) => {
+                if (el) el.scrollTop = 0;
+              }}
+              className="max-h-[70vh] space-y-5 overflow-y-auto px-6 py-5"
+            >
               {SECTIONS.map((s) => (
                 <section key={s.title}>
                   <h3 className="mb-1.5 text-sm font-semibold text-primary">{s.title}</h3>
