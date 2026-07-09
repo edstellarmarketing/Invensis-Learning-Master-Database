@@ -85,6 +85,9 @@ export default function CoursesManager({
 
   return (
     <div
+      ref={(el) => {
+        if (el) el.scrollTop = 0;
+      }}
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
@@ -101,7 +104,14 @@ export default function CoursesManager({
           </button>
         </div>
 
-        <div className="max-h-[70vh] overflow-y-auto px-6 py-4">
+        <div
+          ref={(el) => {
+            // Force the list to open at the top - some browsers auto-scroll a freshly
+            // mounted scroll container to bring the last-focused element into view.
+            if (el) el.scrollTop = 0;
+          }}
+          className="max-h-[70vh] overflow-y-auto px-6 py-4"
+        >
           {error && <p className="mb-3 rounded-md bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] px-3 py-2 text-sm text-danger">{error}</p>}
 
           <div className="mb-4 flex items-end gap-2">
