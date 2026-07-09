@@ -33,8 +33,15 @@ export async function findCategoryForCourse(slug: string): Promise<Category | un
 export async function addCategory(name: string): Promise<Category> {
   const cats = await readCategories();
   const slug = slugify(name);
-  if (cats.some((c) => c.slug === slug)) throw new Error(`Category "${name}" already exists`);
-  const cat: Category = { name: name.trim(), slug, courses: [] };
+  const trimmedName = name.trim();
+  // Seeded categories can carry legacy slugs (e.g. "devops-certification-courses")
+  // that a freshly-typed name won't reproduce via slugify - so also check by name,
+  // case-insensitively, or a duplicate silently gets a second, differently-slugged entry.
+  if (
+    cats.some((c) => c.slug === slug || c.name.toLowerCase() === trimmedName.toLowerCase())
+  )
+    throw new Error(`Category "${name}" already exists`);
+  const cat: Category = { name: trimmedName, slug, courses: [] };
   cats.push(cat);
   await writeCategories(cats);
   return cat;
@@ -44,7 +51,10 @@ export async function updateCategory(slug: string, name: string): Promise<Catego
   const cats = await readCategories();
   const cat = cats.find((c) => c.slug === slug);
   if (!cat) throw new Error("Category not found");
-  cat.name = name.trim();
+  const trimmedName = name.trim();
+  if (cats.some((c) => c.slug !== slug && c.name.toLowerCase() === trimmedName.toLowerCase()))
+    throw new Error(`Category "${name}" already exists`);
+  cat.name = trimmedName;
   await writeCategories(cats);
   return cat;
 }
@@ -68,9 +78,17 @@ export async function addCourse(
   const cat = cats.find((c) => c.slug === categorySlug);
   if (!cat) throw new Error("Category not found");
   const courseSlug = (slug || slugify(name)).trim();
-  if (cats.some((c) => c.courses.some((co) => co.slug === courseSlug)))
-    throw new Error(`A course with slug "${courseSlug}" already exists`);
-  const course: Course = { name: name.trim(), slug: courseSlug, ...(featured ? { featured: true } : {}) };
+  const trimmedName = name.trim();
+  // Seeded courses can carry legacy slugs (e.g. "pmp-certification-training") that a
+  // freshly-typed name won't reproduce via slugify - also check by name, case-insensitively.
+  const allCourses = cats.flatMap((c) => c.courses);
+  if (
+    allCourses.some(
+      (co) => co.slug === courseSlug || co.name.toLowerCase() === trimmedName.toLowerCase(),
+    )
+  )
+    throw new Error(`A course named "${name}" already exists`);
+  const course: Course = { name: trimmedName, slug: courseSlug, ...(featured ? { featured: true } : {}) };
   cat.courses.push(course);
   await writeCategories(cats);
   return course;
@@ -93,7 +111,13 @@ export async function updateCourse(
   }
   if (!found || !currentCat) throw new Error("Course not found");
 
-  if (patch.name !== undefined) found.name = patch.name.trim();
+  if (patch.name !== undefined) {
+    const trimmedName = patch.name.trim();
+    const allCourses = cats.flatMap((c) => c.courses);
+    if (allCourses.some((co) => co !== found && co.name.toLowerCase() === trimmedName.toLowerCase()))
+      throw new Error(`A course named "${patch.name}" already exists`);
+    found.name = trimmedName;
+  }
   if (patch.featured !== undefined) {
     if (patch.featured) found.featured = true;
     else delete found.featured;
