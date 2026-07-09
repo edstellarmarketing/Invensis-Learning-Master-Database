@@ -238,7 +238,46 @@ export async function POST(request: Request) {
         ? ["openrouter", "groq"]
         : [provider];
 
+  // Enrich mode: the client sends known companies (typically website-only discoveries)
+  // and asks for the remaining fields per company - no discovery phase at all.
+  const enrichTargets = Array.isArray(body.enrich)
+    ? (body.enrich as unknown[])
+        .map((t) => {
+          const o = (t ?? {}) as Record<string, unknown>;
+          return { companyName: String(o.companyName ?? "").trim(), website: String(o.website ?? "").trim() };
+        })
+        .filter((t) => t.companyName)
+        .slice(0, 25)
+    : [];
+
   const errors: string[] = [];
+
+  if (enrichTargets.length > 0) {
+    for (const p of chain) {
+      const orModel =
+        resolvedModel ?? OPENROUTER_MODELS[modelFamily][tokenUsage] ?? "anthropic/claude-sonnet-5:online";
+      const liveSearch = p === "claude" || (p === "openrouter" && orModel.endsWith(":online"));
+      try {
+        let candidates = await enrichCompanies(enrichTargets, p, orModel, tokenUsage, fields, courseName, liveSearch);
+        if (fields.annualReportUrls || fields.website) {
+          candidates = await verifyLinks(candidates, fields);
+        }
+        return Response.json({
+          candidates,
+          provider: p,
+          model: p === "openrouter" ? orModel : undefined,
+          enriched: true,
+        });
+      } catch (err) {
+        errors.push(`${p}: ${err instanceof Error ? err.message : "failed"}`);
+      }
+    }
+    return Response.json(
+      { error: errors.join(" | ").replace(/RATE_LIMITED: /g, "") || "Enrichment failed", provider },
+      { status: 502 },
+    );
+  }
+
   for (const p of chain) {
     const orModel =
       resolvedModel ??
@@ -323,6 +362,100 @@ export async function POST(request: Request) {
     { error: errors.join(" | ").replace(/RATE_LIMITED: /g, "") || "AI search failed", provider },
     { status: 502 },
   );
+}
+
+// Enrich known companies (usually website-only discoveries): one small call per company
+// asking only for the requested fields. Pool of 3; a failed company comes back with its
+// original data plus a note in source, never dropped.
+async function enrichCompanies(
+  targets: { companyName: string; website: string }[],
+  p: Provider,
+  orModel: string,
+  tokenUsage: TokenUsage,
+  fields: Fields,
+  courseName: string,
+  liveSearch: boolean,
+): Promise<Candidate[]> {
+  const wanted: string[] = [];
+  const rules: string[] = [];
+  if (fields.website) {
+    wanted.push("website (string)");
+    rules.push("- website: the official corporate site URL.");
+  }
+  if (fields.country) {
+    wanted.push("country (string)");
+    rules.push("- country: headquarters country name.");
+  }
+  if (fields.annualReportUrls) {
+    wanted.push("annualReportUrls (string[])");
+    rules.push(
+      liveSearch
+        ? "- annualReportUrls: a real URL to the most recent annual report (PDF preferred, else the investor-relations page). Empty array if none exists."
+        : "- annualReportUrls: no live web access - only include a URL if you are highly confident; otherwise empty array. NEVER guess.",
+    );
+  }
+  if (fields.aiInsight) {
+    wanted.push("aiInsight (string[] of 4-5 items)", "source (string)");
+    rules.push(
+      liveSearch
+        ? "- aiInsight: 4-5 concise bullets on training / L&D / upskilling activity in the most recent financial year, grounded in real disclosures. No invented numbers."
+        : '- aiInsight: no live web access - give 4-5 qualitative "Likely:" bullets from general knowledge. No invented figures.',
+      '- source: where the data came from (or "AI estimate, not verified").',
+    );
+  }
+
+  const enrichOne = async (t: { companyName: string; website: string }): Promise<Candidate> => {
+    const prompt = `You are a B2B sales-research assistant for Invensis Learning ("${courseName}" corporate training).
+
+Research the company "${t.companyName}"${t.website ? ` (website: ${t.website})` : ""}.${liveSearch ? "" : " You do NOT have live web access - answer from general knowledge, conservatively."}
+
+Find:
+${rules.join("\n")}
+
+Respond with ONLY a JSON object (no fences, no prose) with keys: ${wanted.join(", ")}.`;
+    const base: Candidate = {
+      companyName: t.companyName,
+      country: "",
+      website: t.website,
+      annualReportUrls: [],
+      aiInsight: [],
+    };
+    try {
+      const text =
+        p === "claude"
+          ? await runClaude(prompt, 2)
+          : p === "openrouter"
+            ? await runOpenRouter(prompt, 2, orModel, tokenUsage)
+            : await runGroq(prompt, 2, fields);
+      const start = text.indexOf("{");
+      const end = text.lastIndexOf("}");
+      if (start === -1 || end <= start) throw new Error("no JSON");
+      const o = JSON.parse(text.slice(start, end + 1).replace(/,\s*([\]}])/g, "$1")) as Record<string, unknown>;
+      return {
+        ...base,
+        country: fields.country ? String(o.country ?? "") : "",
+        website: t.website || (fields.website ? String(o.website ?? "") : ""),
+        annualReportUrls:
+          fields.annualReportUrls && Array.isArray(o.annualReportUrls)
+            ? (o.annualReportUrls as unknown[]).map(String).filter(Boolean)
+            : [],
+        aiInsight:
+          fields.aiInsight && Array.isArray(o.aiInsight)
+            ? (o.aiInsight as unknown[]).map(String).slice(0, 5)
+            : [],
+        source: fields.aiInsight && o.source ? String(o.source) : undefined,
+      };
+    } catch {
+      return { ...base, source: "Enrichment failed for this company - retry or fill manually" };
+    }
+  };
+
+  const out: Candidate[] = [];
+  const POOL = 3;
+  for (let i = 0; i < targets.length; i += POOL) {
+    out.push(...(await Promise.all(targets.slice(i, i + POOL).map(enrichOne))));
+  }
+  return out;
 }
 
 // Deep research: one small live-search call per company, grounded in its verified

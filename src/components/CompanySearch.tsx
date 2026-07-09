@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Plus, PlusCircle } from "lucide-react";
+import { Loader2, Plus, PlusCircle, Sparkles } from "lucide-react";
 import type { Company } from "@/lib/companies";
 
 type Candidate = {
@@ -64,6 +64,8 @@ export default function CompanySearch({
   const [error, setError] = useState<string | null>(null);
   const [addingIdx, setAddingIdx] = useState<number | null>(null);
   const [addingAll, setAddingAll] = useState(false);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [enriching, setEnriching] = useState(false);
 
   // Large counts run as sequential batches: each batch excludes everything found so
   // far, results append live, and one failed batch keeps earlier batches' results.
@@ -77,6 +79,7 @@ export default function CompanySearch({
     setUsedModel(null);
     setWasCached(false);
     setProgress(null);
+    setSelected(new Set());
     setLoading(true);
 
     const totalBatches = Math.ceil(count / BATCH_SIZE);
@@ -124,6 +127,51 @@ export default function CompanySearch({
     }
   };
 
+  // Enrich selected rows: re-research just those companies for the currently-checked
+  // fields. Typical flow: search with only Website checked (cheap), then tick the other
+  // field boxes, select rows, and enrich.
+  const enrichSelected = async () => {
+    const targets = [...selected]
+      .map((i) => results[i])
+      .filter(Boolean)
+      .map((c) => ({ companyName: c.companyName, website: c.website }));
+    if (targets.length === 0) return;
+    setEnriching(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/companies/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          courseSlug,
+          industrySlug,
+          industryName,
+          provider,
+          fields,
+          model,
+          customModel,
+          tokenUsage,
+          enrich: targets,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || `Enrichment failed (${res.status})`);
+      const byName = new Map(
+        ((data.candidates ?? []) as Candidate[]).map((c) => [c.companyName.toLowerCase().trim(), c]),
+      );
+      setResults((prev) =>
+        prev.map((c) => byName.get(c.companyName.toLowerCase().trim()) ?? c),
+      );
+      setUsedProvider(data.provider ?? null);
+      setUsedModel(data.model ?? null);
+      setSelected(new Set());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Enrichment failed");
+    } finally {
+      setEnriching(false);
+    }
+  };
+
   const addAll = async () => {
     if (results.length === 0) return;
     setAddingAll(true);
@@ -157,6 +205,8 @@ export default function CompanySearch({
       const saved = (await res.json()) as Company;
       onAdded(saved);
       setResults((prev) => prev.filter((_, i) => i !== idx));
+      setSelected(new Set()); // indices shifted
+
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed");
     } finally {
@@ -356,14 +406,27 @@ export default function CompanySearch({
               : ""}
             {wasCached ? " · from cache (no tokens spent)" : ""}
           </p>
-          <button
-            onClick={addAll}
-            disabled={addingAll}
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-contrast disabled:opacity-60"
-          >
-            {addingAll ? <Loader2 size={13} className="animate-spin" /> : <PlusCircle size={13} />}
-            Add all {results.length}
-          </button>
+          <div className="flex items-center gap-2">
+            {selected.size > 0 && (
+              <button
+                onClick={enrichSelected}
+                disabled={enriching}
+                title="Re-research the selected companies for the currently checked fields"
+                className="inline-flex items-center gap-1.5 rounded-md border border-[var(--primary)] px-3 py-1.5 text-xs font-medium text-primary disabled:opacity-60"
+              >
+                {enriching ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                {enriching ? "Enriching..." : `Enrich selected (${selected.size})`}
+              </button>
+            )}
+            <button
+              onClick={addAll}
+              disabled={addingAll || enriching}
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-contrast disabled:opacity-60"
+            >
+              {addingAll ? <Loader2 size={13} className="animate-spin" /> : <PlusCircle size={13} />}
+              Add all {results.length}
+            </button>
+          </div>
         </div>
       )}
 
@@ -372,7 +435,22 @@ export default function CompanySearch({
           {results.map((cand, idx) => (
             <li key={idx} className="rounded-md border bg-bg p-3">
               <div className="flex items-start justify-between gap-2">
-                <div>
+                <div className="flex items-start gap-2.5">
+                  <input
+                    type="checkbox"
+                    aria-label={`Select ${cand.companyName} for enrichment`}
+                    checked={selected.has(idx)}
+                    onChange={() =>
+                      setSelected((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(idx)) next.delete(idx);
+                        else next.add(idx);
+                        return next;
+                      })
+                    }
+                    className="mt-1 size-3.5 cursor-pointer accent-[var(--primary)]"
+                  />
+                  <div>
                   <p className="font-medium">
                     {cand.companyName}
                     {fields.country && cand.country && (
@@ -399,6 +477,7 @@ export default function CompanySearch({
                       {cand.website}
                     </a>
                   )}
+                  </div>
                 </div>
                 <button
                   onClick={() => addCandidate(cand, idx)}
