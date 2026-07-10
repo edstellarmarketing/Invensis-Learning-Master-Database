@@ -263,6 +263,30 @@ Redis in production (Vercel) or the JSON files in `src/data/` in local dev - see
   link-local (including the `169.254.169.254` cloud metadata address), and IPv6
   unique-local/link-local are rejected. Don't switch `redirect` back to `"follow"`; that
   reopens the redirect-based bypass this closes.
+  - **`isSafeToFetch`'s rejection must throw `UnsafeUrlError`, never a plain `Error`.**
+    `checkUrl`'s dead-link policy is "only a confirmed DNS failure counts as dead;
+    everything else is ambiguous and kept" - but `isSafeToFetch` rejecting a URL (DNS
+    genuinely doesn't resolve, resolves to a private/SSRF-blocked IP, or is malformed) is
+    NOT one of those ambiguous cases, it means we never even attempted the request. A
+    plain `Error` there doesn't match `isDnsFailure`'s `.cause.code === "ENOTFOUND"`
+    check, so it fell into the "ambiguous, keep" bucket - meaning a URL that flat-out
+    doesn't resolve (or points at a metadata IP) was reported `websiteVerified: true`.
+    Confirmed by testing a fake company against a `.invalid` domain: it came back
+    verified until this was fixed. This directly undermined the staged AI-Insights gate
+    below (a fake company could pass the "verified website" check), so if you touch this
+    error handling again, re-run that exact test (a company name with a non-resolving
+    domain, via the `fields.website: false` shape "Refresh reports & insights" uses) and
+    confirm `websiteVerified: false` before considering it fixed.
+  - **`hasVerifiedWebsite` checks a dedicated `websiteVerified` flag, not `Boolean(website)`.**
+    A caller can ask to verify a website without asking to have its value echoed back
+    (`fields.website: false` - "Refresh reports & insights" does exactly this, since it
+    doesn't want to overwrite the saved website). `verifyLinks` now always checks a
+    present `website` regardless of `fields.website`, but only blanks/overwrites the
+    visible field when the caller actually requested it back - `websiteVerified` carries
+    the real check result either way. The enrich-mode staged-insights gate
+    (`fields.annualReportUrls && fields.aiInsight`) is deliberately NOT conditioned on
+    `fields.website` for the same reason - it used to be, and silently never triggered
+    for "Refresh reports & insights" as a result.
 - **CSP lives in `src/proxy.ts`, not `next.config.ts`** - `next.config.ts` has no
   `headers()` at all. `proxy.ts` is Next.js 16's file-convention rename of what used to be
   `middleware.ts` (same mechanism: exports a function - here named `proxy` - that runs

@@ -44,6 +44,13 @@ type Candidate = {
   // true = at least one report URL fetched OK; false = URLs were dead and removed;
   // undefined = nothing to verify.
   reportVerified?: boolean;
+  // Same idea for the website, tracked separately from the `website` field itself: a
+  // caller can ask to verify a website without asking to have its value echoed back
+  // (fields.website: false) - e.g. "Refresh reports & insights" re-researches a saved
+  // company's reports/insights without touching its saved website. websiteVerified lets
+  // the staged-insights gate (hasVerifiedWebsite) work correctly in that case instead of
+  // silently never triggering.
+  websiteVerified?: boolean;
 };
 
 type Fields = {
@@ -221,9 +228,15 @@ export async function POST(request: Request) {
 
   // 24h result cache (Redis; no-op locally). Only for first-batch requests - once
   // exclusions accumulate, results are inherently unique per call.
+  // CACHE_SCHEMA_VERSION: bump this whenever the response *shape* for the same request
+  // params changes (e.g. the staged AI-Insights verification gate added here) - without
+  // it, an old cached response written by pre-change code keeps serving for up to 24h
+  // after a deploy, silently bypassing whatever the change was supposed to fix.
+  const CACHE_SCHEMA_VERSION = 2; // v2: AI Insights staged behind website/report verification
   const cacheKey = createHash("sha1")
     .update(
       JSON.stringify({
+        v: CACHE_SCHEMA_VERSION,
         courseSlug,
         courseSlugs: [...courseSlugs].sort(),
         industrySlug,
@@ -301,7 +314,12 @@ export async function POST(request: Request) {
         }
         // Same staged gate as discovery (see the main loop below): don't keep insights
         // for a company whose website/report couldn't be verified, even in enrich mode.
-        if (fields.website && fields.annualReportUrls && fields.aiInsight) {
+        // Deliberately NOT gated on fields.website - "Refresh reports & insights" (the
+        // companies table's bulk action) always sends fields.website: false since it
+        // doesn't want the saved website re-researched/overwritten, but verifyLinks now
+        // checks a present website regardless of that flag, so the gate must too, or it
+        // silently never triggers for that call site (the bug this comment replaced).
+        if (fields.annualReportUrls && fields.aiInsight) {
           candidates = gateInsightsOnVerification(candidates);
         }
         return Response.json({
@@ -562,11 +580,13 @@ Respond with ONLY a JSON object (no fences, no prose): {"aiInsight": string[4-5]
   return out;
 }
 
-// Website is non-empty (verifyLinks blanks it if dead, and it was already "" if the
-// model never found one) - the one verification every candidate can realistically pass,
-// live-search or not.
+// websiteVerified is exactly true - set by verifyLinks whenever a website was present to
+// check, independent of whether the caller asked for the website field back (see the
+// Candidate type comment). This is the one verification every candidate can realistically
+// pass, live-search or not, since it's our own HTTP check, not something the LLM has to
+// get right.
 function hasVerifiedWebsite(c: Candidate): boolean {
-  return Boolean(c.website);
+  return c.websiteVerified === true;
 }
 
 // reportVerified is exactly true (not just truthy - undefined means nothing to verify,
@@ -663,6 +683,17 @@ async function isSafeToFetch(url: string): Promise<boolean> {
   }
 }
 
+// Thrown when isSafeToFetch rejects a URL (DNS failure, resolves to a private/link-local/
+// metadata IP, or malformed) - distinct from a generic fetch() failure so checkUrl never
+// mistakes "we refused to even try this" for one of the ambiguous-but-real-site cases
+// (bot-protection 403, redirect loop, timeout) it's supposed to give the benefit of the
+// doubt to. Without this distinction, isSafeToFetch's rejection surfaced as a plain Error
+// with no `.cause.code`, so isDnsFailure never matched it and it fell into the "ambiguous,
+// keep" bucket - meaning a URL that doesn't resolve at all (or resolves to an SSRF target)
+// was reported as VERIFIED, defeating both the dead-link check and the staged-insights
+// gate that depends on it.
+class UnsafeUrlError extends Error {}
+
 async function verifyLinks(candidates: Candidate[], fields: Fields): Promise<Candidate[]> {
   const checkUrl = async (url: string): Promise<boolean> => {
     if (!/^https?:\/\//i.test(url)) return false;
@@ -671,7 +702,7 @@ async function verifyLinks(candidates: Candidate[], fields: Fields): Promise<Can
     const probe = async (method: "HEAD" | "GET") => {
       let current = url;
       for (let hop = 0; hop < 5; hop++) {
-        if (!(await isSafeToFetch(current))) throw new Error("blocked: unsafe redirect target");
+        if (!(await isSafeToFetch(current))) throw new UnsafeUrlError(current);
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), 6000);
         let res: Response;
@@ -700,7 +731,8 @@ async function verifyLinks(candidates: Candidate[], fields: Fields): Promise<Can
     // means "this domain does not exist" - a typo'd or fabricated hostname. Everything
     // else that throws (timeout, redirect loop, connection reset, TLS error,
     // bot-protection dropping the connection) is ambiguous and, per the policy above,
-    // should be KEPT rather than treated as dead.
+    // should be KEPT rather than treated as dead. UnsafeUrlError is neither of those - it
+    // means we never even attempted the request, so it's always treated as dead below.
     const isDnsFailure = (err: unknown): boolean =>
       (err as { cause?: { code?: string } })?.cause?.code === "ENOTFOUND";
 
@@ -710,24 +742,29 @@ async function verifyLinks(candidates: Candidate[], fields: Fields): Promise<Can
       if (res.status === 404 || res.status === 410) return false;
       return true;
     } catch (err1) {
-      if (isDnsFailure(err1)) return false;
+      if (err1 instanceof UnsafeUrlError || isDnsFailure(err1)) return false;
       try {
         const res = await probe("GET");
         return res.status !== 404 && res.status !== 410;
       } catch (err2) {
         // Real example that surfaced this: ovhcloud.com redirects "/" -> "" -> "/" -> ...
         // forever (too-many-redirects) - a live site our probe couldn't resolve, not a
-        // dead one. Only a confirmed DNS failure counts as dead here.
-        return !isDnsFailure(err2);
+        // dead one. Only a confirmed DNS failure (or an UnsafeUrlError - meaning we never
+        // even tried) counts as dead here.
+        return !(err2 instanceof UnsafeUrlError) && !isDnsFailure(err2);
       }
     }
   };
 
-  // Flatten all URLs, verify with bounded parallelism, then map results back.
+  // Flatten all URLs, verify with bounded parallelism, then map results back. Website is
+  // checked whenever one is present, regardless of fields.website - a caller asking to
+  // verify reports/insights on an already-known company (fields.website: false) still
+  // needs a real verification result for the staged-insights gate, even though it isn't
+  // asking to have the website value itself re-researched or echoed back.
   const urls = new Set<string>();
   for (const c of candidates) {
     if (fields.annualReportUrls) for (const url of c.annualReportUrls.slice(0, 3)) urls.add(url);
-    if (fields.website && c.website) urls.add(c.website);
+    if (c.website) urls.add(c.website);
   }
   const jobs = [...urls];
   const results = new Map<string, boolean>();
@@ -746,9 +783,13 @@ async function verifyLinks(candidates: Candidate[], fields: Fields): Promise<Can
       const alive = c.annualReportUrls.filter((u) => results.get(u) === true);
       next = { ...next, annualReportUrls: alive, reportVerified: alive.length > 0 };
     }
-    // Dead corporate site: blank it rather than dropping the company.
-    if (fields.website && next.website && results.get(next.website) === false) {
-      next = { ...next, website: "" };
+    if (next.website) {
+      const alive = results.get(next.website) === true;
+      next = { ...next, websiteVerified: alive };
+      // Dead corporate site: blank it rather than dropping the company - but only when
+      // the caller actually asked for the website field back; otherwise leave the saved
+      // value untouched (websiteVerified above still reflects the real check result).
+      if (fields.website && !alive) next = { ...next, website: "" };
     }
     return next;
   });

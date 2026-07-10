@@ -30,11 +30,15 @@ type TokenUsage = "low" | "medium" | "high";
 // Which provider/tier actually earns each field, so the picks above the checkboxes are
 // grounded in what the backend does (route.ts): free/no-live-search tiers answer from
 // training data ("Likely:" hedged); annual-report URLs need live web search to find a
-// real one; AI Insights only get per-company grounded research (reading the verified
-// report) at High tier with a live-search provider (Claude, or OpenRouter Medium/High).
+// real one; AI Insights are staged behind website/report verification when all three of
+// Website + Annual Reports + AI Insights are checked (any tier, not just High - keep
+// this in sync with the `staged`/`deep` logic in api/companies/search/route.ts).
 function fieldModelAdvice(fields: Fields): string {
   if (fields.aiInsight) {
-    return "AI Insights needs grounded research: pick Claude, or OpenRouter at High tier - each company's actual report gets read individually. Free tiers only guess (\"Likely:\" hedge).";
+    if (fields.website && fields.annualReportUrls) {
+      return "AI Insights are staged behind verification: a candidate only keeps insights once its website (and, with a live-search provider, its report) checks out. Claude or a live-search OpenRouter tier does real grounded research on verified reports; Groq/free tiers keep their hedged (\"Likely:\") guess only for companies with a real website.";
+    }
+    return "AI Insights needs a live-search provider (Claude, or OpenRouter Medium/High) for grounded research - free tiers only guess (\"Likely:\" hedge). Tip: also check Website + Annual Reports to stage insights behind real verification instead of a blind guess.";
   }
   if (fields.annualReportUrls) {
     return "Annual Reports needs live web search to find a real URL: pick Claude, or OpenRouter Medium/High. Free/Low tiers often can't locate one.";
@@ -44,9 +48,11 @@ function fieldModelAdvice(fields: Fields): string {
 
 // Rough per-batch wall-clock estimate from the backend's actual call shape: a live-search
 // LLM call (Claude, or OpenRouter with a ":online" model) runs noticeably slower than a
-// no-search one; deep research (aiInsight + High tier + live search) adds one extra
-// grounded call PER company, 3 at a time; link verification (website/annualReportUrls)
-// adds a bounded pass over up to 8 URLs at once. Batches of up to 15 run sequentially.
+// no-search one; the staged deep-research pass (Website + Annual Reports + AI Insights
+// all checked, with a live-search provider - see `staged`/`deep` in
+// api/companies/search/route.ts, tier-independent) adds one extra grounded call PER
+// company, 3 at a time; link verification (website/annualReportUrls) adds a bounded pass
+// over up to 8 URLs at once. Batches of up to 15 run sequentially.
 function estimateSeconds(
   fields: Fields,
   provider: Provider,
@@ -71,7 +77,8 @@ function estimateSeconds(
     perBatch += Math.ceil(perBatchCount / 8) * 4; // link verification pass
   }
 
-  const deep = tokenUsage === "high" && fields.aiInsight && liveSearch;
+  const staged = fields.website && fields.annualReportUrls && fields.aiInsight;
+  const deep = staged && liveSearch;
   if (deep) {
     perBatch += Math.ceil(perBatchCount / 3) * 12; // one grounded call per company, pool of 3
   }
