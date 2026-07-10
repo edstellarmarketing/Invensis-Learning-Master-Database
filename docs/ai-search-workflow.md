@@ -196,12 +196,14 @@ This is what actually happened, as a template for repeating it on another course
    URL and ground 5 training/L&D-relevant insights in real facts.
 4. **Applied**: compiled the 50 results into `apply-research-enrichment.mjs`'s `RESEARCH`
    object and ran it, writing directly via `PUT /api/companies/:id` per company.
-5. **Verified**: spot-checked all 50 report URLs with a direct HTTP request. 46/50
-   returned `200`; the remaining 4 (Unilever, Bayer, Boehringer Ingelheim, Bouygues)
-   returned `403` from bot-protection on their own real corporate domains - not dead
+5. **Verified**: spot-checked all 50 report URLs with a direct HTTP request. Most
+   returned `200`; a handful (Bayer, Boehringer Ingelheim, Bouygues, Ericsson, Concentrix,
+   TTEC) returned `403` from bot-protection on their own real corporate domains - not dead
    links. This matches the app's own link-verification policy already documented in
    `AGENTS.md`: only a confirmed DNS failure counts as dead; everything else (including a
-   403 bot-block) is ambiguous and kept rather than dropped.
+   403 bot-block) is ambiguous and kept rather than dropped. (A later re-audit found
+   Unilever's dated-PDF path had since 404'd and swapped it for its IR landing page - see
+   §3a.)
 6. **Deployed**: committed and pushed `src/data/companies.json` - which populates a
    *fresh* Redis, but didn't touch the already-seeded live deployment (see "Getting the
    data onto a live deployment" above). Re-ran both scripts with `--base
@@ -224,6 +226,32 @@ off-list countries). Live on the production deployment, verified via direct `cur
 against the deployed API (not just local state) after re-running both scripts with
 `--base <live-url>`.
 
+## 3a. Keeping the data healthy (periodic audit)
+
+Company data ages. A quick audit worth re-running now and then (locally against
+`src/data/companies.json`, and against the live API for what users actually see):
+
+- **Dead report links.** Report URLs rot - a PDF path that resolved during research can
+  later 404 when the company reorganises its site. Re-check every URL with a direct HTTP
+  request and classify by the app's own policy: a hard `404`/`410`/DNS failure is dead and
+  must be fixed; a `403` bot-block on a real corporate domain is *ambiguous and kept*, not
+  dead. When a specific dated-PDF path dies, replace it with the company's canonical
+  investor-relations annual-reports **landing page** (far more durable than a dated
+  filename). Then fix it in three places: `src/data/companies.json`, the `RESEARCH` object
+  in `apply-research-enrichment.mjs` (so a re-run doesn't reintroduce it), and the live
+  deployment (re-run `apply-research-enrichment.mjs --base <live-url>`, which is
+  idempotent). *Example: Unilever's dated-PDF report path 404'd post-research and was
+  swapped for its IR annual-reports landing page.*
+- **Report-year staleness.** The prompts target the last completed financial year
+  (`FY<currentYear-1>`), but data researched in a prior year will cite the older year
+  (e.g. a batch researched in 2025 cites FY2024 even after FY2025 reports publish).
+  Re-running "Refresh reports & insights" (or the enrich script) with a live-search
+  provider pulls the newer year - but it's a real paid operation per company, so do it
+  when the freshness matters for a pitch, not reflexively.
+- **Off-target-list countries.** The 5 pre-existing IT seed companies (Infosys, TCS,
+  Wipro) are India-based, which is *not* in the 50-country list. Left intentionally as the
+  original seed; flag but don't silently drop them.
+
 ## 4. When to use which approach
 
 | Need | Use |
@@ -236,3 +264,4 @@ against the deployed API (not just local state) after re-running both scripts wi
 | Bulk-fill AI-search enrich data on a large curated set, roughly | `seed-course-companies.mjs --enrich` (use a paid live-search provider for real report URLs) |
 | Citable, research-grade report URLs + insights at scale | Parallel research agents → `apply-research-enrichment.mjs` (this doc's §3) |
 | Getting any of the above onto an already-deployed site | Re-run the script(s) with `--base <live-url>` - a `git push` alone won't do it once Redis has been seeded (§2, "Getting the data onto a live deployment") |
+| Keeping existing data healthy (dead links, stale report years) | Periodic audit (§3a) - re-check report URLs, distinguish real 404s from 403 bot-blocks, refresh stale years only when a pitch needs it |

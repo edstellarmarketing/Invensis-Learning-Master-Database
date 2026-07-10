@@ -97,7 +97,7 @@ const RESEARCH = {
     },
     {
       companyName: "Unilever",
-      annualReportUrls: ["https://www.unilever.com/files/unilever-annual-report-and-accounts-2024.pdf"],
+      annualReportUrls: ["https://www.unilever.com/investors/annual-report-and-accounts/"],
       aiInsight: [
         "Unilever employs ~140,000 people across more than 100 countries, a vast frontline and management workforce needing scalable project delivery skills.",
         "Runs FLEX Experiences, an AI-powered internal talent marketplace matching staff to cross-functional projects, gigs and mentorships.",
