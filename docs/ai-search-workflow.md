@@ -20,7 +20,18 @@ saving.
    results are hedged ("Likely:" prefix) - fine for a first pass, not for final data.
 4. **Fields & target courses**: tick which fields to fetch. **Key move**: search with
    only **Website** ticked first - it's cheap/fast and lets you screen candidates before
-   paying for the expensive fields.
+   paying for the expensive fields. Two live-updating hints sit right below the
+   checkboxes to help this decision:
+   - **Model recommendation** - a one-line steer on which provider/tier actually earns
+     the fields you've checked: AI Insights needs a live-search provider at High tier
+     (grounded, per-company research); Annual Reports needs live search to find a real
+     URL; Website/Country alone works fine with any provider, including free ones.
+   - **Estimated time** - a rough ETA under the Search button, recalculated from the
+     actual backend call shape (base discovery call, live-search vs. not, the link-
+     verification pass, and deep research's one grounded call per company at High
+     tier), scaled across batches for counts over 15. It's a heuristic, not a
+     guarantee - live web search and per-company research both have real latency
+     variance.
 5. Click **Search**. Review the candidate list.
 6. To fetch only report + insights for specific candidates (the "enrich" step): tick
    **Annual Reports** and **AI Insights** in Fields, tick the candidate rows, click
@@ -85,6 +96,32 @@ node scripts/apply-research-enrichment.mjs --base https://your-deploy.vercel.app
 Idempotent by construction - it's a direct overwrite, so re-running just re-applies the
 same values.
 
+### Getting the data onto a live deployment
+
+**A `git push` alone does not update an already-deployed site's data.** Both scripts
+default to `--base http://localhost:3000`, so running them without `--base` only writes
+to whatever's running locally. This bit the PMP run: the data was committed and pushed to
+`src/data/companies.json`, but the live deployment's Upstash Redis had already been
+seeded once from an earlier build - and per `AGENTS.md`, once Redis has data, the bundled
+JSON is never consulted again on startup. The fix is to run the scripts a **second time**
+against the live URL:
+
+```bash
+node scripts/seed-course-companies.mjs --base https://your-deploy.vercel.app
+node scripts/apply-research-enrichment.mjs --base https://your-deploy.vercel.app
+```
+
+Before doing this, check `/settings` on that deployment - the **Storage** card shows
+"Connected" (Redis, writes persist) vs. "Local JSON files" (a serverless deployment
+without the Redis integration; writes won't survive the next cold start either way).
+After running, verify from the outside with a plain `curl` against the live API rather
+than trusting local state:
+
+```bash
+curl -s "https://your-deploy.vercel.app/api/companies?courseSlug=<slug>&industrySlug=<slug>" \
+  | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).length))"
+```
+
 ## 3. How the PMP dataset was actually built (worked example)
 
 This is what actually happened, as a template for repeating it on another course:
@@ -110,6 +147,12 @@ This is what actually happened, as a template for repeating it on another course
    links. This matches the app's own link-verification policy already documented in
    `AGENTS.md`: only a confirmed DNS failure counts as dead; everything else (including a
    403 bot-block) is ambiguous and kept rather than dropped.
+6. **Deployed**: committed and pushed `src/data/companies.json` - which populates a
+   *fresh* Redis, but didn't touch the already-seeded live deployment (see "Getting the
+   data onto a live deployment" above). Re-ran both scripts with `--base
+   https://<live-url>` to actually write the 50 companies through the real API, then
+   re-verified counts per industry with a direct `curl` against the live site (not local
+   state) before calling it done.
 
 ### Result
 
@@ -122,14 +165,18 @@ This is what actually happened, as a template for repeating it on another course
 | Construction | 10 | France, Spain, Sweden, Germany, US, UK, Austria, Netherlands |
 
 All 50 use countries from `src/lib/countries.ts`, verified programmatically (zero
-off-list countries).
+off-list countries). Live on the production deployment, verified via direct `curl`
+against the deployed API (not just local state) after re-running both scripts with
+`--base <live-url>`.
 
 ## 4. When to use which approach
 
 | Need | Use |
 |---|---|
 | A few candidates for one industry, reviewed before saving | Manual AI Search UI |
+| Not sure which model/tier a set of fields needs, or how long it'll take | Check the Fields to fetch hints (model recommendation + ETA) before hitting Search |
 | Fill in missing report/insight data on a handful of saved rows | "Refresh reports & insights" (companies table) |
 | Add a known, curated list of companies fast (no AI discovery) | `seed-course-companies.mjs` |
 | Bulk-fill AI-search enrich data on a large curated set, roughly | `seed-course-companies.mjs --enrich` (use a paid live-search provider for real report URLs) |
 | Citable, research-grade report URLs + insights at scale | Parallel research agents → `apply-research-enrichment.mjs` (this doc's §3) |
+| Getting any of the above onto an already-deployed site | Re-run the script(s) with `--base <live-url>` - a `git push` alone won't do it once Redis has been seeded (§2, "Getting the data onto a live deployment") |
