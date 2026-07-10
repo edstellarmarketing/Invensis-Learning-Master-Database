@@ -1,8 +1,33 @@
 import { createHash } from "node:crypto";
+import { isIP } from "node:net";
+import { lookup as dnsLookup } from "node:dns/promises";
 import Anthropic from "@anthropic-ai/sdk";
 import { readAllCourses } from "@/lib/courses";
 import { readCompanies } from "@/lib/companies";
-import { cacheGet, cacheSet } from "@/lib/storage";
+import { cacheGet, cacheSet, incrementWithExpiry } from "@/lib/storage";
+import { readJsonBody } from "@/lib/requestLimits";
+
+// Unauthenticated route that calls paid provider APIs with server-held keys - without a
+// cap, anyone can hammer it to run up billing or exhaust Vercel function concurrency.
+// Per-IP, not global, so one busy user can't lock everyone else out. No-ops in local dev
+// (no Redis to hold a shared counter against).
+const SEARCH_RATE_LIMIT = 30;
+const SEARCH_RATE_WINDOW_SECONDS = 60;
+
+async function checkSearchRateLimit(request: Request): Promise<Response | null> {
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    "unknown";
+  const count = await incrementWithExpiry(`search:${ip}`, SEARCH_RATE_WINDOW_SECONDS);
+  if (count !== null && count > SEARCH_RATE_LIMIT) {
+    return Response.json(
+      { error: "Too many search requests from this network. Wait a minute and try again." },
+      { status: 429 },
+    );
+  }
+  return null;
+}
 
 export const runtime = "nodejs";
 // Large counts take a while; Vercel clamps this to the plan's ceiling.
@@ -90,12 +115,12 @@ const TOKEN_BUDGETS: Record<TokenUsage, (count: number) => number> = {
 };
 
 export async function POST(request: Request) {
-  let body: Record<string, unknown>;
-  try {
-    body = await request.json();
-  } catch {
-    return Response.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+  const rateLimited = await checkSearchRateLimit(request);
+  if (rateLimited) return rateLimited;
+
+  const parsedBody = await readJsonBody(request);
+  if (!parsedBody.ok) return parsedBody.response;
+  const body = parsedBody.body;
 
   const courseSlug = String(body.courseSlug ?? "");
   const industrySlug = String(body.industrySlug ?? "");
@@ -183,9 +208,10 @@ export async function POST(request: Request) {
   let existingNames: string[] = [...excludeNames];
   try {
     const all = await readCompanies();
+    const targetSlugs = new Set(courseSlugs);
     existingNames.push(
       ...all
-        .filter((c) => c.courseSlug === courseSlug && (!industrySlug || c.industrySlug === industrySlug))
+        .filter((c) => targetSlugs.has(c.courseSlug) && (!industrySlug || c.industrySlug === industrySlug))
         .map((c) => c.companyName),
     );
   } catch {
@@ -523,25 +549,83 @@ Respond with ONLY a JSON object (no fences, no prose): {"aiInsight": string[4-5]
 // is blocked) and remove URLs that are definitively dead (404/410, DNS failure, timeout).
 // Ambiguous responses (403 bot-blocks, 405) are kept - better an occasional challenge
 // page than a dropped real report. Capped concurrency; ~6s per URL.
+// Blocks SSRF: a malicious "website"/annual-report URL (attacker-controlled via enrich
+// mode, CSV import, or Add Company) must not make this server probe internal/cloud
+// infrastructure (loopback, RFC1918, link-local incl. the 169.254.169.254 metadata IP,
+// unique-local IPv6). Checks the literal hostname (if it's already an IP) and every
+// address the hostname resolves to - a public hostname that resolves to a private IP
+// (DNS rebinding) is rejected too.
+function isPrivateIp(ip: string): boolean {
+  if (isIP(ip) === 4) {
+    const [a, b] = ip.split(".").map(Number);
+    if (a === 127) return true; // loopback
+    if (a === 10) return true; // RFC1918
+    if (a === 172 && b >= 16 && b <= 31) return true; // RFC1918
+    if (a === 192 && b === 168) return true; // RFC1918
+    if (a === 169 && b === 254) return true; // link-local incl. cloud metadata
+    if (a === 0) return true; // "this network"
+    return false;
+  }
+  if (isIP(ip) === 6) {
+    const lower = ip.toLowerCase();
+    if (lower === "::1") return true; // loopback
+    if (lower.startsWith("fe80:") || lower.startsWith("fe80::")) return true; // link-local
+    if (/^f[cd][0-9a-f]{2}:/.test(lower)) return true; // unique-local (fc00::/7)
+    if (lower.startsWith("::ffff:")) return isPrivateIp(lower.slice(7)); // IPv4-mapped
+    return false;
+  }
+  return true; // not a parseable IP - treat as unsafe rather than risk a bypass
+}
+
+async function isSafeToFetch(url: string): Promise<boolean> {
+  let hostname: string;
+  try {
+    hostname = new URL(url).hostname;
+  } catch {
+    return false;
+  }
+  if (isIP(hostname)) return !isPrivateIp(hostname);
+  try {
+    const addrs = await dnsLookup(hostname, { all: true });
+    if (addrs.length === 0) return false;
+    return addrs.every((a) => !isPrivateIp(a.address));
+  } catch {
+    return false; // DNS failure - treat as unsafe, checkUrl's caller already handles dead links
+  }
+}
+
 async function verifyLinks(candidates: Candidate[], fields: Fields): Promise<Candidate[]> {
   const checkUrl = async (url: string): Promise<boolean> => {
     if (!/^https?:\/\//i.test(url)) return false;
+    // redirect: "manual" + re-validating each hop closes an SSRF bypass where a public
+    // URL 3xx-redirects the fetch into a private/metadata address after the initial check.
     const probe = async (method: "HEAD" | "GET") => {
-      const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 6000);
-      try {
-        return await fetch(url, {
-          method,
-          redirect: "follow",
-          signal: ctrl.signal,
-          headers: {
-            "User-Agent": "Mozilla/5.0 (compatible; InvensisMasterDB/1.0; link-check)",
-            ...(method === "GET" ? { Range: "bytes=0-2047" } : {}),
-          },
-        });
-      } finally {
-        clearTimeout(timer);
+      let current = url;
+      for (let hop = 0; hop < 5; hop++) {
+        if (!(await isSafeToFetch(current))) throw new Error("blocked: unsafe redirect target");
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 6000);
+        let res: Response;
+        try {
+          res = await fetch(current, {
+            method,
+            redirect: "manual",
+            signal: ctrl.signal,
+            headers: {
+              "User-Agent": "Mozilla/5.0 (compatible; InvensisMasterDB/1.0; link-check)",
+              ...(method === "GET" ? { Range: "bytes=0-2047" } : {}),
+            },
+          });
+        } finally {
+          clearTimeout(timer);
+        }
+        if (res.status >= 300 && res.status < 400 && res.headers.get("location")) {
+          current = new URL(res.headers.get("location")!, current).toString();
+          continue;
+        }
+        return res;
       }
+      throw new Error("too many redirects");
     };
     // DNS resolution failure (ENOTFOUND) is the one network-level error that reliably
     // means "this domain does not exist" - a typo'd or fabricated hostname. Everything

@@ -1,4 +1,5 @@
 import { readCategories, addCategory, updateCategory, deleteCategory } from "@/lib/courses";
+import { readJsonBody } from "@/lib/requestLimits";
 
 export const runtime = "nodejs";
 
@@ -7,8 +8,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const body = await safeJson(request);
-  const name = String(body?.name ?? "").trim();
+  const parsed = await readJsonBody(request);
+  if (!parsed.ok) return parsed.response;
+  const name = String(parsed.body.name ?? "").trim();
   if (!name) return Response.json({ error: "name is required" }, { status: 400 });
   try {
     return Response.json(await addCategory(name), { status: 201 });
@@ -18,9 +20,10 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  const body = await safeJson(request);
-  const slug = String(body?.slug ?? "");
-  const name = String(body?.name ?? "").trim();
+  const parsed = await readJsonBody(request);
+  if (!parsed.ok) return parsed.response;
+  const slug = String(parsed.body.slug ?? "");
+  const name = String(parsed.body.name ?? "").trim();
   if (!slug || !name) return Response.json({ error: "slug and name are required" }, { status: 400 });
   try {
     return Response.json(await updateCategory(slug, name));
@@ -40,13 +43,6 @@ export async function DELETE(request: Request) {
   }
 }
 
-async function safeJson(request: Request): Promise<Record<string, unknown> | null> {
-  try {
-    return await request.json();
-  } catch {
-    return null;
-  }
-}
 function msg(err: unknown): string {
   return err instanceof Error ? err.message : "Request failed";
 }

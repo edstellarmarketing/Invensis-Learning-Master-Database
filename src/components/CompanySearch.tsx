@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Loader2, Plus, PlusCircle, Sparkles } from "lucide-react";
 import type { Company } from "@/lib/companies";
 import { COUNTRIES } from "@/lib/countries";
+import { safeHref } from "@/lib/url";
 
 type Candidate = {
   companyName: string;
@@ -70,7 +71,7 @@ export default function CompanySearch({
     aiInsight: true,
   });
   const [loading, setLoading] = useState(false);
-  const [progress, setProgress] = useState<string | null>(null);
+  const [progress, setProgress] = useState<{ label: string; pct: number } | null>(null);
   const [results, setResults] = useState<Candidate[]>([]);
   const [usedProvider, setUsedProvider] = useState<string | null>(null);
   const [usedModel, setUsedModel] = useState<string | null>(null);
@@ -85,6 +86,14 @@ export default function CompanySearch({
   const [allCourses, setAllCourses] = useState<{ name: string; slug: string }[]>([]);
   const [targetCourses, setTargetCourses] = useState<Set<string>>(new Set([courseSlug]));
   const [showCourses, setShowCourses] = useState(false);
+  // null = still checking. Lets the UI steer users to a configured provider instead of
+  // letting them pick one, wait for a full round-trip, and get a dead-end "not configured"
+  // error - the old failure mode.
+  const [providerStatus, setProviderStatus] = useState<{
+    claude: boolean;
+    openrouter: boolean;
+    groq: boolean;
+  } | null>(null);
 
   useEffect(() => {
     onResultsChange?.(results.length);
@@ -100,10 +109,28 @@ export default function CompanySearch({
         setAllCourses(cats.flatMap((c: { courses: { name: string; slug: string }[] }) => c.courses));
       })
       .catch(() => {});
+    fetch("/api/ai-providers")
+      .then((r) => r.json())
+      .then((status) => {
+        if (cancelled) return;
+        setProviderStatus(status);
+        // Steer the default off Groq only if Groq genuinely isn't configured - keeps the
+        // "opens free by default" guarantee when it IS available.
+        if (!status.groq) {
+          if (status.claude) setProvider("claude");
+          else if (status.openrouter) setProvider("openrouter");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setProviderStatus({ claude: false, openrouter: false, groq: false });
+      });
     return () => {
       cancelled = true;
     };
   }, []);
+
+  const noProviderConfigured =
+    providerStatus !== null && !providerStatus.claude && !providerStatus.openrouter && !providerStatus.groq;
 
   // Large counts run as sequential batches: each batch excludes everything found so
   // far, results append live, and one failed batch keeps earlier batches' results.
@@ -111,6 +138,15 @@ export default function CompanySearch({
 
   const run = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (
+      !isFree &&
+      count >= 25 &&
+      !window.confirm(
+        `This runs a paid search for ${count} companies (~${Math.ceil(count / BATCH_SIZE)} API call${count > BATCH_SIZE ? "s" : ""}). Continue?`,
+      )
+    ) {
+      return;
+    }
     setError(null);
     setNotice(null);
     setResults([]);
@@ -127,7 +163,10 @@ export default function CompanySearch({
       for (let b = 0; b < totalBatches; b++) {
         const batchCount = Math.min(BATCH_SIZE, count - b * BATCH_SIZE);
         if (totalBatches > 1) {
-          setProgress(`Batch ${b + 1} of ${totalBatches} · ${found.length} found so far...`);
+          setProgress({
+            label: `Batch ${b + 1} of ${totalBatches} · ${found.length} found so far...`,
+            pct: Math.round((b / totalBatches) * 100),
+          });
         }
         const res = await fetch("/api/companies/search", {
           method: "POST",
@@ -252,6 +291,7 @@ export default function CompanySearch({
   const addCandidate = async (cand: Candidate) => {
     const key = keyOf(cand);
     setAddingKey(key);
+    const succeeded: string[] = [];
     try {
       for (const cs of saveTo) {
         const res = await fetch("/api/companies", {
@@ -261,6 +301,7 @@ export default function CompanySearch({
         });
         if (!res.ok) throw new Error(`Save failed (${res.status})`);
         const saved = (await res.json()) as Company;
+        succeeded.push(cs);
         if (cs === courseSlug) onAdded(saved);
       }
       setResults((prev) => prev.filter((c) => keyOf(c) !== key));
@@ -271,7 +312,15 @@ export default function CompanySearch({
         return next;
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Save failed");
+      const msg = err instanceof Error ? err.message : "Save failed";
+      // Partial failure: some courses already got this company. Keep it in the results
+      // (nothing lost) but warn clearly so a retry doesn't duplicate the ones that
+      // already succeeded - mirrors addAll's partial-failure handling below.
+      setError(
+        succeeded.length > 0
+          ? `Saved "${cand.companyName}" to ${succeeded.length} of ${saveTo.length} course(s) (${succeeded.join(", ")}), then failed: ${msg}. Uncheck those courses in Target courses before retrying to avoid duplicates.`
+          : msg,
+      );
     } finally {
       setAddingKey(null);
     }
@@ -283,90 +332,120 @@ export default function CompanySearch({
   // (Auto prefers paid Claude/OpenRouter first, so it is not free.)
   const isFree = provider === "groq" || (provider === "openrouter" && model === "free");
 
+  const providerLabel = (name: "claude" | "openrouter" | "groq", label: string) => {
+    if (providerStatus === null) return label;
+    return providerStatus[name] ? label : `${label} - not configured`;
+  };
+
   return (
-    <div>
-      <form onSubmit={run} className="flex flex-wrap items-end gap-2">
-        <div className="flex-1 min-w-[160px]">
-          <label className="block text-xs font-medium text-text-muted mb-1">
-            Keywords (optional)
-          </label>
-          <input
-            className={`${field} w-full`}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={`e.g. large ${industryName} firms hiring PMs`}
-          />
-        </div>
-        <div className="w-40">
-          <label className="block text-xs font-medium text-text-muted mb-1">Country</label>
-          <input
-            className={`${field} w-full`}
-            value={country}
-            onChange={(e) => setCountry(e.target.value)}
-            placeholder="Any"
-            list="ai-country-options"
-          />
-          <datalist id="ai-country-options">
-            {COUNTRIES.map((c) => (
-              <option key={c} value={c} />
-            ))}
-          </datalist>
-        </div>
-        <div className="w-28">
-          <label className="block text-xs font-medium text-text-muted mb-1">Companies</label>
-          <select
-            className={`${field} w-full`}
-            value={count}
-            onChange={(e) => setCount(Number(e.target.value))}
+    <div className="space-y-3">
+      {noProviderConfigured && (
+        <p className="rounded-lg border border-dashed border-[var(--warning)] bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] px-3 py-2 text-xs text-text">
+          No AI provider is configured (no <code>ANTHROPIC_API_KEY</code>,{" "}
+          <code>OPENROUTER_API_KEY</code>, or <code>GROQ_API_KEY</code>) - AI Search can&apos;t
+          run. Add one of those keys, or use Add Company / bulk CSV import instead.
+        </p>
+      )}
+
+      <div className="rounded-lg border bg-bg/40 p-3">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">
+          Search criteria
+        </p>
+        <form onSubmit={run} className="flex flex-wrap items-end gap-2">
+          <div className="flex-1 min-w-[160px]">
+            <label className="block text-xs font-medium text-text-muted mb-1">
+              Keywords (optional)
+            </label>
+            <input
+              className={`${field} w-full`}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={`e.g. large ${industryName} firms hiring PMs`}
+            />
+          </div>
+          <div className="w-40">
+            <label className="block text-xs font-medium text-text-muted mb-1">Country</label>
+            <input
+              className={`${field} w-full`}
+              value={country}
+              onChange={(e) => setCountry(e.target.value)}
+              placeholder="Any"
+              list="ai-country-options"
+            />
+            <datalist id="ai-country-options">
+              {COUNTRIES.map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
+          </div>
+          <div className="w-28">
+            <label className="block text-xs font-medium text-text-muted mb-1">Companies</label>
+            <select
+              className={`${field} w-full`}
+              value={count}
+              onChange={(e) => setCount(Number(e.target.value))}
+            >
+              {[3, 5, 10, 15, 20, 25, 50, 75, 100].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="w-44">
+            <label className="block text-xs font-medium text-text-muted mb-1">Company size</label>
+            <select
+              className={`${field} w-full`}
+              value={size}
+              onChange={(e) => setSize(e.target.value)}
+            >
+              <option value="">Any size</option>
+              <option value="Enterprise (5000+ employees)">Enterprise (5000+)</option>
+              <option value="Large (1000-5000 employees)">Large (1000-5000)</option>
+              <option value="Mid-market (200-1000 employees)">Mid-market (200-1000)</option>
+              <option value="SMB (under 200 employees)">SMB (&lt;200)</option>
+            </select>
+          </div>
+          <button
+            type="submit"
+            disabled={loading || noProviderConfigured}
+            className="btn-solid inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-60"
           >
-            {[3, 5, 10, 15, 20, 25, 50, 75, 100].map((n) => (
-              <option key={n} value={n}>
-                {n}
+            {loading ? <Loader2 size={15} className="animate-spin" /> : null}
+            {loading ? "Searching..." : "Search"}
+          </button>
+        </form>
+      </div>
+
+      <div className="rounded-lg border bg-bg/40 p-3">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">
+          AI provider &amp; cost
+        </p>
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="w-48">
+            <label className="flex items-center text-xs font-medium text-text-muted mb-1">
+              Provider <CostBadge free={isFree} />
+            </label>
+            <select
+              className={`${field} w-full`}
+              value={provider}
+              onChange={(e) => setProvider(e.target.value as "auto" | "claude" | "openrouter" | "groq")}
+            >
+              <option value="auto">Auto</option>
+              <option value="claude" disabled={providerStatus?.claude === false}>
+                {providerLabel("claude", "Claude (Paid)")}
               </option>
-            ))}
-          </select>
-        </div>
-        <div className="w-40">
-          <label className="flex items-center text-xs font-medium text-text-muted mb-1">
-            AI provider <CostBadge free={isFree} />
-          </label>
-          <select
-            className={`${field} w-full`}
-            value={provider}
-            onChange={(e) => setProvider(e.target.value as "auto" | "claude" | "openrouter" | "groq")}
-          >
-            <option value="auto">Auto</option>
-            <option value="claude">Claude (Paid)</option>
-            <option value="openrouter">OpenRouter</option>
-            <option value="groq">Groq (Free)</option>
-          </select>
-        </div>
-        <div className="w-44">
-          <label className="block text-xs font-medium text-text-muted mb-1">Company size</label>
-          <select
-            className={`${field} w-full`}
-            value={size}
-            onChange={(e) => setSize(e.target.value)}
-          >
-            <option value="">Any size</option>
-            <option value="Enterprise (5000+ employees)">Enterprise (5000+)</option>
-            <option value="Large (1000-5000 employees)">Large (1000-5000)</option>
-            <option value="Mid-market (200-1000 employees)">Mid-market (200-1000)</option>
-            <option value="SMB (under 200 employees)">SMB (&lt;200)</option>
-          </select>
-        </div>
-        <button
-          type="submit"
-          disabled={loading}
-          className="btn-solid inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-60"
-        >
-          {loading ? <Loader2 size={15} className="animate-spin" /> : null}
-          {loading ? "Searching..." : "Search"}
-        </button>
-      </form>
+              <option value="openrouter" disabled={providerStatus?.openrouter === false}>
+                {providerLabel("openrouter", "OpenRouter")}
+              </option>
+              <option value="groq" disabled={providerStatus?.groq === false}>
+                {providerLabel("groq", "Groq (Free)")}
+              </option>
+            </select>
+          </div>
 
       {(provider === "openrouter" || provider === "auto") && (
-        <div className="mt-2.5 flex flex-wrap items-end gap-2 rounded-md border border-dashed bg-bg/60 p-2.5">
+        <div className="flex flex-wrap items-end gap-2 rounded-md border border-dashed bg-bg/60 p-2.5">
           <div className="w-52">
             <label className="flex items-center text-xs font-medium text-text-muted mb-1">
               OpenRouter model <CostBadge free={model === "free"} />
@@ -422,55 +501,61 @@ export default function CompanySearch({
           </p>
         </div>
       )}
+        </div>
+      </div>
 
-      <fieldset className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-0 p-0">
-        <legend className="mb-1 w-full text-xs font-medium text-text-muted sm:mb-0 sm:w-auto">
-          Fields to fetch:
-        </legend>
-        {(
-          [
-            ["website", "Website"],
-            ["country", "Country"],
-            ["annualReportUrls", "Annual Reports"],
-            ["aiInsight", "AI Insights"],
-          ] as const
-        ).map(([key, label]) => (
-          <label key={key} className="inline-flex items-center gap-1.5 text-sm">
-            <input
-              type="checkbox"
-              checked={fields[key]}
-              onChange={(e) => setFields((f) => ({ ...f, [key]: e.target.checked }))}
-              className="size-3.5 cursor-pointer accent-[var(--primary)]"
-            />
-            {label}
-          </label>
-        ))}
-      </fieldset>
+      <div className="rounded-lg border bg-bg/40 p-3">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">
+          Fields &amp; target courses
+        </p>
+        <fieldset className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-0 p-0">
+          <legend className="mb-1 w-full text-xs font-medium text-text-muted sm:mb-0 sm:w-auto">
+            Fields to fetch:
+          </legend>
+          {(
+            [
+              ["website", "Website"],
+              ["country", "Country"],
+              ["annualReportUrls", "Annual Reports"],
+              ["aiInsight", "AI Insights"],
+            ] as const
+          ).map(([key, label]) => (
+            <label key={key} className="inline-flex items-center gap-1.5 text-sm">
+              <input
+                type="checkbox"
+                checked={fields[key]}
+                onChange={(e) => setFields((f) => ({ ...f, [key]: e.target.checked }))}
+                className="size-3.5 cursor-pointer accent-[var(--primary)]"
+              />
+              {label}
+            </label>
+          ))}
+        </fieldset>
 
-      {allCourses.length > 1 && (
-        <div className="mt-2.5">
-          <button
-            type="button"
-            onClick={() => setShowCourses((s) => !s)}
-            aria-expanded={showCourses}
-            aria-controls="target-courses-panel"
-            className="text-xs font-medium text-primary hover:underline"
-          >
-            {showCourses ? "Hide target courses" : `Target courses (${targetCourses.size} selected)`}
-          </button>
-          {showCourses && (
-            <div
-              id="target-courses-panel"
-              role="region"
-              ref={(el) => {
-                if (el) el.scrollTop = 0;
-              }}
-              className="mt-1.5 max-h-40 overflow-y-auto rounded-md border bg-bg p-2"
+        {allCourses.length > 1 && (
+          <div className="mt-2.5">
+            <button
+              type="button"
+              onClick={() => setShowCourses((s) => !s)}
+              aria-expanded={showCourses}
+              aria-controls="target-courses-panel"
+              className="text-xs font-medium text-primary hover:underline"
             >
-              <p className="mb-1.5 text-xs text-text-muted">
-                Discovered companies are saved as prospects under every checked course (same
-                industry).
-              </p>
+              {showCourses ? "Hide target courses" : `Target courses (${targetCourses.size} selected)`}
+            </button>
+            {showCourses && (
+              <div
+                id="target-courses-panel"
+                role="region"
+                ref={(el) => {
+                  if (el) el.scrollTop = 0;
+                }}
+                className="mt-1.5 max-h-40 overflow-y-auto rounded-md border bg-bg p-2"
+              >
+                <p className="mb-1.5 text-xs text-text-muted">
+                  Discovered companies are saved as prospects under every checked course (same
+                  industry).
+                </p>
               <div className="grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
                 {allCourses.map((c) => (
                   <label key={c.slug} className="inline-flex items-center gap-1.5 text-sm">
@@ -495,21 +580,35 @@ export default function CompanySearch({
           )}
         </div>
       )}
+      </div>
 
-      <p className="mt-2 text-xs text-text-muted">
-        With OpenRouter, pick the underlying model and how much token budget (search depth) to
-        spend per search. Claude uses Anthropic directly with live web search. Groq answers from
-        model knowledge (no browsing) and marks insights &quot;Likely:&quot; for you to verify.
-        Auto tries Claude (<code>ANTHROPIC_API_KEY</code>), then OpenRouter
-        (<code>OPENROUTER_API_KEY</code>), then Groq (<code>GROQ_API_KEY</code>). Already-saved
-        companies are excluded automatically. Large counts (50+) can take a few minutes;
-        Groq&apos;s free tier has a low rate limit, so retry after a minute if it says to wait.
-      </p>
+      <details className="text-xs text-text-muted">
+        <summary className="cursor-pointer select-none font-medium text-primary hover:underline">
+          How provider/model selection works
+        </summary>
+        <p className="mt-1.5">
+          With OpenRouter, pick the underlying model and how much token budget (search depth) to
+          spend per search. Claude uses Anthropic directly with live web search. Groq answers from
+          model knowledge (no browsing) and marks insights &quot;Likely:&quot; for you to verify.
+          Auto tries Claude (<code>ANTHROPIC_API_KEY</code>), then OpenRouter
+          (<code>OPENROUTER_API_KEY</code>), then Groq (<code>GROQ_API_KEY</code>). Already-saved
+          companies are excluded automatically. Large counts (50+) can take a few minutes;
+          Groq&apos;s free tier has a low rate limit, so retry after a minute if it says to wait.
+        </p>
+      </details>
 
       {progress && (
-        <p className="mt-2 inline-flex items-center gap-1.5 text-sm text-primary">
-          <Loader2 size={14} className="animate-spin" /> {progress}
-        </p>
+        <div className="mt-2">
+          <p className="mb-1 inline-flex items-center gap-1.5 text-sm text-primary">
+            <Loader2 size={14} className="animate-spin" /> {progress.label}
+          </p>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
+            <div
+              className="h-full rounded-full bg-[var(--primary)] transition-[width]"
+              style={{ width: `${progress.pct}%` }}
+            />
+          </div>
+        </div>
       )}
       {error && (
         <p role="alert" aria-live="assertive" className="mt-2 text-sm text-danger">
@@ -596,9 +695,9 @@ export default function CompanySearch({
                       </span>
                     )}
                   </p>
-                  {fields.website && cand.website && (
+                  {fields.website && safeHref(cand.website) && (
                     <a
-                      href={cand.website}
+                      href={safeHref(cand.website)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-xs text-primary hover:underline"

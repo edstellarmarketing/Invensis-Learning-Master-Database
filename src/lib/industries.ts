@@ -1,8 +1,8 @@
 // Industries per course. Shape: Record<courseSlug, Industry[]>.
 // Persistence: Upstash Redis when configured, local JSON file otherwise - see lib/storage.ts.
-import { slugify } from "./slug";
-import { readCompanies, writeCompanies } from "./companies";
-import { readDataset, writeDataset } from "./storage";
+import { slugify } from "./slug.ts";
+import { mutateCompanies } from "./companies.ts";
+import { readDataset, writeDataset, mutateDataset } from "./storage.ts";
 
 export type Industry = { name: string; icon: string; rationale: string };
 
@@ -14,20 +14,26 @@ export async function writeAllIndustries(data: Record<string, Industry[]>): Prom
   await writeDataset("industries", data);
 }
 
+// Atomic read-modify-write - see mutateCompanies in lib/companies.ts for why.
+export async function mutateIndustries(
+  fn: (all: Record<string, Industry[]>) => Record<string, Industry[]> | Promise<Record<string, Industry[]>>,
+): Promise<Record<string, Industry[]>> {
+  return mutateDataset<Record<string, Industry[]>>("industries", {}, fn);
+}
+
 export async function getIndustriesForCourse(courseSlug: string): Promise<Industry[]> {
   const all = await readAllIndustries();
   return all[courseSlug] ?? [];
 }
 
 export async function addIndustry(courseSlug: string, industry: Industry): Promise<Industry> {
-  const all = await readAllIndustries();
-  const list = all[courseSlug] ?? [];
-  if (list.some((i) => slugify(i.name) === slugify(industry.name))) {
-    throw new Error(`Industry "${industry.name}" already exists for this course`);
-  }
-  list.push(industry);
-  all[courseSlug] = list;
-  await writeAllIndustries(all);
+  await mutateIndustries((all) => {
+    const list = all[courseSlug] ?? [];
+    if (list.some((i) => slugify(i.name) === slugify(industry.name))) {
+      throw new Error(`Industry "${industry.name}" already exists for this course`);
+    }
+    return { ...all, [courseSlug]: [...list, industry] };
+  });
   return industry;
 }
 
@@ -36,50 +42,46 @@ export async function updateIndustry(
   industrySlug: string,
   patch: Partial<Industry>,
 ): Promise<Industry> {
-  const all = await readAllIndustries();
-  const list = all[courseSlug] ?? [];
-  const idx = list.findIndex((i) => slugify(i.name) === industrySlug);
-  if (idx === -1) throw new Error("Industry not found");
+  let updated: Industry | undefined;
+  let newSlug = industrySlug;
+  await mutateIndustries((all) => {
+    const list = all[courseSlug] ?? [];
+    const idx = list.findIndex((i) => slugify(i.name) === industrySlug);
+    if (idx === -1) throw new Error("Industry not found");
 
-  const updated: Industry = { ...list[idx], ...patch };
-  const newSlug = slugify(updated.name);
-  if (
-    newSlug !== industrySlug &&
-    list.some((i, j) => j !== idx && slugify(i.name) === newSlug)
-  ) {
-    throw new Error(`Industry "${updated.name}" already exists for this course`);
-  }
-  list[idx] = updated;
-  all[courseSlug] = list;
-  await writeAllIndustries(all);
+    updated = { ...list[idx], ...patch };
+    newSlug = slugify(updated.name);
+    if (newSlug !== industrySlug && list.some((i, j) => j !== idx && slugify(i.name) === newSlug)) {
+      throw new Error(`Industry "${updated.name}" already exists for this course`);
+    }
+    const nextList = [...list];
+    nextList[idx] = updated;
+    return { ...all, [courseSlug]: nextList };
+  });
 
   // Renaming an industry re-slugs it: move its companies to the new slug.
   if (newSlug !== industrySlug) {
-    const companies = await readCompanies();
-    let changed = false;
-    for (const c of companies) {
-      if (c.courseSlug === courseSlug && c.industrySlug === industrySlug) {
-        c.industrySlug = newSlug;
-        changed = true;
-      }
-    }
-    if (changed) await writeCompanies(companies);
+    await mutateCompanies((companies) =>
+      companies.map((c) =>
+        c.courseSlug === courseSlug && c.industrySlug === industrySlug
+          ? { ...c, industrySlug: newSlug }
+          : c,
+      ),
+    );
   }
-  return updated;
+  return updated!;
 }
 
 export async function deleteIndustry(courseSlug: string, industrySlug: string): Promise<void> {
-  const all = await readAllIndustries();
-  const list = all[courseSlug] ?? [];
-  const next = list.filter((i) => slugify(i.name) !== industrySlug);
-  if (next.length === list.length) throw new Error("Industry not found");
-  all[courseSlug] = next;
-  await writeAllIndustries(all);
+  await mutateIndustries((all) => {
+    const list = all[courseSlug] ?? [];
+    const next = list.filter((i) => slugify(i.name) !== industrySlug);
+    if (next.length === list.length) throw new Error("Industry not found");
+    return { ...all, [courseSlug]: next };
+  });
 
   // Cascade: remove companies attached to the deleted industry.
-  const companies = await readCompanies();
-  const remaining = companies.filter(
-    (c) => !(c.courseSlug === courseSlug && c.industrySlug === industrySlug),
+  await mutateCompanies((companies) =>
+    companies.filter((c) => !(c.courseSlug === courseSlug && c.industrySlug === industrySlug)),
   );
-  if (remaining.length !== companies.length) await writeCompanies(remaining);
 }

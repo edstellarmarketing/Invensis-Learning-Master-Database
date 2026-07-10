@@ -1,4 +1,5 @@
 import { updateCompany, deleteCompany } from "@/lib/companies";
+import { readJsonBody } from "@/lib/requestLimits";
 
 export const runtime = "nodejs";
 
@@ -7,12 +8,9 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  let body: Record<string, unknown>;
-  try {
-    body = await request.json();
-  } catch {
-    return Response.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+  const parsed = await readJsonBody(request);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.body;
 
   const patch: Record<string, unknown> = {};
   if (body.companyName !== undefined) patch.companyName = String(body.companyName).trim();

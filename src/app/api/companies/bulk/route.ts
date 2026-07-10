@@ -1,4 +1,7 @@
-import { readCompanies, writeCompanies, type Company } from "@/lib/companies";
+import { mutateCompanies, type Company } from "@/lib/companies";
+import { isAdminAuthorized, adminAuthRequiredResponse } from "@/lib/adminAuth";
+import { readJsonBody, tooManyRows } from "@/lib/requestLimits";
+import { sanitizeHttpUrl } from "@/lib/url";
 
 export const runtime = "nodejs";
 
@@ -6,12 +9,9 @@ export const runtime = "nodejs";
 // Body: { courseSlug, industrySlug, companies: [{companyName, country?, website?,
 //         annualReportUrls?, aiInsight?, source?}] }
 export async function POST(request: Request) {
-  let body: Record<string, unknown>;
-  try {
-    body = await request.json();
-  } catch {
-    return Response.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+  const parsed = await readJsonBody(request);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.body;
 
   const courseSlug = String(body.courseSlug ?? "");
   const industrySlug = String(body.industrySlug ?? "");
@@ -21,6 +21,8 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
+  const tooMany = tooManyRows(body.companies.length);
+  if (tooMany) return tooMany;
 
   const now = Date.now();
   const added: Company[] = [];
@@ -35,9 +37,9 @@ export async function POST(request: Request) {
       industrySlug,
       companyName,
       country: String(c.country ?? "").trim(),
-      website: String(c.website ?? "").trim(),
+      website: sanitizeHttpUrl(String(c.website ?? "")),
       annualReportUrls: Array.isArray(c.annualReportUrls)
-        ? (c.annualReportUrls as unknown[]).map(String).filter(Boolean)
+        ? (c.annualReportUrls as unknown[]).map(String).map(sanitizeHttpUrl).filter(Boolean)
         : [],
       aiInsight: Array.isArray(c.aiInsight)
         ? (c.aiInsight as unknown[]).map(String).filter(Boolean)
@@ -55,9 +57,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const all = await readCompanies();
-    all.push(...added);
-    await writeCompanies(all);
+    await mutateCompanies((all) => [...all, ...added]);
     return Response.json({ ok: true, added: added.length, companies: added }, { status: 201 });
   } catch (err) {
     return Response.json(
@@ -69,27 +69,29 @@ export async function POST(request: Request) {
 
 // DELETE: remove many companies by id. Body: { ids: string[] }
 export async function DELETE(request: Request) {
-  let body: Record<string, unknown>;
-  try {
-    body = await request.json();
-  } catch {
-    return Response.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+  if (!isAdminAuthorized(request)) return adminAuthRequiredResponse();
+  const parsed = await readJsonBody(request);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.body;
 
   const ids = Array.isArray(body.ids) ? (body.ids as unknown[]).map(String) : [];
   if (ids.length === 0) {
     return Response.json({ error: "ids[] is required" }, { status: 400 });
   }
+  const tooMany = tooManyRows(ids.length);
+  if (tooMany) return tooMany;
 
   try {
-    const all = await readCompanies();
-    const idSet = new Set(ids);
-    const remaining = all.filter((c) => !idSet.has(c.id));
-    const removed = all.length - remaining.length;
+    let removed = 0;
+    await mutateCompanies((all) => {
+      const idSet = new Set(ids);
+      const remaining = all.filter((c) => !idSet.has(c.id));
+      removed = all.length - remaining.length;
+      return remaining;
+    });
     if (removed === 0) {
       return Response.json({ error: "No matching companies" }, { status: 404 });
     }
-    await writeCompanies(remaining);
     return Response.json({ ok: true, removed });
   } catch (err) {
     return Response.json(

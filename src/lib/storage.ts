@@ -31,7 +31,12 @@ function getRedis(): Redis | null {
 }
 
 function dataFile(name: string): string {
-  return path.join(process.cwd(), "src", "data", `${name}.json`);
+  // Test-only override so lib tests exercise the real read/write/lock path against a
+  // throwaway directory instead of the app's actual seed files under src/data.
+  const dir = process.env.INVENSIS_TEST_DATA_DIR
+    ? path.resolve(process.env.INVENSIS_TEST_DATA_DIR)
+    : path.join(process.cwd(), "src", "data");
+  return path.join(dir, `${name}.json`);
 }
 
 async function readSeedFile<T>(name: string, fallback: T): Promise<T> {
@@ -74,6 +79,69 @@ export async function writeDataset<T>(name: string, value: T): Promise<void> {
   }
 }
 
+// Every dataset is stored whole under one key, so concurrent read-modify-write calls
+// (two admin tabs, or a bulk import racing a manual edit) can silently lose an update -
+// the second full-array write clobbers the first. mutateDataset closes that window with
+// a lock: Redis SET NX in production (a real lock shared across serverless instances),
+// an in-process mutex in local dev (single Node process, no Redis to lock against).
+// Best-effort, not a hard guarantee: if a lock can't be acquired within the deadline, the
+// mutation still runs rather than failing the request - this shrinks the race window from
+// "every write" down to "only under sustained contention," which is the realistic threat
+// here (occasional concurrent edits, not high write throughput).
+const localMutex = new Map<string, Promise<unknown>>();
+
+async function withLocalLock<T>(name: string, fn: () => Promise<T>): Promise<T> {
+  const prev = localMutex.get(name) ?? Promise.resolve();
+  const run = prev.then(fn, fn);
+  // Swallow so a failed mutation doesn't wedge the queue for the next caller.
+  localMutex.set(
+    name,
+    run.then(
+      () => undefined,
+      () => undefined,
+    ),
+  );
+  return run;
+}
+
+async function withRedisLock<T>(r: Redis, name: string, fn: () => Promise<T>): Promise<T> {
+  const lockKey = `${KEY_PREFIX}lock:${name}`;
+  const token = Math.random().toString(36).slice(2);
+  const deadline = Date.now() + 5000;
+  let acquired = false;
+  while (Date.now() < deadline) {
+    acquired = (await r.set(lockKey, token, { nx: true, px: 5000 })) !== null;
+    if (acquired) break;
+    await new Promise((res) => setTimeout(res, 50 + Math.random() * 100));
+  }
+  try {
+    return await fn();
+  } finally {
+    if (acquired) {
+      try {
+        if ((await r.get<string>(lockKey)) === token) await r.del(lockKey);
+      } catch {
+        // Lock release is best-effort; the TTL reclaims it either way.
+      }
+    }
+  }
+}
+
+export async function mutateDataset<T>(
+  name: string,
+  fallback: T,
+  mutator: (current: T) => T | Promise<T>,
+): Promise<T> {
+  const r = getRedis();
+  const run = async () => {
+    const current = await readDataset<T>(name, fallback);
+    const next = await mutator(current);
+    await writeDataset(name, next);
+    return next;
+  };
+  return r ? withRedisLock(r, name, run) : withLocalLock(name, run);
+}
+
 // Short-lived cache entries (e.g. AI search results). No-ops without Redis - local dev
 // always misses, which is the right behavior for testing live searches.
 export async function cacheGet<T>(key: string): Promise<T | null> {
@@ -93,6 +161,22 @@ export async function cacheSet<T>(key: string, value: T, ttlSeconds: number): Pr
     await r.set(`${KEY_PREFIX}cache:${key}`, value, { ex: ttlSeconds });
   } catch {
     // Cache write failures are non-fatal.
+  }
+}
+
+// Fixed-window counter for rate limiting (e.g. per-IP search requests). Returns null
+// when Redis isn't configured - local dev has no shared counter to rate-limit against,
+// and a single developer hitting their own dev server isn't the threat this guards.
+export async function incrementWithExpiry(key: string, windowSeconds: number): Promise<number | null> {
+  const r = getRedis();
+  if (!r) return null;
+  try {
+    const fullKey = `${KEY_PREFIX}ratelimit:${key}`;
+    const count = await r.incr(fullKey);
+    if (count === 1) await r.expire(fullKey, windowSeconds);
+    return count;
+  } catch {
+    return null; // Rate-limit check failures should never block a real request.
   }
 }
 

@@ -111,7 +111,7 @@ export default function Sidebar({ categories }: { categories: Category[] }) {
       {/* Backdrop: only rendered (and only intercepts clicks) while the drawer is open. */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          className="fixed inset-0 z-40 bg-black/70 md:hidden"
           onClick={() => setMobileOpen(false)}
           aria-hidden="true"
         />

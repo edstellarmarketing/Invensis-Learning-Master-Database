@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Download, Loader2, Upload } from "lucide-react";
+import { fetchAdminGated } from "@/lib/adminTokenClient";
 
 export default function DataTools() {
   const router = useRouter();
@@ -36,7 +37,7 @@ export default function DataTools() {
       if (mode === "replace" && !window.confirm("Replace ALL current data with this file?")) {
         return;
       }
-      const res = await fetch("/api/import", {
+      const res = await fetchAdminGated("/api/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...parsed, mode }),

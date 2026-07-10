@@ -1,6 +1,9 @@
-import { readCompanies, writeCompanies, type Company } from "@/lib/companies";
-import { readAllIndustries, writeAllIndustries, type Industry } from "@/lib/industries";
-import { readCategories, writeCategories, type Category } from "@/lib/courses";
+import { mutateCompanies, type Company } from "@/lib/companies";
+import { mutateIndustries, type Industry } from "@/lib/industries";
+import { mutateCategories, type Category } from "@/lib/courses";
+import { isAdminAuthorized, adminAuthRequiredResponse } from "@/lib/adminAuth";
+import { readJsonBody, tooManyRows } from "@/lib/requestLimits";
+import { sanitizeHttpUrl } from "@/lib/url";
 
 export const runtime = "nodejs";
 
@@ -8,12 +11,9 @@ export const runtime = "nodejs";
 // mode "merge" (default): upsert companies by id, merge industry lists per course (dedupe by name).
 // mode "replace": overwrite both stores with the imported data.
 export async function POST(request: Request) {
-  let body: Record<string, unknown>;
-  try {
-    body = await request.json();
-  } catch {
-    return Response.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+  const parsed = await readJsonBody(request);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.body;
 
   if (body.format !== "invensis-master-db") {
     return Response.json(
@@ -23,6 +23,21 @@ export async function POST(request: Request) {
   }
 
   const mode = body.mode === "replace" ? "replace" : "merge";
+  if (mode === "replace" && !isAdminAuthorized(request)) return adminAuthRequiredResponse();
+
+  const industryRowCount =
+    typeof body.industries === "object" && body.industries !== null && !Array.isArray(body.industries)
+      ? Object.values(body.industries as Record<string, unknown>).reduce(
+          (n: number, list) => n + (Array.isArray(list) ? list.length : 0),
+          0,
+        )
+      : 0;
+  const rowCap =
+    tooManyRows(Array.isArray(body.companies) ? body.companies.length : 0) ??
+    tooManyRows(Array.isArray(body.categories) ? body.categories.length : 0) ??
+    tooManyRows(industryRowCount);
+  if (rowCap) return rowCap;
+
   const inCompanies = sanitizeCompanies(body.companies);
   const inIndustries = sanitizeIndustries(body.industries);
   const inCategories = sanitizeCategories(body.categories);
@@ -40,10 +55,8 @@ export async function POST(request: Request) {
 
     // Categories: merge upserts by slug (course lists merged by slug); replace overwrites.
     if (inCategories !== null) {
-      if (mode === "replace") {
-        await writeCategories(inCategories);
-      } else {
-        const existing = await readCategories();
+      await mutateCategories((existing) => {
+        if (mode === "replace") return inCategories;
         const bySlug = new Map(existing.map((c) => [c.slug, c]));
         for (const cat of inCategories) {
           const cur = bySlug.get(cat.slug);
@@ -53,45 +66,40 @@ export async function POST(request: Request) {
             for (const co of cat.courses) if (!seen.has(co.slug)) cur.courses.push(co);
           }
         }
-        await writeCategories([...bySlug.values()]);
-      }
+        return [...bySlug.values()];
+      });
       categoriesResult = inCategories.length;
     }
 
     if (inCompanies !== null) {
-      if (mode === "replace") {
-        await writeCompanies(inCompanies);
-        companiesResult = inCompanies.length;
-      } else {
-        const existing = await readCompanies();
+      const result = await mutateCompanies((existing) => {
+        if (mode === "replace") return inCompanies;
         const byId = new Map(existing.map((c) => [c.id, c]));
         for (const c of inCompanies) byId.set(c.id, c);
-        const merged = [...byId.values()];
-        await writeCompanies(merged);
-        companiesResult = merged.length;
-      }
+        return [...byId.values()];
+      });
+      companiesResult = result.length;
     }
 
     if (inIndustries !== null) {
-      if (mode === "replace") {
-        await writeAllIndustries(inIndustries);
-        industriesResult = Object.keys(inIndustries).length;
-      } else {
-        const existing = await readAllIndustries();
+      const result = await mutateIndustries((existing) => {
+        if (mode === "replace") return inIndustries;
+        const next = { ...existing };
         for (const [slug, list] of Object.entries(inIndustries)) {
-          const current = existing[slug] ?? [];
+          const current = next[slug] ?? [];
           const names = new Set(current.map((i) => i.name.toLowerCase()));
+          const merged = [...current];
           for (const ind of list) {
             if (!names.has(ind.name.toLowerCase())) {
-              current.push(ind);
+              merged.push(ind);
               names.add(ind.name.toLowerCase());
             }
           }
-          existing[slug] = current;
+          next[slug] = merged;
         }
-        await writeAllIndustries(existing);
-        industriesResult = Object.keys(existing).length;
-      }
+        return next;
+      });
+      industriesResult = Object.keys(result).length;
     }
 
     return Response.json({
@@ -122,9 +130,9 @@ function sanitizeCompanies(input: unknown): Company[] | null {
       industrySlug: String(c.industrySlug),
       companyName: String(c.companyName),
       country: String(c.country ?? ""),
-      website: String(c.website ?? ""),
+      website: sanitizeHttpUrl(String(c.website ?? "")),
       annualReportUrls: Array.isArray(c.annualReportUrls)
-        ? (c.annualReportUrls as unknown[]).map(String)
+        ? (c.annualReportUrls as unknown[]).map(String).map(sanitizeHttpUrl).filter(Boolean)
         : [],
       aiInsight: Array.isArray(c.aiInsight) ? (c.aiInsight as unknown[]).map(String) : [],
       source: c.source ? String(c.source) : undefined,

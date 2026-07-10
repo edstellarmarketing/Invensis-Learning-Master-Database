@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { HelpCircle, X } from "lucide-react";
 import { useDialogA11y } from "@/lib/useDialogA11y";
@@ -53,7 +53,8 @@ const SECTIONS: { title: string; points: string[] }[] = [
 
 export default function HelpDialog() {
   const [open, setOpen] = useState(false);
-  useDialogA11y(open, () => setOpen(false));
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogA11y(open, () => setOpen(false), dialogRef);
 
   return (
     <>
@@ -69,10 +70,11 @@ export default function HelpDialog() {
       {open && createPortal(
         <div
           style={{ overflowAnchor: "none" }}
-          className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/60 p-4"
+          className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/70 p-4"
           onClick={() => setOpen(false)}
         >
           <div
+            ref={dialogRef}
             className="my-8 flex max-h-[85vh] w-full max-w-2xl flex-col rounded-2xl border bg-surface shadow-lg"
             onClick={(e) => e.stopPropagation()}
             role="dialog"

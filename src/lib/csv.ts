@@ -20,8 +20,28 @@ export type CsvCompanyRow = {
   source?: string;
 };
 
+function esc(s: string): string {
+  return `"${s.replace(/"/g, '""')}"`;
+}
+
+// Serializes company rows to CSV in the same column layout CSV_HEADERS/csvToCompanies
+// expect, so an exported file round-trips through import unchanged.
+export function companiesToCsv(rows: CsvCompanyRow[]): string {
+  const table = [
+    [...CSV_HEADERS],
+    ...rows.map((c) => [
+      c.companyName,
+      c.country,
+      c.website,
+      c.annualReportUrls.join(" | "),
+      c.aiInsight.join(" | "),
+      c.source ?? "",
+    ]),
+  ];
+  return table.map((r) => r.map(esc).join(",")).join("\r\n");
+}
+
 export function sampleCsv(): string {
-  const esc = (s: string) => `"${s.replace(/"/g, '""')}"`;
   const rows = [
     [...CSV_HEADERS],
     [

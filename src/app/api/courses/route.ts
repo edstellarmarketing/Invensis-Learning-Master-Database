@@ -1,4 +1,5 @@
 import { readCategories, addCourse, updateCourse, deleteCourse } from "@/lib/courses";
+import { readJsonBody } from "@/lib/requestLimits";
 
 export const runtime = "nodejs";
 
@@ -7,9 +8,11 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const body = await safeJson(request);
-  const categorySlug = String(body?.categorySlug ?? "");
-  const name = String(body?.name ?? "").trim();
+  const parsed = await readJsonBody(request);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.body;
+  const categorySlug = String(body.categorySlug ?? "");
+  const name = String(body.name ?? "").trim();
   if (!categorySlug || !name) {
     return Response.json({ error: "categorySlug and name are required" }, { status: 400 });
   }
@@ -17,8 +20,8 @@ export async function POST(request: Request) {
     const course = await addCourse(
       categorySlug,
       name,
-      body?.slug ? String(body.slug) : undefined,
-      Boolean(body?.featured),
+      body.slug ? String(body.slug) : undefined,
+      Boolean(body.featured),
     );
     return Response.json(course, { status: 201 });
   } catch (err) {
@@ -27,13 +30,15 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  const body = await safeJson(request);
-  const slug = String(body?.slug ?? "");
+  const parsed = await readJsonBody(request);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.body;
+  const slug = String(body.slug ?? "");
   if (!slug) return Response.json({ error: "slug is required" }, { status: 400 });
   const patch: { name?: string; featured?: boolean; categorySlug?: string } = {};
-  if (body?.name !== undefined) patch.name = String(body.name);
-  if (body?.featured !== undefined) patch.featured = Boolean(body.featured);
-  if (body?.categorySlug !== undefined) patch.categorySlug = String(body.categorySlug);
+  if (body.name !== undefined) patch.name = String(body.name);
+  if (body.featured !== undefined) patch.featured = Boolean(body.featured);
+  if (body.categorySlug !== undefined) patch.categorySlug = String(body.categorySlug);
   try {
     return Response.json(await updateCourse(slug, patch));
   } catch (err) {
@@ -52,13 +57,6 @@ export async function DELETE(request: Request) {
   }
 }
 
-async function safeJson(request: Request): Promise<Record<string, unknown> | null> {
-  try {
-    return await request.json();
-  } catch {
-    return null;
-  }
-}
 function msg(err: unknown): string {
   return err instanceof Error ? err.message : "Request failed";
 }

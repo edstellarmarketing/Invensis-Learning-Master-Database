@@ -2,8 +2,10 @@
 // src/data/courses.json otherwise (same storage adapter as companies/industries).
 // 6 categories, 59 courses seeded; catalog is runtime-editable via /api/courses +
 // /api/categories. Slugs are the final path segment of each course URL.
-import { readDataset, writeDataset } from "./storage";
-import { slugify } from "./slug";
+import { readDataset, writeDataset, mutateDataset } from "./storage.ts";
+import { slugify } from "./slug.ts";
+import { mutateCompanies } from "./companies.ts";
+import { mutateIndustries } from "./industries.ts";
 
 export type Course = { name: string; slug: string; featured?: boolean };
 export type Category = { name: string; slug: string; courses: Course[] };
@@ -14,6 +16,13 @@ export async function readCategories(): Promise<Category[]> {
 
 export async function writeCategories(categories: Category[]): Promise<void> {
   await writeDataset("courses", categories);
+}
+
+// Atomic read-modify-write - see mutateCompanies in lib/companies.ts for why.
+export async function mutateCategories(
+  fn: (categories: Category[]) => Category[] | Promise<Category[]>,
+): Promise<Category[]> {
+  return mutateDataset<Category[]>("courses", [], fn);
 }
 
 export async function readAllCourses(): Promise<Course[]> {
@@ -31,39 +40,47 @@ export async function findCategoryForCourse(slug: string): Promise<Category | un
 // ----- Category CRUD -----
 
 export async function addCategory(name: string): Promise<Category> {
-  const cats = await readCategories();
   const slug = slugify(name);
   const trimmedName = name.trim();
-  // Seeded categories can carry legacy slugs (e.g. "devops-certification-courses")
-  // that a freshly-typed name won't reproduce via slugify - so also check by name,
-  // case-insensitively, or a duplicate silently gets a second, differently-slugged entry.
-  if (
-    cats.some((c) => c.slug === slug || c.name.toLowerCase() === trimmedName.toLowerCase())
-  )
-    throw new Error(`Category "${name}" already exists`);
-  const cat: Category = { name: trimmedName, slug, courses: [] };
-  cats.push(cat);
-  await writeCategories(cats);
+  let cat!: Category;
+  await mutateCategories((cats) => {
+    // Seeded categories can carry legacy slugs (e.g. "devops-certification-courses")
+    // that a freshly-typed name won't reproduce via slugify - so also check by name,
+    // case-insensitively, or a duplicate silently gets a second, differently-slugged entry.
+    if (cats.some((c) => c.slug === slug || c.name.toLowerCase() === trimmedName.toLowerCase()))
+      throw new Error(`Category "${name}" already exists`);
+    cat = { name: trimmedName, slug, courses: [] };
+    return [...cats, cat];
+  });
   return cat;
 }
 
 export async function updateCategory(slug: string, name: string): Promise<Category> {
-  const cats = await readCategories();
-  const cat = cats.find((c) => c.slug === slug);
-  if (!cat) throw new Error("Category not found");
   const trimmedName = name.trim();
-  if (cats.some((c) => c.slug !== slug && c.name.toLowerCase() === trimmedName.toLowerCase()))
-    throw new Error(`Category "${name}" already exists`);
-  cat.name = trimmedName;
-  await writeCategories(cats);
-  return cat;
+  let updated!: Category;
+  await mutateCategories((cats) => {
+    const cat = cats.find((c) => c.slug === slug);
+    if (!cat) throw new Error("Category not found");
+    if (cats.some((c) => c.slug !== slug && c.name.toLowerCase() === trimmedName.toLowerCase()))
+      throw new Error(`Category "${name}" already exists`);
+    updated = { ...cat, name: trimmedName };
+    return cats.map((c) => (c.slug === slug ? updated : c));
+  });
+  return updated;
 }
 
 export async function deleteCategory(slug: string): Promise<void> {
-  const cats = await readCategories();
-  const next = cats.filter((c) => c.slug !== slug);
-  if (next.length === cats.length) throw new Error("Category not found");
-  await writeCategories(next);
+  let removedCourseSlugs: string[] = [];
+  await mutateCategories((cats) => {
+    const cat = cats.find((c) => c.slug === slug);
+    if (!cat) throw new Error("Category not found");
+    removedCourseSlugs = cat.courses.map((c) => c.slug);
+    return cats.filter((c) => c.slug !== slug);
+  });
+  // Cascade: a deleted category takes its courses with it, so their industries and
+  // companies must go too - otherwise they're orphaned and silently resurrected if a
+  // course with the same name/slug is ever recreated.
+  await cascadeDeleteCourses(removedCourseSlugs);
 }
 
 // ----- Course CRUD -----
@@ -74,23 +91,24 @@ export async function addCourse(
   slug?: string,
   featured?: boolean,
 ): Promise<Course> {
-  const cats = await readCategories();
-  const cat = cats.find((c) => c.slug === categorySlug);
-  if (!cat) throw new Error("Category not found");
   const courseSlug = (slug || slugify(name)).trim();
   const trimmedName = name.trim();
-  // Seeded courses can carry legacy slugs (e.g. "pmp-certification-training") that a
-  // freshly-typed name won't reproduce via slugify - also check by name, case-insensitively.
-  const allCourses = cats.flatMap((c) => c.courses);
-  if (
-    allCourses.some(
-      (co) => co.slug === courseSlug || co.name.toLowerCase() === trimmedName.toLowerCase(),
+  let course!: Course;
+  await mutateCategories((cats) => {
+    const cat = cats.find((c) => c.slug === categorySlug);
+    if (!cat) throw new Error("Category not found");
+    // Seeded courses can carry legacy slugs (e.g. "pmp-certification-training") that a
+    // freshly-typed name won't reproduce via slugify - also check by name, case-insensitively.
+    const allCourses = cats.flatMap((c) => c.courses);
+    if (
+      allCourses.some(
+        (co) => co.slug === courseSlug || co.name.toLowerCase() === trimmedName.toLowerCase(),
+      )
     )
-  )
-    throw new Error(`A course named "${name}" already exists`);
-  const course: Course = { name: trimmedName, slug: courseSlug, ...(featured ? { featured: true } : {}) };
-  cat.courses.push(course);
-  await writeCategories(cats);
+      throw new Error(`A course named "${name}" already exists`);
+    course = { name: trimmedName, slug: courseSlug, ...(featured ? { featured: true } : {}) };
+    return cats.map((c) => (c.slug === categorySlug ? { ...c, courses: [...c.courses, course] } : c));
+  });
   return course;
 }
 
@@ -98,49 +116,77 @@ export async function updateCourse(
   slug: string,
   patch: { name?: string; featured?: boolean; categorySlug?: string },
 ): Promise<Course> {
-  const cats = await readCategories();
-  let found: Course | undefined;
-  let currentCat: Category | undefined;
-  for (const cat of cats) {
-    const co = cat.courses.find((c) => c.slug === slug);
-    if (co) {
-      found = co;
-      currentCat = cat;
-      break;
+  let updated!: Course;
+  await mutateCategories((cats) => {
+    let found: Course | undefined;
+    let currentCat: Category | undefined;
+    for (const cat of cats) {
+      const co = cat.courses.find((c) => c.slug === slug);
+      if (co) {
+        found = co;
+        currentCat = cat;
+        break;
+      }
     }
-  }
-  if (!found || !currentCat) throw new Error("Course not found");
+    if (!found || !currentCat) throw new Error("Course not found");
 
-  if (patch.name !== undefined) {
-    const trimmedName = patch.name.trim();
-    const allCourses = cats.flatMap((c) => c.courses);
-    if (allCourses.some((co) => co !== found && co.name.toLowerCase() === trimmedName.toLowerCase()))
-      throw new Error(`A course named "${patch.name}" already exists`);
-    found.name = trimmedName;
-  }
-  if (patch.featured !== undefined) {
-    if (patch.featured) found.featured = true;
-    else delete found.featured;
-  }
-  // Move to a different category if requested.
-  if (patch.categorySlug && patch.categorySlug !== currentCat.slug) {
-    const target = cats.find((c) => c.slug === patch.categorySlug);
-    if (!target) throw new Error("Target category not found");
-    currentCat.courses = currentCat.courses.filter((c) => c.slug !== slug);
-    target.courses.push(found);
-  }
-  await writeCategories(cats);
-  return found;
+    updated = { ...found };
+    if (patch.name !== undefined) {
+      const trimmedName = patch.name.trim();
+      const allCourses = cats.flatMap((c) => c.courses);
+      if (allCourses.some((co) => co !== found && co.name.toLowerCase() === trimmedName.toLowerCase()))
+        throw new Error(`A course named "${patch.name}" already exists`);
+      updated.name = trimmedName;
+    }
+    if (patch.featured !== undefined) {
+      if (patch.featured) updated.featured = true;
+      else delete updated.featured;
+    }
+    const targetCategorySlug =
+      patch.categorySlug && patch.categorySlug !== currentCat.slug ? patch.categorySlug : currentCat.slug;
+    if (targetCategorySlug !== currentCat.slug && !cats.some((c) => c.slug === targetCategorySlug))
+      throw new Error("Target category not found");
+
+    return cats.map((c) => {
+      if (c.slug === currentCat!.slug && c.slug === targetCategorySlug) {
+        return { ...c, courses: c.courses.map((co) => (co.slug === slug ? updated : co)) };
+      }
+      if (c.slug === currentCat!.slug) {
+        return { ...c, courses: c.courses.filter((co) => co.slug !== slug) };
+      }
+      if (c.slug === targetCategorySlug) {
+        return { ...c, courses: [...c.courses, updated] };
+      }
+      return c;
+    });
+  });
+  return updated;
 }
 
 export async function deleteCourse(slug: string): Promise<void> {
-  const cats = await readCategories();
-  let removed = false;
-  for (const cat of cats) {
-    const before = cat.courses.length;
-    cat.courses = cat.courses.filter((c) => c.slug !== slug);
-    if (cat.courses.length !== before) removed = true;
-  }
-  if (!removed) throw new Error("Course not found");
-  await writeCategories(cats);
+  await mutateCategories((cats) => {
+    let removed = false;
+    const next = cats.map((cat) => {
+      const before = cat.courses.length;
+      const courses = cat.courses.filter((c) => c.slug !== slug);
+      if (courses.length !== before) removed = true;
+      return { ...cat, courses };
+    });
+    if (!removed) throw new Error("Course not found");
+    return next;
+  });
+  // Cascade: matches deleteIndustry's behavior - a deleted course's industries and
+  // companies are deleted too, not left as orphans a same-named course would resurrect.
+  await cascadeDeleteCourses([slug]);
+}
+
+async function cascadeDeleteCourses(courseSlugs: string[]): Promise<void> {
+  if (courseSlugs.length === 0) return;
+  const slugSet = new Set(courseSlugs);
+  await mutateIndustries((all) => {
+    const next = { ...all };
+    for (const cs of courseSlugs) delete next[cs];
+    return next;
+  });
+  await mutateCompanies((companies) => companies.filter((c) => !slugSet.has(c.courseSlug)));
 }
