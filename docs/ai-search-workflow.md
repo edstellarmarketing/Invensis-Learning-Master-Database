@@ -62,7 +62,32 @@ What "passed" requires depends on whether the provider can browse the live web:
   keeps the (still-hedged, "Likely:"/"AI estimate") insights it already produced during
   discovery; a candidate with no verifiable website loses them.
 
-Same gate in enrich mode (re-researching known companies), not just fresh discovery.
+Same gate in enrich mode (re-researching known companies), not just fresh discovery -
+including the grounded second research pass, when the provider does live search.
+
+### What you get back
+
+**Annual Reports** target the **last completed financial year** - in 2026 that means
+FY2025, and it advances automatically each year. The prompt explicitly rejects both an
+older archived report (when the target year exists) and a current/partial-year filing.
+
+**AI Insights** answer one question - *can we sell this company corporate training?* - in
+priority order:
+
+1. How many employees were trained (headcount, training hours, or % of workforce)
+2. Which technologies / skills / competencies the training focused on
+3. Training or L&D spend
+4. Existing L&D infrastructure (corporate university, LMS, academies, certification or
+   apprenticeship programmes, external training partners)
+5. Any other deal-relevant factor - upcoming transformation, a stated reskilling
+   commitment, PMO/project-delivery maturity, certification targets, large-scale hiring
+
+**Nothing is invented.** Every figure must appear verbatim in a document the model
+actually read. If a number isn't stated, the bullet describes the fact qualitatively; if
+a topic isn't disclosed at all, the bullet is skipped rather than padded - fewer true
+bullets beat five padded ones. Providers without live web search state **no figures at
+all**, prefix every bullet `"Likely:"`, and **omit the training-spend bullet entirely**
+(never guess a cost). The `source` field names the document and its financial year.
 6. To fetch only report + insights for specific candidates (the "enrich" step): tick
    **Annual Reports** and **AI Insights** in Fields, tick the candidate rows, click
    **Enrich selected (N)**. This re-researches only those two fields for only the

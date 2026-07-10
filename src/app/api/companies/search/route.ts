@@ -6,6 +6,11 @@ import { readAllCourses } from "@/lib/courses";
 import { readCompanies } from "@/lib/companies";
 import { cacheGet, cacheSet, incrementWithExpiry } from "@/lib/storage";
 import { readJsonBody } from "@/lib/requestLimits";
+import {
+  gateInsightsOnVerification,
+  mergeResearched,
+  partitionForGroundedInsights,
+} from "@/lib/insightGate";
 
 // Unauthenticated route that calls paid provider APIs with server-held keys - without a
 // cap, anyone can hammer it to run up billing or exhaust Vercel function concurrency.
@@ -120,6 +125,57 @@ const TOKEN_BUDGETS: Record<TokenUsage, (count: number) => number> = {
   medium: (count) => Math.min(12000, 1200 + count * 400),
   high: (count) => Math.min(24000, 2000 + count * 600),
 };
+
+// ---------------------------------------------------------------------------
+// Shared prompt fragments. All three prompt sites (buildPrompt for discovery,
+// enrichCompanies, deepResearch) must ask for the SAME thing, or the same company
+// researched via two different paths comes back with differently-shaped insights.
+// ---------------------------------------------------------------------------
+
+// The report we want is the most recent *completed* financial year - i.e. the latest one
+// actually published, not a partial/current-year filing. Fiscal calendars vary (Japanese
+// FY ends in March, many US firms in Sept/Dec), so name the target year rather than a
+// hard rule and let the model reconcile. Computed per-request so this doesn't go stale.
+function lastCompletedFinancialYear(): number {
+  return new Date().getFullYear() - 1;
+}
+
+function reportRule(liveSearch: boolean): string {
+  const fy = lastCompletedFinancialYear();
+  return liveSearch
+    ? `- annualReportUrls: a real URL to the annual report for the LAST COMPLETED financial year (FY${fy}, or the company's nearest equivalent - fiscal calendars vary). Prefer the direct PDF, else the investor-relations page for THAT year. Do NOT return an older archived year when FY${fy} exists, and do NOT return a current/partial-year filing. Empty array if none exists.`
+    : `- annualReportUrls: you do NOT have live web access. Only include a URL if you are highly confident it is correct AND is the FY${fy} (last completed financial year) report; otherwise return an empty array rather than guessing a URL or a year.`;
+}
+
+// What an insight bullet must actually contain. The sales use-case is: can Invensis
+// Learning sell this company corporate training? So the bullets are ordered by how
+// directly they support that pitch. The anti-hallucination rules are the important part -
+// a fabricated training-spend figure is worse than no figure, because it will get quoted
+// into a real sales conversation.
+const INSIGHT_TOPICS = [
+  "1. How many employees were trained / upskilled (headcount, training hours, or % of workforce) - ONLY if the report states it.",
+  "2. Which technologies, skills, or competencies the training focused on most (e.g. cloud, data/AI, agile/project management, leadership, safety).",
+  "3. Training / L&D spend or investment - ONLY if an explicit figure appears in the report. Never estimate, extrapolate, or convert an unrelated number into one.",
+  "4. Existing L&D infrastructure worth naming: corporate university, academies, LMS platform, certification or apprenticeship programmes, external training partners.",
+  "5. Any other concrete factor that would help sell corporate training to them - upcoming transformation/restructuring, a stated reskilling commitment, PMO/project-delivery maturity, certification targets, or large-scale hiring.",
+].join("\n  ");
+
+function insightRule(liveSearch: boolean): string {
+  return liveSearch
+    ? `- aiInsight: 4-5 concise bullets on their training / learning & development / upskilling activity in the LAST COMPLETED financial year, drawn from the annual report (or ESG/sustainability report, or official press releases). Cover, in this priority order:
+  ${INSIGHT_TOPICS}
+  HARD RULES: every figure must appear verbatim in a real disclosure you actually read. If a number is not stated, describe the fact qualitatively instead - NEVER invent, estimate, or infer a figure. If a topic above is not disclosed at all, SKIP that bullet rather than filling it with an assumption. Fewer, true bullets beat five padded ones.`
+    : `- aiInsight: you do NOT have live web access, so you cannot verify any figure. Give 4-5 qualitative bullets on their LIKELY L&D / upskilling posture, based on general knowledge of the company and its industry, covering roughly:
+  ${INSIGHT_TOPICS}
+  HARD RULES: state NO specific numbers, amounts, dates, or headcounts as fact - you cannot verify them. Prefix every bullet with "Likely:" so it reads as an unverified estimate. Omit the training-spend bullet entirely (never guess a cost). If you do not actually know something about this specific company, say so qualitatively rather than inventing detail.`;
+}
+
+function sourceRule(liveSearch: boolean): string {
+  const fy = lastCompletedFinancialYear();
+  return liveSearch
+    ? `- source: the exact document the insights came from, naming the financial year (e.g. "FY${fy} Annual Report, p.42" or "FY${fy} Sustainability Report").`
+    : `- source: "AI estimate, not verified".`;
+}
 
 export async function POST(request: Request) {
   const rateLimited = await checkSearchRateLimit(request);
@@ -307,19 +363,35 @@ export async function POST(request: Request) {
       const orModel =
         resolvedModel ?? OPENROUTER_MODELS[modelFamily][tokenUsage] ?? "anthropic/claude-sonnet-5:online";
       const liveSearch = p === "claude" || (p === "openrouter" && orModel.endsWith(":online"));
+      // Mirror discovery's staged pipeline (see the main loop below): don't keep insights
+      // for a company whose website/report couldn't be verified, even in enrich mode.
+      // Deliberately NOT gated on fields.website - "Refresh reports & insights" (the
+      // companies table's bulk action) always sends fields.website: false since it doesn't
+      // want the saved website re-researched/overwritten, but verifyLinks checks a present
+      // website regardless of that flag, so the gate must too, or it silently never
+      // triggers for that call site (a bug that shipped once - see AGENTS.md).
+      const staged = fields.annualReportUrls && fields.aiInsight;
+      // With live search, skip insights in the first pass and earn them in a second,
+      // report-grounded one (deepResearch) - same as discovery. Without it, there's no
+      // grounded pass to run, so the first-pass (hedged) insights are just gated.
+      const deep = staged && liveSearch;
+      const phase1Fields: Fields = deep ? { ...fields, aiInsight: false } : fields;
       try {
-        let candidates = await enrichCompanies(enrichTargets, p, orModel, tokenUsage, fields, courseName, liveSearch);
+        let candidates = await enrichCompanies(
+          enrichTargets,
+          p,
+          orModel,
+          tokenUsage,
+          phase1Fields,
+          courseName,
+          liveSearch,
+        );
         if (fields.annualReportUrls || fields.website) {
           candidates = await verifyLinks(candidates, fields);
         }
-        // Same staged gate as discovery (see the main loop below): don't keep insights
-        // for a company whose website/report couldn't be verified, even in enrich mode.
-        // Deliberately NOT gated on fields.website - "Refresh reports & insights" (the
-        // companies table's bulk action) always sends fields.website: false since it
-        // doesn't want the saved website re-researched/overwritten, but verifyLinks now
-        // checks a present website regardless of that flag, so the gate must too, or it
-        // silently never triggers for that call site (the bug this comment replaced).
-        if (fields.annualReportUrls && fields.aiInsight) {
+        if (deep) {
+          candidates = await researchQualified(candidates, p, orModel, courseName);
+        } else if (staged) {
           candidates = gateInsightsOnVerification(candidates);
         }
         return Response.json({
@@ -327,6 +399,7 @@ export async function POST(request: Request) {
           provider: p,
           model: p === "openrouter" ? orModel : undefined,
           enriched: true,
+          deep,
         });
       } catch (err) {
         errors.push(`${p}: ${err instanceof Error ? err.message : "failed"}`);
@@ -460,20 +533,11 @@ async function enrichCompanies(
   }
   if (fields.annualReportUrls) {
     wanted.push("annualReportUrls (string[])");
-    rules.push(
-      liveSearch
-        ? "- annualReportUrls: a real URL to the most recent annual report (PDF preferred, else the investor-relations page). Empty array if none exists."
-        : "- annualReportUrls: no live web access - only include a URL if you are highly confident; otherwise empty array. NEVER guess.",
-    );
+    rules.push(reportRule(liveSearch));
   }
   if (fields.aiInsight) {
     wanted.push("aiInsight (string[] of 4-5 items)", "source (string)");
-    rules.push(
-      liveSearch
-        ? "- aiInsight: 4-5 concise bullets on training / L&D / upskilling activity in the most recent financial year, grounded in real disclosures. No invented numbers."
-        : '- aiInsight: no live web access - give 4-5 qualitative "Likely:" bullets from general knowledge. No invented figures.',
-      '- source: where the data came from (or "AI estimate, not verified").',
-    );
+    rules.push(insightRule(liveSearch), sourceRule(liveSearch));
   }
 
   const enrichOne = async (t: { companyName: string; website: string }): Promise<Candidate> => {
@@ -539,18 +603,23 @@ async function deepResearch(
   orModel: string,
   courseName: string,
 ): Promise<Candidate[]> {
+  const fy = lastCompletedFinancialYear();
   const researchOne = async (c: Candidate): Promise<Candidate> => {
     const grounding =
       c.reportVerified && c.annualReportUrls[0]
-        ? `Read their latest annual report at ${c.annualReportUrls[0]} (verified live).`
-        : `Search the web for their latest annual report, ESG/sustainability report, or L&D press coverage.`;
+        ? `Read their annual report at ${c.annualReportUrls[0]} (verified live). Confirm it covers the last completed financial year (FY${fy} or their nearest equivalent); if it turns out to be an older year, say so in "source".`
+        : `Search the web for their FY${fy} (last completed financial year) annual report, ESG/sustainability report, or L&D press coverage.`;
     const prompt = `Research the company "${c.companyName}"${c.website ? ` (${c.website})` : ""} as a corporate-training prospect for "${courseName}".
 
 ${grounding}
 
-Extract 4-5 concise bullets on their training / learning & development / upskilling activity in the most recent financial year. Every bullet must be grounded in a real disclosure; if a figure is not verifiable, phrase it qualitatively - NEVER invent numbers.
+Extract 4-5 concise bullets on their training / learning & development / upskilling activity in that financial year. Cover, in this priority order:
+  ${INSIGHT_TOPICS}
 
-Respond with ONLY a JSON object (no fences, no prose): {"aiInsight": string[4-5], "source": string}`;
+HARD RULES: every figure must appear verbatim in the document you actually read. If a number is not stated there, describe the fact qualitatively instead - NEVER invent, estimate, extrapolate, or infer a figure (especially training spend). If a topic above is not disclosed at all, SKIP that bullet rather than filling it with an assumption. Fewer, true bullets beat five padded ones.
+
+Respond with ONLY a JSON object (no fences, no prose): {"aiInsight": string[4-5], "source": string}
+"source" must name the document and its financial year, e.g. "FY${fy} Annual Report".`;
     try {
       const text =
         p === "claude" ? await runClaude(prompt, 2) : await runOpenRouter(prompt, 2, orModel, "medium");
@@ -580,26 +649,8 @@ Respond with ONLY a JSON object (no fences, no prose): {"aiInsight": string[4-5]
   return out;
 }
 
-// websiteVerified is exactly true - set by verifyLinks whenever a website was present to
-// check, independent of whether the caller asked for the website field back (see the
-// Candidate type comment). This is the one verification every candidate can realistically
-// pass, live-search or not, since it's our own HTTP check, not something the LLM has to
-// get right.
-function hasVerifiedWebsite(c: Candidate): boolean {
-  return c.websiteVerified === true;
-}
-
-// reportVerified is exactly true (not just truthy - undefined means nothing to verify,
-// i.e. no report URL was found at all, which should fail this too). Only meaningful to
-// require for a live-search provider: a non-live-search one is told to leave
-// annualReportUrls empty rather than guess, so it would almost never find a verifiable
-// report and this bar would fail nearly every candidate - see gateInsightsOnVerification.
-function hasVerifiedReport(c: Candidate): boolean {
-  return c.reportVerified === true;
-}
-
-const INSIGHTS_SKIPPED_NOTE = "AI Insights skipped: website couldn't be verified.";
-
+// The pure gate logic (which candidate qualifies for insights, and the skip notes) lives
+// in lib/insightGate.ts so it can be unit tested - see tests/insightGate.test.ts.
 // Runs deepResearch only on candidates with BOTH a verified website and a verified
 // report - live search can actually confirm a report exists before spending a grounded
 // research call on it, so hold it to the higher bar. The rest get a clear "skipped" note
@@ -610,28 +661,9 @@ async function researchQualified(
   orModel: string,
   courseName: string,
 ): Promise<Candidate[]> {
-  const qualifies = candidates.map((c) => hasVerifiedWebsite(c) && hasVerifiedReport(c));
-  const toResearch = candidates.filter((_, i) => qualifies[i]);
+  const { qualifies, toResearch } = partitionForGroundedInsights(candidates);
   const researched = await deepResearch(toResearch, p, orModel, courseName);
-  let ri = 0;
-  return candidates.map((c, i) =>
-    qualifies[i]
-      ? researched[ri++]
-      : { ...c, aiInsight: [], source: "AI Insights skipped: website/annual report couldn't be verified." },
-  );
-}
-
-// Provider-agnostic fallback for the staged gate when there's no live-search provider to
-// run a real second research pass with: the insights already came back in the same call
-// as discovery (hedged either way for a non-live-search provider - see buildPrompt). Gate
-// on a verified WEBSITE only, not a verified report - a non-live-search provider is
-// explicitly told not to guess report URLs (buildPrompt/enrichCompanies), so it almost
-// never returns one; requiring a verified report here would drop insights for nearly
-// every real candidate on the free tier, not just fake ones.
-function gateInsightsOnVerification(candidates: Candidate[]): Candidate[] {
-  return candidates.map((c) =>
-    hasVerifiedWebsite(c) ? c : { ...c, aiInsight: [], source: INSIGHTS_SKIPPED_NOTE },
-  );
+  return mergeResearched(candidates, qualifies, researched);
 }
 
 // Fetch each annual-report URL and website (HEAD, falling back to a ranged GET when HEAD
@@ -823,21 +855,12 @@ function buildPrompt(p: {
   }
   if (p.fields.annualReportUrls) {
     fieldSpecs.push("annualReportUrls (string[])");
-    rules.push(
-      p.liveSearch
-        ? "- annualReportUrls: a real URL to the most recent annual report (PDF preferred, else the investor-relations annual-report page). Empty array if none exists."
-        : "- annualReportUrls: you do NOT have live web access. Only include a URL if you are highly confident it is correct (e.g. a well-known investor-relations domain pattern); otherwise return an empty array rather than guessing a URL.",
-    );
+    rules.push(reportRule(p.liveSearch));
   }
   if (p.fields.aiInsight) {
     fieldSpecs.push("aiInsight (string[] of 4-5 items)");
     fieldSpecs.push("source (string)");
-    rules.push(
-      p.liveSearch
-        ? "- aiInsight: 4-5 concise bullets on the training / learning & development / upskilling activity in their most recent financial year. Base every bullet on real disclosures (annual report, ESG/sustainability report, press releases). If a figure is not verifiable, phrase qualitatively - NEVER invent numbers."
-        : "- aiInsight: you do NOT have live web access. Give 4-5 plausible, qualitatively-phrased bullets on likely L&D / upskilling activity based on general knowledge of the company and industry. NEVER state specific figures or dates as fact - phrase everything as general characterization, and prefix each bullet with \"Likely:\" so it reads as an estimate, not a verified disclosure.",
-      '- source: where the insight came from (e.g. "FY2025 annual report") if live search, or "AI estimate, not verified" if not.',
-    );
+    rules.push(insightRule(p.liveSearch), sourceRule(p.liveSearch));
   }
 
   return `You are a B2B sales-research assistant for Invensis Learning, which sells "${p.courseName}" corporate training.

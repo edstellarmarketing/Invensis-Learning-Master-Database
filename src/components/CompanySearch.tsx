@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Plus, PlusCircle, Sparkles } from "lucide-react";
+import { Info, Loader2, Plus, PlusCircle, Sparkles } from "lucide-react";
 import type { Company } from "@/lib/companies";
 import { COUNTRIES } from "@/lib/countries";
 import { safeHref } from "@/lib/url";
@@ -485,7 +485,7 @@ export default function CompanySearch({
             {loading ? "Searching..." : "Search"}
           </button>
         </form>
-        <p className="mt-1.5 text-xs text-text-muted">
+        <p aria-live="polite" className="mt-1.5 text-xs text-text-muted">
           Estimated time: {formatSeconds(estimateSeconds(fields, provider, model, tokenUsage, count))}
           {count > 15 ? ` (${Math.ceil(count / 15)} batches)` : ""}
         </p>
@@ -605,7 +605,11 @@ export default function CompanySearch({
             </label>
           ))}
         </fieldset>
-        <p className="mt-1.5 text-xs text-text-muted">{fieldModelAdvice(fields)}</p>
+        {/* Announced: this text changes as the user toggles field checkboxes, and it's
+            the primary guidance for which provider/tier to pick. */}
+        <p aria-live="polite" className="mt-1.5 text-xs text-text-muted">
+          {fieldModelAdvice(fields)}
+        </p>
 
         {allCourses.length > 1 && (
           <div className="mt-2.5">
@@ -791,11 +795,27 @@ export default function CompanySearch({
                 </button>
               </div>
               {fields.aiInsight && cand.aiInsight?.length > 0 && (
-                <ul className="mt-2 list-disc space-y-0.5 pl-5 text-xs text-text-muted">
-                  {cand.aiInsight.slice(0, 5).map((p, i) => (
-                    <li key={i}>{p}</li>
-                  ))}
-                </ul>
+                <>
+                  <ul className="mt-2 list-disc space-y-0.5 pl-5 text-xs text-text-muted">
+                    {cand.aiInsight.slice(0, 5).map((p, i) => (
+                      <li key={i}>{p}</li>
+                    ))}
+                  </ul>
+                  {cand.source && (
+                    <p className="mt-1.5 pl-5 text-[11px] italic text-text-muted">
+                      Source: {cand.source}
+                    </p>
+                  )}
+                </>
+              )}
+              {/* Insights were requested but the staged verification gate cleared them.
+                  Without this the card just looks like the AI silently returned nothing,
+                  which is indistinguishable from a provider failure. */}
+              {fields.aiInsight && cand.aiInsight?.length === 0 && cand.source && (
+                <p className="mt-2 inline-flex items-start gap-1.5 rounded-md bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] px-2 py-1.5 text-[11px] text-text-muted">
+                  <Info size={12} className="mt-px shrink-0 text-warning" />
+                  <span>{cand.source}</span>
+                </p>
               )}
             </li>
             );

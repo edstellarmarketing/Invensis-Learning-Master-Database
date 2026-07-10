@@ -221,6 +221,12 @@ export default function CompaniesTable({
     setNotice(null);
     setRefreshing(true);
     let updated = 0;
+    // Tracked separately so the summary can tell the user WHY a company wasn't updated.
+    // "Gated" (the server's staged verification cleared its insights - website/report
+    // couldn't be verified) is a very different outcome from "the provider failed", and
+    // reporting both as "returned no new data" hid a real signal.
+    const gated: string[] = [];
+    let failed = 0;
     try {
       for (let i = 0; i < targets.length; i += ENRICH_CHUNK) {
         const chunk = targets.slice(i, i + ENRICH_CHUNK);
@@ -255,8 +261,14 @@ export default function CompaniesTable({
             const cand = byName.get(c.companyName.toLowerCase().trim());
             const reports = cand?.annualReportUrls ?? [];
             const insights = cand?.aiInsight ?? [];
-            // Nothing came back - don't overwrite existing data with empties.
-            if (reports.length === 0 && insights.length === 0) return;
+            // Nothing came back - don't overwrite existing data with empties. The server
+            // sets `source` to a "skipped: ... couldn't be verified" note when its staged
+            // gate cleared the insights, which lets us tell that apart from a plain miss.
+            if (reports.length === 0 && insights.length === 0) {
+              if (cand?.source?.toLowerCase().includes("skipped")) gated.push(c.companyName);
+              else failed += 1;
+              return;
+            }
             const put = await fetch(`/api/companies/${c.id}`, {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
@@ -266,7 +278,10 @@ export default function CompaniesTable({
                 ...(cand?.source ? { source: cand.source } : {}),
               }),
             });
-            if (!put.ok) return;
+            if (!put.ok) {
+              failed += 1;
+              return;
+            }
             const saved = (await put.json()) as Company;
             setCompanies((prev) => prev.map((x) => (x.id === saved.id ? saved : x)));
             updated += 1;
@@ -274,11 +289,22 @@ export default function CompaniesTable({
         );
       }
       setSelected(new Set());
-      setNotice(
-        updated === targets.length
-          ? `Refreshed reports & insights for ${updated} ${updated === 1 ? "company" : "companies"}.`
-          : `Refreshed ${updated} of ${targets.length}; the rest returned no new data.`,
-      );
+      if (updated === targets.length) {
+        setNotice(
+          `Refreshed reports & insights for ${updated} ${updated === 1 ? "company" : "companies"}.`,
+        );
+      } else {
+        const parts = [`Refreshed ${updated} of ${targets.length}.`];
+        if (gated.length > 0) {
+          const names = gated.slice(0, 3).join(", ");
+          const more = gated.length > 3 ? ` +${gated.length - 3} more` : "";
+          parts.push(
+            `${gated.length} skipped - website/annual report couldn't be verified (${names}${more}).`,
+          );
+        }
+        if (failed > 0) parts.push(`${failed} failed - the AI provider returned nothing.`);
+        setNotice(parts.join(" "));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Refresh failed");
     } finally {

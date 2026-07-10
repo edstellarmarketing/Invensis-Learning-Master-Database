@@ -139,6 +139,8 @@ src/
     adminAuth.ts / adminTokenClient.ts   # ADMIN_API_TOKEN guard (server) + prompt-and-retry (client)
     requestLimits.ts          # shared request-body size cap + row-count cap for API routes
     url.ts                    # sanitizeHttpUrl/safeHref - only http(s) URLs get stored or linked
+    insightGate.ts            # pure staged-AI-Insights gate logic, extracted from the search
+                              # route so it's unit testable (tests/insightGate.test.ts)
     courseSummaries.ts, popularIndustries.ts, countries.ts, categoryMeta.ts, slug.ts
     csv.ts                    # quote-aware parser + sample + companiesToCsv; tested in tests/csv.test.ts
     useDialogA11y.ts          # shared modal hook: Escape, body-scroll lock, focus restore + Tab trap
@@ -254,7 +256,36 @@ Redis in production (Vercel) or the JSON files in `src/data/` in local dev - see
     applied to Groq, 0/5 candidates kept insights; website-only, 4/5 did - only the one
     with no discoverable website was gated.)
   - The same gate applies in enrich mode (re-researching known companies), not just
-    fresh discovery.
+    fresh discovery - and enrich mode runs the same two-phase grounded pass as discovery
+    when the provider does live search (skip insights in phase 1, earn them in a
+    report-grounded `deepResearch` phase 2). Don't let those two paths drift apart.
+  - The pure gate logic lives in `lib/insightGate.ts` (not the route) so it's unit
+    testable - `tests/insightGate.test.ts`. `hasVerifiedWebsite`/`hasVerifiedReport`
+    check `=== true` on purpose: `undefined` means "nothing was verified", which must
+    fail, and conflating that with `false` is exactly the bug that shipped once.
+- **What AI Insights must contain, and must never contain** (`INSIGHT_TOPICS` /
+  `insightRule` / `reportRule` / `sourceRule` in `api/companies/search/route.ts` - all
+  three prompt sites share them, so a company researched via discovery and via enrich
+  comes back with the same shape). Insights answer a sales question ("can we sell this
+  company corporate training?") in priority order: employees trained (headcount/hours/%),
+  which tech & skills the training focused on, training spend, existing L&D
+  infrastructure (corporate university, LMS, academies, certification programmes), and
+  any other deal-relevant factor (transformation, reskilling commitments, PMO maturity,
+  hiring).
+  - **The anti-hallucination rules are the point, not decoration.** A fabricated
+    training-spend figure is worse than no figure, because it gets quoted into a real
+    sales conversation. Every figure must appear verbatim in a document the model
+    actually read; if it isn't stated, describe the fact qualitatively; if a topic isn't
+    disclosed at all, SKIP the bullet rather than padding it. Non-live-search providers
+    must state no figures at all, prefix every bullet `"Likely:"`, and **omit the
+    training-spend bullet entirely** (verified: Groq returns 5 hedged bullets with no
+    cost line and no invented numbers).
+  - **Reports target the LAST COMPLETED financial year**, not "the most recent report" -
+    `lastCompletedFinancialYear()` is `new Date().getFullYear() - 1`, injected into the
+    prompts as `FY<year>` (so in 2026 it asks for FY2025, and it advances on its own -
+    don't hardcode a year). The prompt explicitly rejects both an older archived year
+    when the target year exists, and a current/partial-year filing. `source` must name
+    the document *and* its financial year.
 - **Link verification is SSRF-guarded** (`verifyLinks`/`checkUrl` in
   `api/companies/search/route.ts`): before fetching any user-supplied `website` or
   `annualReportUrls` value (attacker-controllable via enrich mode, CSV import, or Add
@@ -325,6 +356,10 @@ Redis in production (Vercel) or the JSON files in `src/data/` in local dev - see
 ## Testing
 `tests/csv.test.ts` covers the CSV parser (quoting, header detection, sample round-trip).
 `tests/slug.test.ts` and `tests/url.test.ts` cover their respective pure helpers.
+`tests/insightGate.test.ts` covers the staged AI-Insights gate (`lib/insightGate.ts`) -
+the `=== true` vs `undefined` distinction, order preservation through
+partition/merge, non-mutation of inputs, and safe degradation when the grounded
+research pass returns fewer rows than it was handed.
 `tests/companies.test.ts`, `tests/courses.test.ts`, `tests/industries.test.ts` exercise the
 real read/write/lock path (via `INVENSIS_TEST_DATA_DIR`, an env override in
 `lib/storage.ts`'s `dataFile()` that points local-file storage at a throwaway `mkdtemp`

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Pencil, Plus, Settings2, Trash2, X } from "lucide-react";
@@ -35,7 +35,17 @@ export default function IndustryTabs({
   const [icon, setIcon] = useState("Briefcase");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Two-click inline delete-confirm instead of window.confirm() - native dialogs are
+  // unstyled, block the page, and read as disconnected from the app (same reasoning as
+  // CoursesManager). Auto-cancels so it can't get stuck in "confirm?" state.
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!confirmDelete) return;
+    const t = setTimeout(() => setConfirmDelete(null), 4000);
+    return () => clearTimeout(t);
+  }, [confirmDelete]);
 
   const focusName = () => requestAnimationFrame(() => nameInputRef.current?.focus({ preventScroll: true }));
 
@@ -94,12 +104,12 @@ export default function IndustryTabs({
 
   const remove = async (ind: Industry) => {
     const iSlug = slugify(ind.name);
-    if (
-      !window.confirm(
-        `Delete industry "${ind.name}"? Companies under it will also be removed.`,
-      )
-    )
+    // First click arms the confirm; second click (while armed) actually deletes.
+    if (confirmDelete !== iSlug) {
+      setConfirmDelete(iSlug);
       return;
+    }
+    setConfirmDelete(null);
     setBusy(true);
     setError(null);
     try {
@@ -154,14 +164,26 @@ export default function IndustryTabs({
                   >
                     <Pencil size={13} />
                   </button>
-                  <button
-                    onClick={() => remove(ind)}
-                    disabled={busy}
-                    aria-label={`Delete ${ind.name}`}
-                    className="px-1.5 py-2.5 text-danger/70 transition-colors hover:bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] hover:text-danger"
-                  >
-                    <Trash2 size={13} />
-                  </button>
+                  {confirmDelete === iSlug ? (
+                    <button
+                      onClick={() => remove(ind)}
+                      disabled={busy}
+                      title={`Deletes "${ind.name}" and its companies`}
+                      className="whitespace-nowrap bg-danger px-2 py-2.5 text-xs font-medium text-white transition-colors hover:bg-danger/90"
+                    >
+                      Confirm delete?
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => remove(ind)}
+                      disabled={busy}
+                      aria-label={`Delete ${ind.name}`}
+                      title={`Delete ${ind.name} (its companies are removed too)`}
+                      className="px-1.5 py-2.5 text-danger/70 transition-colors hover:bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] hover:text-danger"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  )}
                 </span>
               )}
             </span>
@@ -183,6 +205,7 @@ export default function IndustryTabs({
             setManaging((m) => !m);
             setEditState(null);
             setError(null);
+            setConfirmDelete(null);
           }}
           aria-label={managing ? "Done managing industries" : "Manage industries"}
           className={`ml-auto inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors ${
