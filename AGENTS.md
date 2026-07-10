@@ -141,6 +141,11 @@ src/
     url.ts                    # sanitizeHttpUrl/safeHref - only http(s) URLs get stored or linked
     insightGate.ts            # pure staged-AI-Insights gate logic, extracted from the search
                               # route so it's unit testable (tests/insightGate.test.ts)
+    reportYear.ts             # extractReportYear(source) - regex-parses "FY20XX" out of the
+                              # free-text `source` field for the report-year badge in
+                              # CompaniesTable/CompanySearch; no structured year field exists,
+                              # this just reads the year already embedded in prose by design
+                              # (see reportRule/sourceRule prompt fragments) (tests/reportYear.test.ts)
     courseSummaries.ts, popularIndustries.ts, countries.ts, categoryMeta.ts, slug.ts
     csv.ts                    # quote-aware parser + sample + companiesToCsv; tested in tests/csv.test.ts
     useDialogA11y.ts          # shared modal hook: Escape, body-scroll lock, focus restore + Tab trap

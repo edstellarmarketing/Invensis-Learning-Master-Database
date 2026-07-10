@@ -5,6 +5,7 @@ import { Info, Loader2, Plus, PlusCircle, Sparkles } from "lucide-react";
 import type { Company } from "@/lib/companies";
 import { COUNTRIES } from "@/lib/countries";
 import { safeHref } from "@/lib/url";
+import { extractReportYear } from "@/lib/reportYear";
 
 type Candidate = {
   companyName: string;
@@ -771,6 +772,11 @@ export default function CompanySearch({
                     {fields.annualReportUrls && cand.reportVerified === false && (
                       <span className="ml-1.5 rounded bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-warning">
                         Report link removed (dead)
+                      </span>
+                    )}
+                    {fields.annualReportUrls && extractReportYear(cand.source) && (
+                      <span className="ml-1.5 rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-semibold text-text-muted">
+                        {extractReportYear(cand.source)}
                       </span>
                     )}
                   </p>

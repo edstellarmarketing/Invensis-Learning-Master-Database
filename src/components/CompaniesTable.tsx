@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, Fragment, useRef } from "react";
+import { extractReportYear } from "@/lib/reportYear";
 import {
   ChevronDown,
   ChevronLeft,
@@ -613,6 +614,11 @@ export default function CompaniesTable({
                               >
                                 <FileText size={13} /> Report{" "}
                                 {c.annualReportUrls.length > 1 ? i + 1 : ""}
+                                {extractReportYear(c.source) && (
+                                  <span className="rounded bg-surface-2 px-1 py-0.5 text-[10px] font-semibold text-text-muted">
+                                    {extractReportYear(c.source)}
+                                  </span>
+                                )}
                               </a>
                             ) : null,
                           )}
