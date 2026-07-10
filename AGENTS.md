@@ -108,7 +108,13 @@ src/
                             # from the app. Has a filter box (name substring match on
                             # category+course, case-insensitive) for the 59-course catalog.
     IndustryTabs.tsx       # industry tabs + inline manage CRUD
-    CompaniesTable.tsx     # filters (search/country/report), pagination, bulk select/delete, CSV
+    CompaniesTable.tsx     # filters (search/country/report), pagination (default 20/page),
+                            # bulk select/delete, CSV. Bulk toolbar also has "Refresh reports
+                            # & insights": re-researches the SELECTED saved rows via the enrich
+                            # API (fields = annualReportUrls + aiInsight only, provider auto),
+                            # PUTs the result back, and SKIPS any company enrichment returned
+                            # empty for so a provider miss never overwrites existing data with
+                            # blanks. Chunks at 25 (the enrich route's per-call cap).
     CountryFilter.tsx      # searchable multi-select country popover (50-country master list)
     CompanySearch.tsx      # AI Search panel: provider/model/tier, fields, multi-course, enrich.
                             # Fetches /api/ai-providers on mount to disable unconfigured
@@ -271,6 +277,25 @@ and industry-rename migrating its companies. No component/UI tests yet.
 When testing AI Search manually, default to a free provider (Groq, or OpenRouter's "Free
 open models" family) unless the task specifically calls for verifying paid-provider
 behavior.
+
+## Scripts (`scripts/`)
+CLI helpers that drive the same REST API the UI does - see `docs/ai-search-workflow.md`
+for the full AI Search / Enrich workflow write-up and a worked example.
+- `discover-companies.mjs` - free, no-key geographic discovery via OpenStreetMap
+  Overpass; writes a CSV in the app's Import CSV format.
+- `seed-course-companies.mjs` - idempotent bulk-add of a curated (name/country/website)
+  company list per course+industry (`DATASETS` in the script), via
+  `POST /api/companies/bulk`; `--enrich` optionally follows up with the AI-search enrich
+  API. `--dry-run` to preview.
+- `apply-research-enrichment.mjs` - writes pre-researched `annualReportUrls`/`aiInsight`/
+  `source` directly via `PUT /api/companies/:id` (bypassing the AI enrich call) - used
+  when the data came from actual research (e.g. parallel web-research agents) rather
+  than an LLM guessing from training data. Matches companies by name per industry.
+
+`seed-course-companies.mjs` and `apply-research-enrichment.mjs` accept `--base <url>`
+(default `http://localhost:3000`) to target a deployment instead of local dev.
+`discover-companies.mjs` doesn't call the app at all - it writes a standalone CSV for
+manual Import CSV.
 
 ## Out of scope (not yet built)
 Auth (single shared deployment, no login), automated background/scheduled scraping,

@@ -1,0 +1,686 @@
+#!/usr/bin/env node
+// Applies real, web-researched annual-report URLs + PMP-relevant AI insights to the 50
+// companies seeded by scripts/seed-course-companies.mjs. This is the "manual research"
+// counterpart to the AI Search enrich API - same PUT /api/companies/:id write path the UI's
+// "Refresh reports & insights" button and the enrich API both use, but the report URL and
+// insights here came from actual web research (parallel subagents, one per industry, each
+// using WebSearch/WebFetch against each company's real investor-relations pages) rather
+// than an LLM guessing from training data.
+//
+// Idempotent by construction: PUT overwrites fields directly, so re-running just re-applies
+// the same values.
+//
+// Usage: node scripts/apply-research-enrichment.mjs [--base http://localhost:3000]
+
+function parseArgs(argv) {
+  const args = { base: "http://localhost:3000" };
+  for (let i = 2; i < argv.length; i++) {
+    if (argv[i] === "--base") args.base = argv[++i];
+  }
+  return args;
+}
+
+// industrySlug -> [{ companyName, annualReportUrls, aiInsight, source }]
+const RESEARCH = {
+  manufacturing: [
+    {
+      companyName: "Siemens",
+      annualReportUrls: ["https://assets.new.siemens.com/siemens/assets/api/uuid:344347ec-a1bd-44cb-aaaa-711d1b3ec1b8/Siemens-Annual-Report-2024.pdf"],
+      aiInsight: [
+        "Siemens employed roughly 327,000 people worldwide in FY2024, a vast technical workforce for scaled project-management certification programs.",
+        "Runs a Global Learning Campus / My Learning World plus SITRAIN and the MyGrowth platform, curating Coursera, LinkedIn Learning and HBR content.",
+        "Siemens Global Business Services explicitly upskills for transformation, driving agile mindsets and collaboration across change initiatives.",
+        "In FY2024 Siemens invested heavily in re-/upskilling for AI, sustainability and leadership, including digital reskilling for people-centric manufacturing.",
+        "Partners with Coursera and LinkedIn Learning (e.g. SkillUp! NextSkills Learning Challenge in ASEAN) for certified professional development.",
+      ],
+      source: "Siemens Annual Report 2024 (PDF); Siemens IR annual-reports page; FY2024 results",
+    },
+    {
+      companyName: "Volkswagen Group",
+      annualReportUrls: ["https://www.volkswagen-group.com/en/annual-report-and-full-year-results-2024-19005"],
+      aiInsight: [
+        "Volkswagen Group employs well over 650,000 people across its brands, a large workforce facing EV/software transformation and needing project-delivery skills.",
+        "The Volkswagen Group Academy sets a common qualification framework for training all Group employees across specialist and interdisciplinary topics.",
+        "In 2024 the Group built a digital learning ecosystem pairing SuccessFactors with the Degreed platform, targeting full rollout by end of 2028.",
+        "Degreed usage grew over 25% in 2024 as seven more Group companies were added to self-directed digital learning.",
+        "Reskilling is framed around long-term employability amid decarbonization, including hands-on e-mobility reskilling at sites like Chattanooga.",
+      ],
+      source: "Volkswagen Group Annual Report & Full-Year Results 2024 page; AR2024 Employees section",
+    },
+    {
+      companyName: "Toyota Motor Corporation",
+      annualReportUrls: ["https://www.annualreports.com/HostedData/AnnualReports/PDF/NYSE_TM_2024.pdf"],
+      aiInsight: [
+        "Toyota employs over 380,000 people globally, a massive workforce needing standardized project and process discipline.",
+        "The Toyota Institute (est. 2002) trains executives and middle managers worldwide in the Toyota Way and leadership development.",
+        "Training Within Industry programs cover the Toyota Production System (Standard Work & Improvement), Job Instruction, and Communication Skills.",
+        "Toyota runs 'Scrum the Toyota Way', combining Scrum with TPS for rapid PDCA cycles, plus AI and robotics upskilling.",
+        "Since 2023 Toyota expanded diversity/growth pillars and digital learning platforms for flexible, anytime employee reskilling.",
+      ],
+      source: "Toyota Integrated Report 2024 (AnnualReports.com); Human Resource Development ESG pages; Toyota Institute",
+    },
+    {
+      companyName: "Airbus",
+      annualReportUrls: ["https://www.airbus.com/sites/g/files/jlcbta136/files/2025-04/Airbus%20Annual%20Report%202024.pdf"],
+      aiInsight: [
+        "Airbus employs roughly 147,000 people across 30+ countries, a large multinational workforce spanning complex engineering programs.",
+        "Airbus Leadership University delivers structured leadership development, mentorship, and role-specific professional training.",
+        "Airbus built a global digital learning library with 6,900+ shareable learning items plus large-scale e-learning access.",
+        "Recent upskilling priorities center on sustainability, AI, and digital technologies to keep the workforce future-ready.",
+        "Airbus partners externally (e.g. Embry-Riddle Aeronautical University) and runs internal-mobility programs for cross-division career growth.",
+      ],
+      source: "Airbus Annual Report 2024 (airbus.com); Airbus L&D interviews and workforce reporting",
+    },
+    {
+      companyName: "Robert Bosch",
+      annualReportUrls: ["https://assets.bosch.com/media/en/global/bosch_group/our_figures/publication_archive/pdf_1/gb2024.pdf"],
+      aiInsight: [
+        "Bosch employed roughly 417,900 associates worldwide at end of 2024 with EUR 90.3bn sales, a massive multi-sector project workforce.",
+        "Bosch has committed ~EUR 2bn to reskilling, having already spent EUR 1bn and pledging similar over the next five years.",
+        "People Development Partners assess each associate's training needs, blending theoretical training with on-the-job mentoring.",
+        "Its pivot from combustion to e-mobility and software is a company-wide transformation, reskilling mechanical engineers into software developers.",
+        "Bosch runs dedicated technical academies (e.g. Bosch Rexroth Academy, Mobility technical training academy) for structured upskilling.",
+      ],
+      source: "Bosch Annual Report 2024 (assets.bosch.com PDF); Bosch stories/learning coverage",
+    },
+    {
+      companyName: "Nestlé",
+      annualReportUrls: ["https://www.annualreports.com/Company/nestle"],
+      aiInsight: [
+        "Nestlé employs around 277,000 people across 180+ countries, a very large global workforce spanning manufacturing and corporate functions.",
+        "The Nestlé Academy delivers strengths-based learning and has supported hundreds of UK apprenticeships across engineering and manufacturing.",
+        "The Nestlé eBusiness Academy upskills employees via ~40 gamified e-learning modules covering the global digital curriculum.",
+        "Nestlé offers professional development budgets, mentorship pairings, and on-site training empowering staff to pursue courses and certifications.",
+        "Its Nestlé needs YOUth program hit its goal of helping 10 million young people access economic opportunity in 2024, six years early.",
+      ],
+      source: "Nestlé Annual Review 2024 (AnnualReports.com); HRD/TalentQuest coverage of Nestlé Academy",
+    },
+    {
+      companyName: "Unilever",
+      annualReportUrls: ["https://www.unilever.com/files/unilever-annual-report-and-accounts-2024.pdf"],
+      aiInsight: [
+        "Unilever employs ~140,000 people across more than 100 countries, a vast frontline and management workforce needing scalable project delivery skills.",
+        "Runs FLEX Experiences, an AI-powered internal talent marketplace matching staff to cross-functional projects, gigs and mentorships.",
+        "Committed to reskill/upskill every employee to a 'future-fit' skill set, backed by a unified Learning Experience Platform ecosystem.",
+        "In 2024 trained over 23,000 colleagues in AI, showing active investment in structured capability-building programs.",
+        "External pledge to equip 10 million young people with essential employment skills by 2030, signaling appetite for certified training partnerships.",
+      ],
+      source: "Unilever Annual Report & Accounts 2024 (unilever.com); Gloat & TD.org FLEX Experiences case studies",
+    },
+    {
+      companyName: "Koninklijke Philips",
+      annualReportUrls: ["https://www.results.philips.com/publications/ar24/downloads/files/en/PhilipsFullAnnualReport2024-English.pdf"],
+      aiInsight: [
+        "Philips employed 66,678 people at end-2024 (down from 69,656), a large regulated med-tech workforce reliant on disciplined project execution.",
+        "Completed a plan to cut 10,000 roles by 2025 under a major transformation program, a context where PMO and change-management upskilling is highly relevant.",
+        "Operates a two-year Graduate Development Program with job rotations and a structured L&D track, growing to 91 participants in 2024.",
+        "Gave work experience to 2,111 interns in 2024 (330 offered permanent roles), indicating a strong pipeline that benefits from foundational PM certification.",
+        "Reinforced mandatory quality and clinical education for every new hire in 2024, reflecting a formal, certification-oriented training culture.",
+      ],
+      source: "Philips Full Annual Report 2024 (results.philips.com)",
+    },
+    {
+      companyName: "Volvo Group",
+      annualReportUrls: ["https://www.volvogroup.com/en/investors/reports-and-presentations/annual-reports.html"],
+      aiInsight: [
+        "Volvo Group employs roughly 100,000 people worldwide across trucks, construction equipment, buses and financial services, a large project-driven engineering workforce.",
+        "Volvo Group University is its corporate university, allocating about half a million training days a year to employees and retail partners globally.",
+        "Training targets strategic competencies (AI, electromobility, automation, cybersecurity) delivered via the personalized 'Navigator' learning portal.",
+        "In 2024 Volvo Trucks Academy launched a leadership training suite of 75+ specialized courses spanning emerging talent to experienced managers.",
+        "The Group runs vocational training programs and industry partnerships, signaling openness to external certification providers for upskilling.",
+      ],
+      source: "Volvo Group Annual Report 2024 (IR annual-reports page); volvogroup.com corporate-university pages",
+    },
+    {
+      companyName: "Michelin",
+      annualReportUrls: ["https://dgaddcosprod.blob.core.windows.net/cxf-corporate/attachments/m0tiueu4lcna0lvkt39l0unt-2024-universal-registration-document.pdf"],
+      aiInsight: [
+        "Michelin employs about 130,000 people worldwide, a global manufacturing and engineering base with substantial project and transformation activity.",
+        "Michelin dedicates over 240 million euros to training annually, delivering roughly 5 million training hours per year across the workforce.",
+        "Its Talent Campus (launched Jan 2022) gives employees unlimited access to an online catalog of about 55,000 training modules 24/7.",
+        "Michelin runs a lifelong-learning/reskilling program to prepare associates for future jobs and support career transitions, prime ground for PM certification.",
+        "Michelin Media Day 2024 highlighted major learning innovations, using platforms like 360Learning to build internal communities of learning champions.",
+      ],
+      source: "Michelin 2024 Universal Registration Document (PDF); michelin.com Talents & Media Day 2024",
+    },
+  ],
+  it: [
+    {
+      companyName: "SAP",
+      annualReportUrls: ["https://www.annualreports.com/Click/16539"],
+      aiInsight: [
+        "SAP employed roughly 109,973 people worldwide at year-end 2024, up about 2.2% year over year, a large enterprise workforce for L&D programs.",
+        "SAP runs formal enablement via SAP Learning Hub and the free SAP Learning platform, delivering role-based training and professional certifications.",
+        "Large S/4HANA and cloud transformation rollouts across SAP and its customers create heavy demand for skilled project and program managers.",
+        "In 2024 SAP enhanced SAP Learning Hub with guided premium learning and new role-based S/4HANA Cloud implementation certifications.",
+        "SAP offers role-based professional certifications with up to four certification attempts per learner per year, showing a mature credentialing culture.",
+      ],
+      source: "SAP Integrated Report 2024 (annualreports.com mirror); SAP Learning Hub pages",
+    },
+    {
+      companyName: "Nokia",
+      annualReportUrls: ["https://www.annualreports.com/Click/24689"],
+      aiInsight: [
+        "Nokia employed about 75,600 people at end of 2024, a global technical workforce spanning R&D and network deployment.",
+        "Nokia runs 'Learning at Nokia' plus the in-house 'My Growth Portal' (launched 2023) giving employees personalized career-development recommendations.",
+        "In 2024 Nokia logged roughly 4 million learning hours, averaging 45 hours per employee, up 12% versus 2023.",
+        "Nokia adopted a skills-based transformation and new people strategy centered on talent mobility, upskilling and reskilling.",
+        "Nokia delivers technical training via web-based, instructor-led, virtual and blended methods, and its large network rollouts rely on strong project management.",
+      ],
+      source: "Nokia in 2024 Annual Report / Form 20-F (annualreports.com); nokia.com/learning",
+    },
+    {
+      companyName: "Ericsson",
+      annualReportUrls: ["https://www.ericsson.com/492f5d/assets/local/investors/documents/2025/annual-report-2025-en.pdf"],
+      aiInsight: [
+        "Ericsson employs roughly 90,000 people worldwide, an R&D-intensive telecom workforce running large-scale global network projects.",
+        "Ericsson operates the Ericsson Technical Certification Program (ETCP) and AI-based personalized learning portals with VR and gamified content.",
+        "Ericsson partners with universities and education organizations globally to offer upskilling, reskilling, certifications and micro-degrees.",
+        "Ericsson Learning Services delivers 5G, IoT, RAN, LTE and Cloud training through instructor-led and digital formats, also sold externally.",
+        "Ericsson stresses disciplined strategy execution on worldwide 5G rollouts, work that depends on strong project and program management capability.",
+      ],
+      source: "Ericsson Annual Report 2025 (ericsson.com investors); Learning Services pages",
+    },
+    {
+      companyName: "ASML",
+      annualReportUrls: ["https://www.asml.com/en/investors/annual-report/2024"],
+      aiInsight: [
+        "ASML employs more than 44,000 people globally (2024), a large, fast-scaling engineering workforce delivering complex semiconductor-equipment projects.",
+        "Runs an in-house learning experience platform giving employees access to 300,000+ courses via ~300 external partners, including Harvard and INSEAD content.",
+        "Operates nine global training centers, including a new US Technical Training Center in Phoenix that began training in 2024, aiming to train 1,000+ engineers a year.",
+        "Internal data shows ASML employees averaged ~50 hours of formal training per year, signaling strong appetite for structured, certifiable upskilling.",
+        "As a high-growth capacity-scaling manufacturer, ASML runs continuous hiring and reskilling, needing standardized project/PMO discipline across global expansion programs.",
+      ],
+      source: "ASML 2024 Annual Report page (asml.com); Phoenix Technical Training Center news",
+    },
+    {
+      companyName: "Dassault Systèmes",
+      annualReportUrls: ["https://www.globenewswire.com/news-release/2025/03/18/3044804/0/en/Dassault-Syst%C3%A8mes-Filing-of-the-2024-Universal-Registration-Document.html"],
+      aiInsight: [
+        "Dassault Systèmes employs a global software workforce of over 20,000 people delivering complex 3DEXPERIENCE platform-deployment projects for enterprise clients.",
+        "Operates 3DEXPERIENCE Edu and the EduSpace e-learning platform, offering Explore/Practice modules and skill certificates directly in-browser.",
+        "Its Certification Program lets HR and leadership validate skills across teams, partners and new hires, building professional growth and career paths.",
+        "Maintains an ecosystem of training organizations and academic partners to develop future engineering and platform skills at scale.",
+        "As a global engineering-software vendor running large enterprise implementation projects, structured project management and delivery methodology is core to its value.",
+      ],
+      source: "Dassault Systèmes 2024 Universal Registration Document filing (GlobeNewswire); 3ds.com Training Services",
+    },
+    {
+      companyName: "Amadeus IT Group",
+      annualReportUrls: ["https://amadeus.com/en/annual-reports/global-report-2024"],
+      aiInsight: [
+        "Amadeus had 21,592 employees in 2024 across 100+ offices, representing 150+ nationalities and 60+ languages, a large distributed tech workforce.",
+        "Offers the 'Amadeus Learning Universe' platform for continuous upskilling, accessible to all employees for ongoing professional development.",
+        "Runs 'The Amadeus Leadership Journey', a structured program to develop management and leadership capabilities across the organization.",
+        "Certified as a 'Top Employer' across Europe, UK, Spain, France and the US, reflecting formal investment in learning and talent development.",
+        "As a travel-tech firm delivering large software and platform projects for airlines and agencies, structured agile/project delivery is central to its operations.",
+      ],
+      source: "Amadeus Global Report 2024 (amadeus.com)",
+    },
+    {
+      companyName: "Atos",
+      annualReportUrls: ["https://atos.net/wp-content/uploads/2025/04/atos-universal-registration-document-en-2024.pdf"],
+      aiInsight: [
+        "Atos employed roughly 78,000 people across dozens of countries at end-2024, a large IT-services workforce delivering complex client projects.",
+        "Atos Corporate University and the Leadership Academy deliver structured courses spanning project management, technology, sales and leadership.",
+        "The group runs global training academies for key communities, with Project Management among its most popular alongside IT Architecture and Service Delivery Management.",
+        "Under the 5-year CloudCatalyst program with AWS, ~2,000 employees earned Cloud/GenAI certifications in year one via job-specific 160-hour learning pathways.",
+        "Atos partners with AWS on certification curricula across 24 countries, showing appetite for structured, exam-based professional upskilling.",
+      ],
+      source: "Atos Universal Registration Document 2024; Atos CloudCatalyst/AWS training news",
+    },
+    {
+      companyName: "Sopra Steria",
+      annualReportUrls: ["https://www.soprasteria.com/docs/librariesprovider2/sopra-steria-corporate/finance/rapports-financiers/sopra_steria_urd_2024_en_opti.pdf?sfvrsn=e57d27db_16"],
+      aiInsight: [
+        "Sopra Steria employs around 52,000 people across ~30 countries and generated €5.8bn revenue in 2024, a large project-delivery workforce.",
+        "The Sopra Steria Academy delivers personalized programs covering management, project-management methodology, technologies (AI, Cloud) and soft skills.",
+        "The firm invests in agile delivery, offering an Enterprise Agile Programme and project-management methodology training through its Academy.",
+        "In its recent year the Academy processed ~125,000 employee training requests via its LMS at a 95% acceptance rate, with online delivery up 20%.",
+        "It partners with Udemy Business, Pluralsight and Coorpacademy for on-demand upskilling, and the Academy earned LIFT certification for learning impact.",
+      ],
+      source: "Sopra Steria Universal Registration Document 2024; Sopra Steria Academy case studies",
+    },
+    {
+      companyName: "Temenos",
+      annualReportUrls: ["https://www.temenos.com/wp-content/uploads/2026/03/2025-annual-report-4nu412zg99.pdf"],
+      aiInsight: [
+        "Temenos employs roughly 5,800 people worldwide, heavily engineering-led (~44% of staff) and concentrated in India (~67%), making large project-delivery teams core to its model.",
+        "Runs the Temenos Learning Community (TLC), its official training and certification platform with 100+ instructor-led courses plus TLC Online 24/7 digital learning.",
+        "As a core-banking software vendor, revenue depends on delivering complex multi-year bank implementation and transformation projects requiring strong project/PMO discipline.",
+        "In 2024 it expanded TLC Online digital learning packs and offered customers free access to its digital learning platform, signaling active investment in structured upskilling.",
+        "Offers formal Temenos certification via TLC Exams and works through a certified partner/implementer ecosystem, showing an established credential-based training culture.",
+      ],
+      source: "Temenos Investor Relations financial-reports page (2025 Annual Report PDF); Temenos Learning Community",
+    },
+    {
+      companyName: "TeamViewer",
+      annualReportUrls: ["https://ir.teamviewer.com/publications/financial-results"],
+      aiInsight: [
+        "TeamViewer employs roughly 1,500-1,800 people globally from 80+ countries, headquartered in Goeppingen, Germany, on ~EUR 671M FY2024 revenue.",
+        "Maintains internal L&D via a 24/7 E-Learning Center, a TeamViewer Library, education reimbursement for role-related courses, and an HR function focused on talent development.",
+        "Positions itself as a Digital Workplace Platform driving digital transformation and hosts its TRANSFORM event, keeping change and transformation programs central to operations.",
+        "In 2024-2025 it scaled AI-powered support, endpoint management and DEX product lines, expansions that typically require agile delivery and internal reskilling.",
+        "Named Microsoft Teams Partner of the Year 2024 and partners with Deloitte and 1E, indicating a technically certified, partnership-driven delivery workforce.",
+      ],
+      source: "TeamViewer IR financial-results page; TeamViewer 2024 review and careers pages",
+    },
+  ],
+  ites: [
+    {
+      companyName: "Teleperformance",
+      annualReportUrls: ["https://www.tp.com/media/ym0pt3df/tp_integrated_report_2024.pdf"],
+      aiInsight: [
+        "Global workforce of roughly 440,000 employees across 100+ countries in 2024, a vast operation running thousands of concurrent client delivery projects.",
+        "Teleperformance University develops future leaders and standardizes best practices in customer experience management worldwide.",
+        "Completed 60,000+ AI and emotional-intelligence expert training programs for managers in 2024 under a global skills-enhancement plan.",
+        "Launched a EUR 100M AI-partnership investment program to reinvent digital business services, driving transformation and program-management upskilling.",
+        "Runs company-wide JUMP! and FOUNDATIONS development programs and certifies thousands of internal trainers each year.",
+      ],
+      source: "TP Integrated Report 2024 (PDF) and TP careers/training pages",
+    },
+    {
+      companyName: "Concentrix",
+      annualReportUrls: ["https://ir.concentrix.com/financials/annual-reports/default.aspx"],
+      aiInsight: [
+        "Employed about 435,982 staff across 70+ countries in FY2024, a delivery-at-scale workforce reliant on structured project and program management.",
+        "Concentrix University delivers thousands of instructor-led and online courses tailored by skill level and role.",
+        "FY2024 strategy explicitly prioritizes upskilling the workforce and nurturing future leaders to improve retention.",
+        "Heavy investment in AI and digital transformation ('iX') solutions increases demand for disciplined project and change management.",
+        "Fiscal year ended Nov 30, 2024 with $1.6B EBITDA (16.2% margin), giving scale to fund enterprise-wide L&D and certification programs.",
+      ],
+      source: "Concentrix IR annual-reports page; FY2024 10-K/Annual Report",
+    },
+    {
+      companyName: "Capita",
+      annualReportUrls: ["https://www.annualreports.com/Company/capita-group-plc"],
+      aiInsight: [
+        "Large UK-based BPO employer (tens of thousands of staff) delivering major public- and private-sector transformation contracts.",
+        "Capita Academy is the central online L&D hub for all colleagues, covering onboarding, mandatory and external courses, programs and mentoring.",
+        "Introduced the Capita LearningPlace digital learning platform in March 2024 for colleagues and clients.",
+        "Established an AI Academy in 2024, enrolling employees in a 13-month Level-4 'AI for Business Value' apprenticeship (delivered by Multiverse) on executing AI projects.",
+        "Targets a 6-8% adjusted operating margin via ongoing transformation, fueling internal demand for project and change-management capability.",
+      ],
+      source: "Capita 2024 Annual Report (AnnualReports.com listing); Capita Academy/AI Academy pages",
+    },
+    {
+      companyName: "Serco",
+      annualReportUrls: ["https://www.annualreports.com/Company/serco-group-plc"],
+      aiInsight: [
+        "Around 50,000 employees delivering complex public-service contracts across defence, justice, health, immigration and transport.",
+        "Provides all full-time staff LinkedIn Learning access and runs internal Leadership Development programs to build a leader pipeline.",
+        "Operates the Serco Leadership Learning Centre and has trained 16,000+ school leaders through Serco Education programmes.",
+        "Funds hundreds of apprentices and holds Gold accreditation in The 5% Club for its Earn-and-Learn development pathways.",
+        "2024 underlying operating profit rose 5% to £249m with a £13.6bn order book of large contracts requiring strong PMO and delivery discipline.",
+      ],
+      source: "Serco Annual Report & Accounts 2024 (AnnualReports.com listing); Serco L&D/apprenticeship pages",
+    },
+    {
+      companyName: "Transcom",
+      annualReportUrls: ["https://transcom.com/en"],
+      aiInsight: [
+        "Transcom employs roughly 26,000+ people delivering customer-experience services across 25 markets and 90+ languages, a large workforce needing structured project delivery.",
+        "Runs 'Transcom University', its internal learning-and-development platform for continuous employee upskilling.",
+        "Holds ISO 9001, ISO 27001, PCI DSS, SOC 2 and TISAX certifications, showing an established process/quality discipline that aligns with formal PM standards.",
+        "Scaling AI-powered automation and multi-site delivery programs that typically require project managers and transformation leads.",
+        "Emphasizes workplace learning and soft-skill development, a foundation on which structured PMP/project-management training can build.",
+      ],
+      source: "transcom.com/en homepage; Transcom University",
+    },
+    {
+      companyName: "Foundever",
+      annualReportUrls: ["https://foundever.com/solutions/learning-and-development/"],
+      aiInsight: [
+        "Foundever employs over 170,000 people across 45 countries serving 750+ clients, one of the largest CX workforces globally.",
+        "Operates a dedicated L&D practice with 100+ instructional designers and project managers and cites 20 years of CX learning expertise.",
+        "Runs the Foundever Language Academy plus Talent+ programs for reskilling and career development of agents and staff.",
+        "Reports measurable training outcomes (52% CSAT lift, 34% AHT reduction, 70% engagement gain) reflecting a metrics-driven upskilling culture.",
+        "Manages global blended-learning and transformation rollouts that rely on project management and PMO-style delivery capabilities.",
+      ],
+      source: "foundever.com Learning & Development page; company scale press/news",
+    },
+    {
+      companyName: "Arvato",
+      annualReportUrls: ["https://www.arvato.com/en/about-us"],
+      aiInsight: [
+        "Arvato Supply Chain Solutions runs global logistics with roughly 17,000-20,000 employees across ~85 locations in 20+ countries.",
+        "Employees access training via business-unit Arvato Academies plus Bertelsmann University, LinkedIn Learning and external universities.",
+        "Offers 18-month graduate schemes (ASPIRE and Pathfinder) covering key-account, transport management and data/analytics tracks.",
+        "Bertelsmann's 2024 Learning Days featured a 'Workforce Transformation' keynote, signaling active reskilling and change-management focus.",
+        "Builds and operates complex global supply-chain, e-commerce and IT platforms, work that depends heavily on project and program management.",
+      ],
+      source: "arvato.com/en/about-us; Bertelsmann University pages",
+    },
+    {
+      companyName: "TTEC",
+      annualReportUrls: ["https://www.ttec.com/about-us"],
+      aiInsight: [
+        "TTEC employs 52,000+ people across 6 continents serving 1,000+ clients, a workforce where PMP-certified project leadership scales operational delivery.",
+        "TTEC runs its own learning ecosystem: TTEC Talent offers 10,000+ courses plus the Talent Accelerator Program (TAP) and 200+ role-specific training courses.",
+        "TTEC delivers CX transformation, digital consulting and AI-operations programs that depend on disciplined project and program management for multi-continent rollouts.",
+        "TTEC's award-winning RealSkill AI training platform cut client training time up to 44% and sped proficiency ~90%, showing deep reskilling investment.",
+        "TTEC operates 25+ technology partnerships and 100+ patents; standardized certifications like PMP strengthen governance across complex partner-driven delivery.",
+      ],
+      source: "TTEC About-Us page; TTEC Learning & Development / RealSkill pages; FY2024 10-K",
+    },
+    {
+      companyName: "Comdata",
+      annualReportUrls: ["https://konecta.com/en/"],
+      aiInsight: [
+        "Comdata merged into Konecta in 2022, now a top-6 global BPO with 109,000+ employees across 28 countries — a vast internal PMP-training addressable base.",
+        "The group runs the Konecta Foundation Professional Training School and a Digital School (launched 2022) delivering certified vocational training for CX/BPO roles.",
+        "Konecta markets Strategy & Transformation services plus agile advisory from service design to process optimization — project/transformation upskilling is core to its offer.",
+        "The company is reskilling 7,100+ staff on role-specific GenAI as part of its digital transformation, showing active investment in structured workforce upskilling.",
+        "Its Digital School partners with IBM (IBM SkillsBuild) and language training runs via Speexx, plus certification under Spain's Professional Qualification Certificates system.",
+      ],
+      source: "Konecta corporate site (konecta.com/en/); Konecta 2024 Non-Financial Information Statement. Note: parent-group Konecta used since Comdata rebranded into it.",
+    },
+    {
+      companyName: "Webhelp",
+      annualReportUrls: ["https://ir.concentrix.com/"],
+      aiInsight: [
+        "Webhelp merged with Concentrix (NASDAQ: CNXC) in 2023; the combined firm employs hundreds of thousands of staff across 70+ countries serving 2,000+ clients.",
+        "Webhelp ran an internal Trainer Development Program (9-12 month blended-learning model) accredited by City & Guilds, upskilling its trainers into certified learning professionals.",
+        "Webhelp delivered L&D to ~11,000 people across 32 client campaigns via ~100 trainers, L&D consultants and development specialists.",
+        "Concentrix positions itself as a transformation partner across strategy, technology and operations, driving large-scale workforce upskilling and change programs.",
+        "Post-COVID Webhelp shifted from ~5% virtual training to 100% online delivery, using microlearning (via Centrical) to reinforce advisor knowledge and performance.",
+      ],
+      source: "Concentrix investor relations page; Webhelp.com news on City & Guilds trainer program. Note: webhelp.com no longer resolves standalone post-merger.",
+    },
+  ],
+  pharma: [
+    {
+      companyName: "Novartis",
+      annualReportUrls: ["https://www.novartis.com/sites/novartis_com/files/novartis-annual-report-2025.pdf"],
+      aiInsight: [
+        "Novartis employed 75,267 full-time equivalent staff at year-end 2025, spread across USA, Europe, Latin America and Asia/Africa/Australasia.",
+        "Novartis runs a dedicated Learning and Development function highlighted in its reporting and transparency hub, covering leadership and capability building.",
+        "As a global pharma with complex multi-country drug development pipelines, Novartis relies heavily on structured project and portfolio management across R&D and commercial functions.",
+        "Novartis has continued restructuring and transformation efforts (workforce down 0.81% YoY in 2025), typically paired with reskilling of retained talent.",
+        "Novartis's scale and matrixed, cross-functional operating model make PMP-certified project managers valuable for coordinating global launches and R&D programs.",
+      ],
+      source: "Novartis Annual Report 2025 (PDF); Novartis reporting/transparency hub; SEC Form 20-F FY2025",
+    },
+    {
+      companyName: "Roche",
+      annualReportUrls: ["https://www.roche.com/investors/annualreport25"],
+      aiInsight: [
+        "Roche had 112,774 employees worldwide by headcount at the end of 2025, one of the largest workforces among the researched pharma companies.",
+        "Roche operates a OneRoche Learning & Development Portfolio giving all employees access to structured training and lifelong-learning options.",
+        "Roche's Leadership Commitments and 'Symbiosis' programme are aimed at continually building leadership and management capability across the organization.",
+        "Roche offers programmes specifically to help managers lead virtual and diverse global teams, indicating investment in cross-functional coordination skills.",
+        "Given its scale (100,000+ employees) and global R&D/manufacturing network, Roche is a strong candidate for structured PM/PMO certification programs like PMP.",
+      ],
+      source: "Roche Annual Report 2025 landing page; Roche Annual Report 2023 L&D disclosures",
+    },
+    {
+      companyName: "Bayer",
+      annualReportUrls: ["https://www.bayer.com/sites/default/files/2026-03/bayer-annual-report-2025.pdf"],
+      aiInsight: [
+        "Bayer Group headcount fell 5.1% year-on-year to 88,078 employees as of December 31, 2025, reflecting ongoing restructuring.",
+        "Bayer publishes both an Annual Report and a separate Impact Report (2025), suggesting formal tracking of workforce and sustainability metrics including training.",
+        "Bayer's continued headcount reduction and transformation program point to a need for reskilling and change-management capability among remaining staff.",
+        "Bayer's integrated annual reporting (reports.bayer.com) covers strategy execution, implying reliance on structured program/portfolio management across divisions.",
+        "Large multi-divisional structure at Bayer creates recurring demand for certified project managers to run cross-business transformation and R&D initiatives.",
+      ],
+      source: "Bayer Annual Report 2025 (PDF); Bayer Impact Report 2025; reports.bayer.com",
+    },
+    {
+      companyName: "Sanofi",
+      annualReportUrls: ["https://www.sanofi.com/en/investors/reports-and-publications"],
+      aiInsight: [
+        "Sanofi had approximately 88,160-88,200 employees as of December 2025, up roughly 6.7% year-on-year.",
+        "Sanofi partnered with goFLUENT on a large-scale corporate language-training program, with over 20,000 employees registered and ~72,000 training hours completed, showing an active L&D culture.",
+        "Sanofi maintains active Project Management Office (PMO) functions, including a US Launch PMO focused on launch excellence practices for new drug launches.",
+        "Sanofi is actively hiring for PMO and portfolio management roles (e.g., Digital Senior PMO, Digital Portfolio Manager), signalling ongoing demand for formal project management skills.",
+        "Sanofi's AI-powered learning platform and structured employee development programs reflect an openness to certification-based upskilling initiatives.",
+      ],
+      source: "Sanofi investor reports page; Sanofi Employee Benefits & Wellbeing factsheet (2025)",
+    },
+    {
+      companyName: "GSK",
+      annualReportUrls: ["https://www.gsk.com/media/kn0bknmd/annual-report-2025.pdf"],
+      aiInsight: [
+        "GSK's headcount was in the range of roughly 67,000-69,000 employees at end of 2025 per public sources, with a slight year-on-year decline.",
+        "98.19% of eligible GSK employees completed their development goals in calendar year 2025, indicating a strongly enforced performance/development culture.",
+        "GSK's talent strategy is built on four pillars (Culture, Capability, Talent, Leadership) with flagship programs like Lakshya+ and Catalyst Neo for capability building.",
+        "GSK runs multiple structured leadership pipelines (Emerging Market Trailblazers, First Line Leaders Programme, Leading Leaders Programme) that could be complemented by PM certification.",
+        "GSK uses tools like the Manager One80 survey to embed continuous development, showing a metrics-driven approach to L&D that PMP training could plug into.",
+      ],
+      source: "GSK Annual Report 2025 (PDF); GSK corporate reports archive",
+    },
+    {
+      companyName: "AstraZeneca",
+      annualReportUrls: ["https://www.astrazeneca.com/content/dam/az/Investor_Relations/annual-report-2025/pdf/AstraZeneca_AR_2025.pdf"],
+      aiInsight: [
+        "AstraZeneca's workforce grew to about 96,100 employees at end of 2025, up from 94,300 in 2024, reflecting continued expansion.",
+        "AstraZeneca follows a '3Es' learning framework (Education, Exposure, Experience) generating over 1.96 million Degreed learning completions and 2.1 million learning hours in the latest reported year.",
+        "88% of employees reported improving skills or having a development opportunity in the last 12 months per AstraZeneca's Global Pulse Survey.",
+        "AstraZeneca runs dedicated strategic-capability and high-potential talent development programs spanning early talent through enterprise leaders.",
+        "Popular company-wide programs like 'Thriving in the Age of AI' show AstraZeneca actively rolling out large-scale professional upskilling, a natural fit for PMP-style certification.",
+      ],
+      source: "AstraZeneca Annual Report and Form 20-F Information 2025 (PDF); AstraZeneca L&D media centre",
+    },
+    {
+      companyName: "Novo Nordisk",
+      annualReportUrls: ["https://www.novonordisk.com/content/dam/nncorp/global/en/investors/irmaterial/annual_report/2026/novo-nordisk-annual-report-2025.pdf"],
+      aiInsight: [
+        "Novo Nordisk ended 2025 with about 69,505 employees, a 10% reduction from 2024 driven by a company-wide transformation program.",
+        "57% of Novo Nordisk's workforce is now based outside Denmark, reflecting a large, globally distributed organization requiring standardized project-management practices.",
+        "The 2025 company-wide transformation and workforce reduction typically require structured change-management and program-management capability to execute.",
+        "Novo Nordisk publishes an integrated Annual Report combining financial, social and environmental performance, suggesting formal governance over workforce development metrics.",
+        "Given the scale of Novo Nordisk's ongoing transformation, certified project/change managers would support restructuring, pipeline execution and manufacturing scale-up initiatives.",
+      ],
+      source: "Novo Nordisk Annual Report 2025 (PDF, annualreport.novonordisk.com)",
+    },
+    {
+      companyName: "Merck KGaA",
+      annualReportUrls: ["https://www.reports.emdgroup.com/en/annualreport/2025/services/downloads.html"],
+      aiInsight: [
+        "Merck KGaA had 62,461 employees as of December 31, 2025, roughly flat versus 62,557 in 2024.",
+        "Merck KGaA has run a notable data-literacy training initiative using LinkedIn Learning and the Workera platform, including 'job-ready assessments' to identify individual skill gaps.",
+        "Employees who complete Merck KGaA's data/skills training join internal 'communities of practice' to share learning, showing a structured post-training reinforcement model.",
+        "Merck KGaA also uses Coursera 'Guided Projects' for practical, sandboxed skills training, indicating openness to third-party certification/training partners.",
+        "Merck KGaA's multi-platform, tailored-by-skill-level training approach suggests receptiveness to structured project-management certification like PMP for its professional workforce.",
+      ],
+      source: "Merck KGaA Annual Report 2025 (reports.emdgroup.com); Oxford Global article on Merck KGaA training",
+    },
+    {
+      companyName: "Takeda Pharmaceutical",
+      annualReportUrls: ["https://www.takeda.com/investors/annual-integrated-report/"],
+      aiInsight: [
+        "Takeda's headcount was reported as roughly 47,455-56,283 employees depending on source/measurement date for fiscal year 2025.",
+        "Takeda's Digital Dexterity Learning Program logged about 30,000 employee learning hours in FY2025, expanding to include data literacy and collaboration skill sets.",
+        "Takeda has over 7,200 people leaders across ~80 countries and runs a 16-month 'Takeda Aspire Program' plus a Senior Leader Induction Program for developing future leaders.",
+        "Takeda launched an integrated Change Management toolkit in its latest fiscal year, directly relevant to project/portfolio management upskilling needs.",
+        "Takeda was named a top global employer for the eighth consecutive year by the Top Employers Institute, reflecting strong investment in structured L&D infrastructure.",
+      ],
+      source: "Takeda 2025 Annual Integrated Report; SEC Form 6-K FY2025 (AIR)",
+    },
+    {
+      companyName: "Boehringer Ingelheim",
+      annualReportUrls: ["https://www.boehringer-ingelheim.com/annualreport/2025/"],
+      aiInsight: [
+        "Boehringer Ingelheim reported more than 54,000 employees in its 2025 Annual Report Highlights, a large privately-held global pharma workforce.",
+        "The company launched Boehringer Ingelheim University and its Virtual Campus platform in late 2023 for personalized, skill-based employee development.",
+        "Boehringer Ingelheim follows a 70-20-10 learning model (70% on-the-job, 20% feedback-driven, 10% formal training/courses), leaving clear room for certified formal programs like PMP.",
+        "An internal Leadership Academy provides tailored training from first-time leadership roles through senior executives, indicating structured career-stage-based development.",
+        "Boehringer Ingelheim earned 2025 Top Employer certification specifically citing strength in learning, career practices and leadership development.",
+      ],
+      source: "Boehringer Ingelheim Annual Report 2025 Highlights (PDF); Top Employers 2025 recognition page",
+    },
+  ],
+  construction: [
+    {
+      companyName: "Vinci",
+      annualReportUrls: ["https://www.vinci.com/publi/vinci/vinci-2024-universal-registration-document.pdf"],
+      aiInsight: [
+        "Employs 269,476 people across ~120 countries in 2024, a vast site- and project-delivery workforce driving heavy PMO training demand.",
+        "VINCI Academy runs cross-business training for executives and high-potential managers in partnership with HEC and Sciences Po, backed by 40+ training centres.",
+        "Business-line academies (VINCI Energies Academy, Eurovia Academy, VINCI Airports Academy) train project directors, project managers and worksite managers.",
+        "A group-wide learning platform open to all employees offers more than 20,000 teaching resources for on-demand upskilling.",
+        "In 2024 a new 'Safety Excellence' course entered the VINCI Energies Academy catalogue for project directors/managers; 2.3M health-and-safety training hours logged.",
+      ],
+      source: "VINCI 2024 Universal Registration Document (PDF); vinci.com sustainability-reports",
+    },
+    {
+      companyName: "Bouygues",
+      annualReportUrls: ["https://www.bouygues.com/app/uploads/2025/04/bouygues_deu_2024_uk.pdf"],
+      aiInsight: [
+        "Group employed 200,862 people in 2024 across construction, energy/services, telecoms and media — a heavily project-based workforce.",
+        "Bouygues Construction University is a global company university whose curriculum explicitly covers project management alongside management, financial control and technology.",
+        "134,771 employees were trained in 2024, averaging 19.8 training hours per employee.",
+        "The group invests roughly 40 million euros a year in training, about 4.9% of French payroll.",
+        "University training spans all business lines and functions worldwide, targeting managers for project-delivery and leadership upskilling.",
+      ],
+      source: "Bouygues 2024 Universal Registration Document (PDF); regulated-information IR page",
+    },
+    {
+      companyName: "ACS Group",
+      annualReportUrls: ["https://www.grupoacs.com/en/shareholders-investors/annual-report"],
+      aiInsight: [
+        "Over 135,000 professionals across Dragados, HOCHTIEF, Turner and CIMIC form a large multidisciplinary project-delivery workforce.",
+        "ACS University, launched in 2024, is a unified group-wide learning platform (LMS) delivering technical courses, onboarding and Group-wide learning.",
+        "Programs target infrastructure, energy transition, mobility, complex engineering and digital transformation — core project-management domains.",
+        "ACS University plans certified pathways in strategic disciplines and expanded leadership programs, a fit for PMP-style certification partnerships.",
+        "Its mobile-optimised LMS delivers learning shaped by real projects and operational excellence with offline access and automatic progress tracking.",
+      ],
+      source: "grupoacs.com ACS University page and Annual Report IR page; FY2024 workforce data",
+    },
+    {
+      companyName: "Ferrovial",
+      annualReportUrls: ["https://static-iai.ferrovial.com/wp-content/uploads/sites/13/2025/03/03192626/ferrovial-integrated-annual-report-2024.pdf"],
+      aiInsight: [
+        "Total workforce was 25,501 employees at year-end 2024, spread across infrastructure construction and concession-operation projects worldwide.",
+        "Ferrovial University runs a global leadership pipeline: Global Executive Program, Advanced Management, and New Managers programs in hybrid and face-to-face formats.",
+        "As an infrastructure builder-operator (highways, airports), delivery is project- and PMO-heavy, a natural fit for structured project-management certification.",
+        "Runs a 'Fostering Talent' program to develop high-potential employees into future project and business leaders.",
+        "Certified a Top Employer, an accreditation revalidated in 2024, signalling active investment in structured L&D and upskilling.",
+      ],
+      source: "Ferrovial Integrated Annual Report 2024 (PDF); newsroom People/Ferrovial University pages",
+    },
+    {
+      companyName: "Skanska",
+      annualReportUrls: ["https://group.skanska.com/49490b/siteassets/investors/reports-publications/annual-reports/2024/annual-and-sustainability-report-2024.pdf"],
+      aiInsight: [
+        "Employs roughly 27,000 people globally across construction and project development operations.",
+        "Its leadership program explicitly focuses on market, business and 'effective project management', with tiered training for those moving into senior roles.",
+        "Launched the Excellence in Construction Leadership Program (ECLP) in the US in 2024 to build a diverse project-leadership pipeline.",
+        "Runs an International Leadership Program to stretch and develop senior leaders across markets.",
+        "Delivers learning and compliance training at scale via a Totara LMS (Skanska UK alone trains 5,000+ employees on skills and safety).",
+      ],
+      source: "Skanska Annual and Sustainability Report 2024 (PDF); Totara case study",
+    },
+    {
+      companyName: "Hochtief",
+      annualReportUrls: ["https://www.hochtief.de/mmdbdownload?id=244795"],
+      aiInsight: [
+        "Employed 50,961 people at year-end 2024, a large project-delivery workforce across the Americas, Europe and Asia-Pacific.",
+        "Operates the HOCHTIEF Academy, delivering continuing education in specialist fields plus communication, negotiation, labor law and work safety.",
+        "Pushes digital-construction-site and BIM upskilling, reflecting a transformation agenda relevant to modern PMO and project-controls training.",
+        "As an infrastructure/construction group reporting 48% net-profit growth to EUR 776m in 2024, project delivery is core, aligning with PMP/PMO training needs.",
+        "Runs structured entry paths (training and studies) plus experienced-professional development tracks, indicating an established internal L&D framework.",
+      ],
+      source: "HOCHTIEF Group Report 2024 (integrated report PDF); careers/HOCHTIEF-Academy pages",
+    },
+    {
+      companyName: "Bechtel",
+      annualReportUrls: ["https://www.bechtel.com/about-us/learning-development/"],
+      aiInsight: [
+        "Global engineering & construction firm employing roughly 55,000 people across nearly 50 countries, a large project-delivery workforce.",
+        "Runs Bechtel University, offering 1,000+ instructor-led and online courses spanning project management, leadership, safety and quality.",
+        "Bechtel University is accredited by the International Association for Continuing Education & Training (IACET), signaling formal certification standards.",
+        "In 2024 more than 2,700 craft professionals earned promotions, reflecting active internal career-progression and upskilling pipelines.",
+        "Builds project-management talent via Early Career Programs and university partnerships plus veteran pathways like Helmets to Hardhats.",
+      ],
+      source: "Bechtel corporate Learning & Development page; Impact Report",
+    },
+    {
+      companyName: "Balfour Beatty",
+      annualReportUrls: ["https://www.balfourbeatty.com/media/yx0pn423/balfour-beatty-annual-report-and-accounts-2024.pdf"],
+      aiInsight: [
+        "Employed 27,311 people at year-end 2024, up 4.5% year-on-year, a large infrastructure workforce delivering an £18.4bn order book.",
+        "Operates The Academy, a government-funded UK training academy partnered with APM, RICS and CIOB for professional infrastructure and project-management qualifications.",
+        "Offers apprenticeships at Intermediate, Advanced, Higher and Degree levels, with routes progressing into project and construction leadership.",
+        "Graduate programmes run 2-5 years and lead to chartered qualifications such as Incorporated Engineer or Chartered Surveyor.",
+        "In 2024 supported 17 graduates from its Construction Quantity Surveyor Degree Apprenticeship, showing active project-controls reskilling investment.",
+      ],
+      source: "Balfour Beatty Annual Report & Accounts 2024 (PDF); The Academy news release",
+    },
+    {
+      companyName: "Strabag",
+      annualReportUrls: ["https://report.strabag.com/2024/ar/en/investor-relations"],
+      aiInsight: [
+        "Massive workforce of roughly 86,000+ employees (86,883 as of end-2024) across construction operations in Europe and beyond, a huge project-delivery training base.",
+        "Runs the STRABAG Group Academy offering internal further education for blue- and white-collar staff across technology, business management, IT, leadership and personality categories.",
+        "Delivers a dedicated project management program of six modules led by internal and external experts, covering future-oriented, innovative ways of working via practical case studies.",
+        "Provided 3,682 training/further-education sessions attended by ~45,030 employees and gives staff access to 18,000+ LinkedIn Learning courses since 2019.",
+        "Opened a new STRABAG Education Centre in Szekesfehervar in January 2025 focused on developing employees and machine operators in road and structural engineering.",
+      ],
+      source: "STRABAG SE Annual & Sustainability Report 2024; STRABAG Career/Academy pages",
+    },
+    {
+      companyName: "Royal BAM Group",
+      annualReportUrls: ["https://www.bam.com/en/investors/annual-reports"],
+      aiInsight: [
+        "Employs approximately 13,200 people delivering EUR 6.5 billion revenue in 2024 across construction and civil-engineering projects in the Netherlands, UK, Ireland and Germany.",
+        "Positions learning centrally under its 'Our People' strategy, offering every employee unparalleled learning opportunities to grow their skills.",
+        "BAM Nuttall (UK civils arm) runs an industry-recognised Academy providing lifelong learning and project/site delivery skills for large-scale infrastructure work.",
+        "Focus on recruiting and upskilling talent, developing leadership and project-coordination capability from trainee through to management level.",
+        "Runs an award-winning apprenticeship programme recruiting 30+ apprentices a year, building industry-recognised qualifications, skills and experience.",
+      ],
+      source: "Royal BAM Group Annual Report 2024 (bam.com); BAM Nuttall Academy/apprenticeship info",
+    },
+  ],
+};
+
+async function fetchCompanies(base, courseSlug, industrySlug) {
+  const res = await fetch(`${base}/api/companies?courseSlug=${encodeURIComponent(courseSlug)}&industrySlug=${encodeURIComponent(industrySlug)}`);
+  if (!res.ok) throw new Error(`GET companies failed (${res.status})`);
+  return res.json();
+}
+
+async function main() {
+  const args = parseArgs(process.argv);
+  const courseSlug = "pmp-certification-training";
+  let totalUpdated = 0;
+  let totalSkipped = 0;
+
+  for (const [industrySlug, records] of Object.entries(RESEARCH)) {
+    const companies = await fetchCompanies(args.base, courseSlug, industrySlug);
+    const byName = new Map(companies.map((c) => [c.companyName.toLowerCase().trim(), c]));
+
+    for (const rec of records) {
+      const company = byName.get(rec.companyName.toLowerCase().trim());
+      if (!company) {
+        console.warn(`${industrySlug}: "${rec.companyName}" not found in saved companies - skipping`);
+        totalSkipped += 1;
+        continue;
+      }
+      const res = await fetch(`${args.base}/api/companies/${company.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          annualReportUrls: rec.annualReportUrls,
+          aiInsight: rec.aiInsight,
+          source: rec.source,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        console.error(`${industrySlug}: PUT failed for "${rec.companyName}": ${data.error || res.status}`);
+        totalSkipped += 1;
+        continue;
+      }
+      totalUpdated += 1;
+    }
+    console.log(`${industrySlug}: enriched ${records.length} companies`);
+  }
+
+  console.log(`\nDone. Updated ${totalUpdated}, skipped ${totalSkipped}.`);
+}
+
+main().catch((err) => {
+  console.error(err instanceof Error ? err.message : err);
+  process.exit(1);
+});
