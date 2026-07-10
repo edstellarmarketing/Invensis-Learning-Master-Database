@@ -122,6 +122,12 @@ src/
                             # letting the user pick one and hit a dead-end error after a full
                             # round-trip; shows a banner instead of the form if none are
                             # configured. Confirms before a paid run of 25+ companies.
+                            # Fields to fetch also renders a one-line model recommendation
+                            # (fieldModelAdvice) and an ETA (estimateSeconds) that both update
+                            # live as fields/provider/model/tier/count change - a client-side
+                            # heuristic mirroring route.ts's actual call shape (live-search vs
+                            # not, link verification pass, deep-research's one grounded call per
+                            # company at High tier). Keep it in sync if that shape changes.
     AddCompanyForm.tsx     # add + edit modes
     DataTools.tsx           # full-DB JSON export/import - lives on the Settings page
     AdminTokenSettings.tsx  # save/clear the admin token ahead of a 401 - Settings page only
@@ -178,6 +184,15 @@ Redis in production (Vercel) or the JSON files in `src/data/` in local dev - see
   production (that file is bundled at build time as the *initial* seed only; once Redis has
   been seeded once, editing the JSON file does nothing further - use Export/Import JSON on
   the dashboard, or the CRUD APIs, to change live data).
+  **Bit us once**: committing + pushing new `src/data/companies.json` content (e.g. via
+  `scripts/seed-course-companies.mjs` / `apply-research-enrichment.mjs` run against
+  localhost) does NOT update an already-deployed site - its Redis was seeded from an
+  earlier build and the bundled JSON is never consulted again. To actually populate a
+  live deployment, run those two scripts a second time with
+  `--base https://<your-deployment>` so they hit the real API instead of (or in addition
+  to) localhost. Check `/settings` on the deployment first to confirm Redis is
+  "Connected" (if it says "Local JSON files", writes won't persist there either - Vercel
+  serverless deployments need the Redis integration to persist anything).
 - **Change the design system**: `src/app/globals.css` (CSS custom properties) +
   `lib/categoryMeta.ts` (per-category icon/color pairs, used via `light-dark()` in inline
   styles) + `lib/popularIndustries.ts` / `lib/IconByName` icon registry.

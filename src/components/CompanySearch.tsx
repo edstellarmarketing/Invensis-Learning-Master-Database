@@ -22,6 +22,69 @@ function keyOf(cand: Candidate): string {
   return cand.companyName.toLowerCase().trim();
 }
 
+type Fields = { website: boolean; country: boolean; annualReportUrls: boolean; aiInsight: boolean };
+type Provider = "auto" | "claude" | "openrouter" | "groq";
+type ModelFamily = "claude" | "gemini" | "gpt" | "deepseek" | "free" | "other";
+type TokenUsage = "low" | "medium" | "high";
+
+// Which provider/tier actually earns each field, so the picks above the checkboxes are
+// grounded in what the backend does (route.ts): free/no-live-search tiers answer from
+// training data ("Likely:" hedged); annual-report URLs need live web search to find a
+// real one; AI Insights only get per-company grounded research (reading the verified
+// report) at High tier with a live-search provider (Claude, or OpenRouter Medium/High).
+function fieldModelAdvice(fields: Fields): string {
+  if (fields.aiInsight) {
+    return "AI Insights needs grounded research: pick Claude, or OpenRouter at High tier - each company's actual report gets read individually. Free tiers only guess (\"Likely:\" hedge).";
+  }
+  if (fields.annualReportUrls) {
+    return "Annual Reports needs live web search to find a real URL: pick Claude, or OpenRouter Medium/High. Free/Low tiers often can't locate one.";
+  }
+  return "Only Website/Country selected - any provider works, including Groq (Free) or OpenRouter Low. No live search needed for these fields.";
+}
+
+// Rough per-batch wall-clock estimate from the backend's actual call shape: a live-search
+// LLM call (Claude, or OpenRouter with a ":online" model) runs noticeably slower than a
+// no-search one; deep research (aiInsight + High tier + live search) adds one extra
+// grounded call PER company, 3 at a time; link verification (website/annualReportUrls)
+// adds a bounded pass over up to 8 URLs at once. Batches of up to 15 run sequentially.
+function estimateSeconds(
+  fields: Fields,
+  provider: Provider,
+  model: ModelFamily,
+  tokenUsage: TokenUsage,
+  count: number,
+): number {
+  const BATCH_SIZE = 15;
+  const batches = Math.ceil(Math.max(1, count) / BATCH_SIZE);
+  const perBatchCount = Math.min(BATCH_SIZE, count);
+
+  // Approximation: "auto" tries Claude/OpenRouter before Groq, so treat it as live-search
+  // for estimation purposes even though it can fall back to Groq if neither is configured.
+  const liveSearch =
+    provider === "claude" ||
+    provider === "auto" ||
+    (provider === "openrouter" && (model !== "free" ? tokenUsage !== "low" : false));
+
+  let perBatch = liveSearch ? 22 : 8; // base discovery call
+
+  if (fields.website || fields.annualReportUrls) {
+    perBatch += Math.ceil(perBatchCount / 8) * 4; // link verification pass
+  }
+
+  const deep = tokenUsage === "high" && fields.aiInsight && liveSearch;
+  if (deep) {
+    perBatch += Math.ceil(perBatchCount / 3) * 12; // one grounded call per company, pool of 3
+  }
+
+  return perBatch * batches;
+}
+
+function formatSeconds(s: number): string {
+  if (s < 60) return `~${s}s`;
+  const m = Math.round(s / 60);
+  return `~${m} min`;
+}
+
 function CostBadge({ free }: { free: boolean }) {
   return (
     <span
@@ -415,6 +478,10 @@ export default function CompanySearch({
             {loading ? "Searching..." : "Search"}
           </button>
         </form>
+        <p className="mt-1.5 text-xs text-text-muted">
+          Estimated time: {formatSeconds(estimateSeconds(fields, provider, model, tokenUsage, count))}
+          {count > 15 ? ` (${Math.ceil(count / 15)} batches)` : ""}
+        </p>
       </div>
 
       <div className="rounded-lg border bg-bg/40 p-3">
@@ -531,6 +598,7 @@ export default function CompanySearch({
             </label>
           ))}
         </fieldset>
+        <p className="mt-1.5 text-xs text-text-muted">{fieldModelAdvice(fields)}</p>
 
         {allCourses.length > 1 && (
           <div className="mt-2.5">
