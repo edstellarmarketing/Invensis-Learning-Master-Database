@@ -78,9 +78,16 @@ src/
     layout.tsx                       # server component: reads categories, renders Sidebar + TopBar + main
     loading.tsx                      # fallback while force-dynamic pages fetch (Redis can be slow)
     not-found.tsx                    # themed 404
-    page.tsx                         # dashboard: stats, coverage, recent companies, Data tools, category cards
+    page.tsx                         # dashboard: stats, coverage, recent companies, category cards,
+                                      # link to Settings (data tools moved there - see below)
     [courseSlug]/page.tsx            # redirects to the course's first industry
     [courseSlug]/[industrySlug]/page.tsx   # course header + industry tabs + companies table
+    settings/page.tsx                # theme, AI-provider status, storage (Redis vs local-file)
+                                      # status, admin token (AdminTokenSettings.tsx), data tools
+                                      # (DataTools.tsx) - all read-only status except the admin
+                                      # token and data tools, which are live controls. Reachable
+                                      # from Sidebar's "Settings" link (below "Manage courses")
+                                      # and a card on the dashboard.
     api/companies/route.ts           # GET list / POST add
     api/companies/[id]/route.ts      # PUT edit / DELETE
     api/companies/bulk/route.ts      # POST bulk add (CSV import) / DELETE bulk by ids
@@ -110,7 +117,8 @@ src/
                             # round-trip; shows a banner instead of the form if none are
                             # configured. Confirms before a paid run of 25+ companies.
     AddCompanyForm.tsx     # add + edit modes
-    DataTools.tsx           # full-DB JSON export/import
+    DataTools.tsx           # full-DB JSON export/import - lives on the Settings page
+    AdminTokenSettings.tsx  # save/clear the admin token ahead of a 401 - Settings page only
   lib/
     courses.ts             # ASYNC Redis/JSON-backed courses+categories CRUD (see Data model)
     industries.ts           # ASYNC Redis/JSON-backed industries CRUD

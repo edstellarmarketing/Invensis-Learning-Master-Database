@@ -4,6 +4,7 @@ import {
   Building,
   FolderKanban,
   GraduationCap,
+  Settings,
   Target,
 } from "lucide-react";
 import { readCategories } from "@/lib/courses";
@@ -12,7 +13,6 @@ import IconByName from "@/components/IconByName";
 import { readCompanies } from "@/lib/companies";
 import { readAllIndustries } from "@/lib/industries";
 import { slugify } from "@/lib/slug";
-import DataTools from "@/components/DataTools";
 
 // Stats reflect live JSON data, so render on demand.
 export const dynamic = "force-dynamic";
@@ -153,10 +153,22 @@ export default async function Home() {
         </div>
       </div>
 
-      {/* Export / import */}
-      <div className="mt-4">
-        <DataTools />
-      </div>
+      {/* Data backup/restore, AI provider status, admin token, and theme moved to Settings. */}
+      <Link
+        href="/settings"
+        className="group mt-4 flex items-center justify-between rounded-xl border bg-surface p-4 shadow-sm transition-colors hover:border-[var(--primary)]"
+      >
+        <span className="flex items-center gap-2.5">
+          <span className="grid place-items-center rounded-lg bg-surface-2 p-2 text-text-muted group-hover:text-primary">
+            <Settings size={16} />
+          </span>
+          <span className="text-sm">
+            <span className="font-medium">Settings</span>
+            <span className="text-text-muted"> - data backup/restore, AI providers, admin access, theme</span>
+          </span>
+        </span>
+        <ArrowRight size={15} className="text-text-muted group-hover:text-primary" />
+      </Link>
 
       {/* Categories */}
       <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

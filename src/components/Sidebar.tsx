@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, ChevronRight, Database, Menu, Search, Settings2, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Database, Menu, Search, Settings, Settings2, X } from "lucide-react";
 import type { Category } from "@/lib/courses";
 import { getCategoryMeta } from "@/lib/categoryMeta";
 import IconByName from "./IconByName";
@@ -186,6 +186,17 @@ export default function Sidebar({ categories }: { categories: Category[] }) {
         >
           <Settings2 size={15} /> Manage courses
         </button>
+        <Link
+          href="/settings"
+          aria-current={pathname === "/settings" ? "page" : undefined}
+          className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${
+            pathname === "/settings"
+              ? "font-semibold text-primary"
+              : "text-text-muted hover:bg-surface-2 hover:text-text"
+          }`}
+        >
+          <Settings size={15} /> Settings
+        </Link>
       </div>
 
       {managing && <CoursesManager categories={categories} onClose={() => setManaging(false)} />}
