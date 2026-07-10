@@ -18,6 +18,13 @@ saving.
    whichever has a key configured (see Settings page for status). Free options exist
    (Groq, or OpenRouter's "Free open models" family) but don't do live web search, so
    results are hedged ("Likely:" prefix) - fine for a first pass, not for final data.
+   For a cheaper live-search-capable option than Claude, pick OpenRouter's **GLM 5.2**
+   model - roughly a third of Claude Sonnet's cost, same 1M context, benchmarks at or
+   above it on tool-use/agentic tasks. Not sure it's good enough for your use case yet?
+   Use **compare mode** (below the Search button) to run it against Claude on the same
+   query and see the results side by side before committing to it for a bulk run.
+   Alternatively, click **Full research preset** to skip picking fields/provider by hand
+   entirely - it checks every field and selects a live-search provider in one click.
 4. **Fields & target courses**: tick which fields to fetch. **Key move**: search with
    only **Website** ticked first - it's cheap/fast and lets you screen candidates before
    paying for the expensive fields. Two live-updating hints sit right below the
@@ -87,7 +94,45 @@ actually read. If a number isn't stated, the bullet describes the fact qualitati
 a topic isn't disclosed at all, the bullet is skipped rather than padded - fewer true
 bullets beat five padded ones. Providers without live web search state **no figures at
 all**, prefix every bullet `"Likely:"`, and **omit the training-spend bullet entirely**
-(never guess a cost). The `source` field names the document and its financial year.
+(never guess a cost). The `source` field names the document and its financial year - the
+companies table and the AI Search results list both parse that year out and show it as a
+compact "FY20XX" badge next to the report link, so you don't have to open the source text
+to check staleness at a glance.
+
+### Cross-scope duplicate detection
+
+The exclusion list above only stops the SAME company from being suggested twice within
+the SAME course+industry you're searching. It can't see that "Siemens" is already saved
+under Manufacturing while you're searching Construction - a legitimate result (a company
+can be a prospect for several courses) but not one you want to add by accident. Every
+candidate is checked against the full dataset (normalized name - "Bechtel Group Inc." ==
+saved "Bechtel" - and shared website hostname, so renames don't slip through) and, if
+already saved elsewhere, badged **"Already saved · &lt;industry&gt;"** with a tooltip
+naming the exact saved row. "Add all N" becomes "Add N new" + "Add all N" once a duplicate
+is present, and the duplicate's own card offers "Add anyway" instead of "Add".
+
+### Cross-source figure verification (opt-in)
+
+Once AI Insights is checked, a **"Cross-check figures against a second source"** checkbox
+appears. When on, every insight bullet containing a number (headcount, percentage,
+currency, multiplier - not a bare year) is re-verified against an INDEPENDENT source
+before it ships, and dropped if it can't be corroborated. This only runs on a genuinely
+grounded pass (live-search provider, all three of Website/Reports/Insights checked), and
+costs one extra call per company that actually produced a figure. It fails **closed**: a
+failed call, a paraphrased response, or malformed JSON all result in the figure being
+dropped rather than kept - an unverified figure quoted into a real sales conversation is
+worse than a missing bullet.
+
+### Provider comparison mode
+
+Tick **"Compare two providers"** below the Search button, pick a second provider/model
+from the dropdown, and click **Run comparison**: it runs the SAME query on your current
+picker and the second one, concurrently, one batch each, and shows a scorecard (candidate
+count, reports verified, insights, already-saved-elsewhere) side by side. "Use these N
+results" promotes one arm into the normal results list so Add/Enrich work as usual. Use
+this to validate a cheaper model (e.g. GLM 5.2) against an expensive one (Claude) on real
+output before trusting it for a bulk run.
+
 6. To fetch only report + insights for specific candidates (the "enrich" step): tick
    **Annual Reports** and **AI Insights** in Fields, tick the candidate rows, click
    **Enrich selected (N)**. This re-researches only those two fields for only the
@@ -106,6 +151,12 @@ Once companies are saved, use the companies table itself, not AI Search:
 
 This is the same underlying `POST /api/companies/search` (`enrich`) + `PUT
 /api/companies/:id` pair the scripts below drive programmatically.
+
+Each website/report URL's alive-or-dead result is cached server-side for 7 days (6 hours
+for a dead result, since a 404 is often a transient move worth re-checking sooner), so
+re-running "Refresh reports & insights" over the same companies repeatedly doesn't re-fetch
+every URL from scratch - it only pays for a fresh HTTP check the first time, or after the
+cache expires.
 
 ## 2. The automated workflow (bulk, scriptable)
 
@@ -258,8 +309,11 @@ Company data ages. A quick audit worth re-running now and then (locally against
 |---|---|
 | A few candidates for one industry, reviewed before saving | Manual AI Search UI |
 | Not sure which model/tier a set of fields needs, or how long it'll take | Check the Fields to fetch hints (model recommendation + ETA) before hitting Search |
-| Want AI Insights only for companies that actually check out, not guesses for everything | Check Website + Annual Reports + AI Insights together - the staged verification gate (§1) handles the rest automatically |
-| Fill in missing report/insight data on a handful of saved rows | "Refresh reports & insights" (companies table) |
+| Want AI Insights only for companies that actually check out, not guesses for everything | Check Website + Annual Reports + AI Insights together - the staged verification gate (§1) handles the rest automatically, or click "Full research preset" to set all of this in one click |
+| Not sure a cheaper model (GLM 5.2) is good enough for the job | "Compare two providers" (§1) - run it against Claude on the same query and compare the scorecard before a bulk run |
+| Want to avoid re-verifying the same figures every run, or catch a hallucinated number | "Cross-check figures against a second source" (§1) - opt-in, only on grounded runs, fails closed |
+| Avoid adding a company already saved under a different course/industry | The results list badges it automatically ("Already saved · &lt;industry&gt;") - use "Add N new" to skip them or "Add anyway" per row |
+| Fill in missing report/insight data on a handful of saved rows | "Refresh reports & insights" (companies table) - repeat runs are cheaper thanks to the 7-day URL-check cache |
 | Add a known, curated list of companies fast (no AI discovery) | `seed-course-companies.mjs` |
 | Bulk-fill AI-search enrich data on a large curated set, roughly | `seed-course-companies.mjs --enrich` (use a paid live-search provider for real report URLs) |
 | Citable, research-grade report URLs + insights at scale | Parallel research agents → `apply-research-enrichment.mjs` (this doc's §3) |

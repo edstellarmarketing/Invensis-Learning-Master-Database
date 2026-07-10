@@ -26,6 +26,7 @@ const SECTIONS: { title: string; points: string[] }[] = [
     title: "Companies table",
     points: [
       "Columns: Company Name (links to site), Country, Annual Report, Insights (collapsible).",
+      "Report links show a 'FY20XX' badge for the financial year the report was pulled from.",
       "Filter by text, country, or annual-report presence. Paginate with the controls below the table.",
       "Edit (pencil) or delete (trash) a row; select rows to bulk-delete.",
       "Export the filtered rows to CSV, or bulk-import companies from a CSV (download the sample first).",
@@ -35,9 +36,13 @@ const SECTIONS: { title: string; points: string[] }[] = [
     title: "AI Search",
     points: [
       "Discovers real companies for the industry with websites, annual reports, and training insights.",
-      "Pick provider (Claude / OpenRouter / Groq / Auto). OpenRouter offers model families (Claude, Gemini, GPT, DeepSeek, Free) and token tiers (Low / Medium / High).",
+      "Pick provider (Claude / OpenRouter / Groq / Auto). OpenRouter offers model families (Claude Sonnet, GLM 5.2, Gemini, GPT, DeepSeek, Free) and token tiers (Low / Medium / High). GLM 5.2 is the cheapest model that still does live-search-grounded research.",
       "Token tier: Low = cheapest, no live search; Medium = live web search; High = deep per-company research from verified reports.",
-      "Choose which fields to fetch. Dead report/website links are verified and removed automatically.",
+      "'Full research preset' checks every field and picks a live-search provider in one click - the full discover -> verify website -> verify report -> grounded insights pipeline.",
+      "When Website + Annual Reports + AI Insights are all checked, insights are staged behind verification: a candidate only keeps them once its website (and, on a live-search provider, its report) checks out. Dead links are removed automatically.",
+      "'Cross-check figures against a second source' (shown once AI Insights is checked) re-verifies every numeric claim against an independent source and drops anything that can't be corroborated - costs one extra call per company with a figure.",
+      "Candidates already saved under a different course/industry are badged 'Already saved' with an 'Add anyway' option, and 'Add N new' skips them - so re-running a search elsewhere doesn't silently create duplicate rows.",
+      "'Compare two providers' runs the same query on two providers side by side with a scorecard, useful for checking a cheaper model against an expensive one before trusting it at scale.",
       "Search with only Website checked (fast), then select rows and 'Enrich selected' to fill the rest.",
       "Target multiple courses at once with the course checkboxes; large counts run in batches with progress.",
     ],

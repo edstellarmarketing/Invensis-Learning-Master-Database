@@ -346,7 +346,7 @@ npm test        <span class="tok-c"># unit tests (CSV parser)</span></pre>
           <tr>
             <td class="var">OPENROUTER_MODEL</td>
             <td><span class="chip opt">Optional</span></td>
-            <td class="small">Fallback model, only used for the "Other" picker option when no custom slug is typed. The in-app Model + Token usage pickers cover Claude Sonnet, Gemini Flash, ChatGPT, and DeepSeek automatically.</td>
+            <td class="small">Fallback model, only used for the "Other" picker option when no custom slug is typed. The in-app Model + Token usage pickers cover Claude Sonnet, GLM 5.2, Gemini Flash, ChatGPT, and DeepSeek automatically.</td>
           </tr>
           <tr>
             <td class="var">GROQ_API_KEY</td>
@@ -455,10 +455,20 @@ npm test        <span class="tok-c"># unit tests (CSV parser)</span></pre>
       <li>
         <h3>Pick a model and token usage (OpenRouter only)</h3>
         <p>Selecting OpenRouter reveals two more pickers: <strong>Model</strong>
-           (Claude Sonnet, Gemini Flash, ChatGPT, DeepSeek, or a custom slug under "Other") and
-           <strong>Token usage</strong> (Low, Medium, High). Low skips live search and uses a
-           lighter model, Medium turns on web search at a moderate budget, High steps up to the
-           family's strongest model with the deepest search.</p>
+           (Claude Sonnet, GLM 5.2, Gemini Flash, ChatGPT, DeepSeek, or a custom slug under
+           "Other") and <strong>Token usage</strong> (Low, Medium, High). Low skips live search
+           and uses a lighter model, Medium turns on web search at a moderate budget, High steps
+           up to the family's strongest model with the deepest search. GLM 5.2 is the cheapest
+           model that still does live-search-grounded research - roughly a third of Claude
+           Sonnet's cost for a comparable-quality result.</p>
+      </li>
+      <li>
+        <h3>Compare providers before trusting a cheaper one</h3>
+        <p>Tick <strong>Compare two providers</strong> above the Search button to run the same
+           query on your selected picker and a second one (e.g. GLM 5.2 vs. Claude)
+           side by side, with a scorecard (candidate count, reports verified, insights, already
+           saved elsewhere). Pick whichever arm's results look better before committing to it
+           for a bulk run.</p>
       </li>
     </ol>
     <div class="note warn">

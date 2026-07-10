@@ -13,8 +13,9 @@ their training activity.
   rationale (hover). Full inline CRUD via the "Manage" toggle.
 - **Course header** - one-line course summary plus a direct link to the live
   invensislearning.com course page.
-- **Companies table** - Company Name (links to website) · Country · Annual Report PDFs ·
-  collapsible AI Insights (4–5 bullets on last FY's training). Per-row edit/delete.
+- **Companies table** - Company Name (links to website) · Country · Annual Report PDFs (badged
+  with the financial year they were pulled from) · collapsible AI Insights (4–5 bullets on last
+  FY's training). Per-row edit/delete.
 - **Bulk operations** - CSV import (sample template downloadable; Excel: save as CSV UTF-8),
   select-all checkboxes with bulk delete.
 - **Filters** - text search, country dropdown, annual-report presence.
@@ -24,11 +25,17 @@ their training activity.
     with merge or replace modes.
 - **Add companies** - manual form, or **AI Search** that discovers real companies and drafts
   insights for review before adding. Up to 100 companies per search with keywords, country,
-  and company-size filters; already-saved companies are auto-excluded; add results one by one
-  or all at once. Providers: **Claude** (Anthropic), **OpenRouter** with a model picker
-  (Claude Sonnet / Gemini Flash / ChatGPT / DeepSeek / any other model slug) and a
+  and company-size filters; already-saved companies in the same course+industry are
+  auto-excluded, and candidates already saved under a *different* course/industry are badged
+  so you don't add a silent duplicate. Providers: **Claude** (Anthropic), **OpenRouter** with a
+  model picker (Claude Sonnet / **GLM 5.2** - the cheapest model that still does live-search-
+  grounded research / Gemini Flash / ChatGPT / DeepSeek / any other model slug) and a
   **token-usage** tier (Low/Medium/High, trading cost and depth for live web search), or
   **Groq** as a free fallback - selectable in the UI (Auto / Claude / OpenRouter / Groq).
+  A one-click **full research preset** runs the whole discover → verify website → verify
+  report → grounded-insights pipeline; an opt-in **cross-source figure check** re-verifies
+  every numeric claim in the insights before keeping it; and **compare mode** runs the same
+  query on two providers side by side to validate a cheaper model before trusting it at scale.
 
 Ships seeded with 5 real companies under PMP → IT/Technology (Infosys, TCS, Accenture, Wipro,
 Capgemini) with real annual-report URLs.

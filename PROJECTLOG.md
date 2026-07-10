@@ -2,6 +2,48 @@
 
 Chronological record of what was built and why. Newest first.
 
+## 2026-07-10 - Session 12: staged-gate hardening, FY-targeted reports, GLM model, AI Search v2
+- **Staged verification hardening**: enrich mode's insight gate was silently never
+  triggering for "Refresh reports & insights" (it required `fields.website === true`, but
+  that call site always sends `false` to avoid overwriting the saved website). Fixed by
+  adding a dedicated `websiteVerified` flag decoupled from field-echo intent. While fixing
+  it, found and fixed a more serious bug: `isSafeToFetch`'s SSRF rejection threw a generic
+  `Error` that fell into the "ambiguous, keep as verified" bucket - meaning a URL
+  guaranteed never to resolve came back `websiteVerified: true`. Fixed with a dedicated
+  `UnsafeUrlError` class. Extracted the pure gate logic to `lib/insightGate.ts`
+  (unit-tested) so this class of bug is easier to catch in future.
+- **Reports now target the last completed financial year explicitly** (`FY<year-1>`,
+  computed per-request so it advances on its own) instead of "the most recent report" -
+  the prompt rejects both an older archived year and a current/partial filing.
+- **AI Insights rewritten around a sales question**: "can we sell this company corporate
+  training?" - employees trained, tech/skills focus, training spend (only if disclosed,
+  never estimated), existing L&D infrastructure, other deal-relevant factors. Anti-
+  hallucination rules are enforced identically across discovery, enrich, and deep-research
+  prompt sites via shared fragments (`INSIGHT_TOPICS`/`insightRule`/`reportRule`/`sourceRule`).
+- **Report-year label**: report links in the table and AI Search results now show a
+  compact "FY20XX" badge, parsed from the existing `source` text (`lib/reportYear.ts`) -
+  no new stored field, no prompt/schema change.
+- **Added GLM 5.2 as a cheaper OpenRouter model** (`z-ai/glm-5.2`): ~3-4x cheaper than
+  Claude Sonnet, same 1M context, benchmarks at or above it on tool-use tasks - verified
+  live against openrouter.ai before wiring in.
+- **AI Search v2** (five upgrades, shipped together):
+  - Cross-scope duplicate detection (`lib/duplicates.ts`) - flags a candidate already
+    saved under a different course/industry (normalized-name and website-host matching),
+    badges it, offers "Add N new" / "Add anyway". Caught a real near-miss live: "Bechtel
+    Group Inc." matched saved "Bechtel" through suffix normalization the old exact-name
+    dedupe would have missed.
+  - Opt-in cross-source figure verification (`lib/figures.ts`) - re-checks every numeric
+    insight against an independent source, fails closed (drops the figure on any failure
+    rather than shipping it unverified).
+  - URL-check result caching (7d alive / 6h dead) so repeat "Refresh reports & insights"
+    runs don't re-fetch every URL.
+  - Provider comparison mode - runs the same query on two providers side by side with a
+    scorecard, to validate a cheaper model before trusting it at scale.
+  - Full-research preset - one click sets every field and a live-search provider.
+  - Test suite went 28 → 59 across the session (`insightGate`, `reportYear`,
+    `duplicates`, `figures`). All docs (AGENTS.md, README.md, SETUP_GUIDE.html,
+    docs/ai-search-workflow.md, HelpDialog.tsx) updated in step with the code.
+
 ## 2026-07-09 - Session 11: modal overflow fix, enrich-mode website bug
 - Fixed the real modal overflow bug (Help dialog, then found the identical flaw in
   CoursesManager): the dialog CARD had no height cap, only its inner content div did
