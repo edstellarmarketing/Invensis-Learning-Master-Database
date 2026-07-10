@@ -15,7 +15,29 @@ type Candidate = {
   aiInsight: string[];
   source?: string;
   reportVerified?: boolean;
+  // Already saved under a different course/industry - see lib/duplicates.ts. Adding it
+  // again is allowed (a company can be a prospect for several courses) but shouldn't be
+  // accidental, so the card badges it and "Add all" offers to skip these.
+  duplicateOf?: { companyName: string; courseSlug: string; industrySlug: string };
 };
+
+// One side of a provider comparison run.
+type CompareArm = {
+  label: string;
+  candidates: Candidate[];
+  error?: string;
+  model?: string;
+};
+
+// Arm B options for compare mode. Arm A is always whatever the main picker is set to,
+// so the choices here are the ones worth benchmarking a run against.
+const COMPARE_ARMS: { key: string; label: string; provider: Provider; model: ModelFamily }[] = [
+  { key: "claude", label: "Claude (direct)", provider: "claude", model: "claude" },
+  { key: "or-glm", label: "OpenRouter · GLM 5.2", provider: "openrouter", model: "glm" },
+  { key: "or-claude", label: "OpenRouter · Claude Sonnet", provider: "openrouter", model: "claude" },
+  { key: "or-free", label: "OpenRouter · Free models", provider: "openrouter", model: "free" },
+  { key: "groq", label: "Groq (free)", provider: "groq", model: "free" },
+];
 
 // Stable per-candidate key (company name), used instead of array index so that adding
 // or removing one row can never mis-target a different row after the array reflows.
@@ -141,6 +163,14 @@ export default function CompanySearch({
     annualReportUrls: true,
     aiInsight: true,
   });
+  // Cross-source verification of numeric claims. Costs one extra grounded call per company
+  // that produced a figure, so it's opt-in and only has an effect when the run actually
+  // does grounded research (live-search provider + Website/Reports/Insights all checked).
+  const [verifyFigures, setVerifyFigures] = useState(false);
+  // Provider comparison: run the same query on two providers and pick the better result.
+  const [compareMode, setCompareMode] = useState(false);
+  const [compareArm, setCompareArm] = useState<string>("or-glm");
+  const [compare, setCompare] = useState<{ a: CompareArm; b: CompareArm } | null>(null);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState<{ label: string; pct: number } | null>(null);
   const [results, setResults] = useState<Candidate[]>([]);
@@ -221,6 +251,7 @@ export default function CompanySearch({
     setError(null);
     setNotice(null);
     setResults([]);
+    setCompare(null);
     setUsedProvider(null);
     setUsedModel(null);
     setWasCached(false);
@@ -255,6 +286,7 @@ export default function CompanySearch({
             model,
             customModel,
             tokenUsage,
+            verifyFigures,
             courseSlugs: [...targetCourses],
             excludeNames: found.map((c) => c.companyName),
           }),
@@ -275,6 +307,91 @@ export default function CompanySearch({
       setLoading(false);
       setProgress(null);
     }
+  };
+
+  // One-click full pipeline: check every field so the backend runs its staged
+  // discover -> verify website -> verify report -> grounded insights flow, and put the
+  // provider on a live-search tier so the grounded pass can actually happen. Without a
+  // live-search provider the staged gate degrades to just dropping unverified insights.
+  const applyFullResearchPreset = () => {
+    setFields({ website: true, country: true, annualReportUrls: true, aiInsight: true });
+    if (providerStatus?.claude) {
+      setProvider("claude");
+    } else if (providerStatus?.openrouter) {
+      setProvider("openrouter");
+      setModel("glm"); // cheapest live-search-capable family we ship
+      setTokenUsage("medium"); // medium is the first tier with the :online plugin
+    }
+    setNotice(
+      "Full research preset: all fields checked and a live-search provider selected. Insights are only kept for companies whose website and annual report verify.",
+    );
+  };
+
+  // Compare mode: run the SAME query on the current picker (arm A) and a second provider
+  // (arm B), side by side, so the cheaper model can be judged against the expensive one on
+  // real output before trusting it at scale. One batch per arm - this is a quality probe,
+  // not a bulk run - and the two arms run concurrently since neither depends on the other.
+  const runCompare = async () => {
+    const armB = COMPARE_ARMS.find((a) => a.key === compareArm);
+    if (!armB) return;
+    setError(null);
+    setNotice(null);
+    setResults([]);
+    setCompare(null);
+    setSelected(new Set());
+    setLoading(true);
+
+    const batchCount = Math.min(BATCH_SIZE, count);
+    const callArm = async (p: Provider, m: ModelFamily, label: string): Promise<CompareArm> => {
+      try {
+        const res = await fetch("/api/companies/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            courseSlug,
+            industrySlug,
+            industryName,
+            country,
+            query,
+            count: batchCount,
+            size,
+            provider: p,
+            fields,
+            model: m,
+            customModel: m === "other" ? customModel : "",
+            tokenUsage,
+            verifyFigures,
+            courseSlugs: [...targetCourses],
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || `Search failed (${res.status})`);
+        return { label, candidates: (data.candidates ?? []) as Candidate[], model: data.model };
+      } catch (err) {
+        return { label, candidates: [], error: err instanceof Error ? err.message : "Search failed" };
+      }
+    };
+
+    try {
+      const [a, b] = await Promise.all([
+        callArm(provider, model, provider === "openrouter" ? `OpenRouter · ${model}` : provider),
+        callArm(armB.provider, armB.model, armB.label),
+      ]);
+      setCompare({ a, b });
+      if (a.error && b.error) setError(`Both arms failed. A: ${a.error} | B: ${b.error}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Promote one comparison arm's candidates into the normal results list, so the existing
+  // per-card Add / Add all / enrich flow applies unchanged.
+  const adoptArm = (arm: CompareArm) => {
+    setResults(arm.candidates);
+    setCompare(null);
+    setUsedProvider(null);
+    setUsedModel(arm.model ?? null);
+    setNotice(`Using results from ${arm.label}.`);
   };
 
   // Enrich selected rows: re-research just those companies for the currently-checked
@@ -300,6 +417,7 @@ export default function CompanySearch({
           model,
           customModel,
           tokenUsage,
+          verifyFigures,
           enrich: targets,
         }),
       });
@@ -325,8 +443,10 @@ export default function CompanySearch({
   // saved copies update the visible table; others just persist.
   const saveTo = [...targetCourses].length > 0 ? [...targetCourses] : [courseSlug];
 
-  const addAll = async () => {
-    if (results.length === 0) return;
+  // `skipDuplicates` adds only candidates not already saved under another course/industry.
+  const addAll = async (skipDuplicates = false) => {
+    const toAdd = skipDuplicates ? results.filter((c) => !c.duplicateOf) : results;
+    if (toAdd.length === 0) return;
     setAddingAll(true);
     setError(null);
     const succeeded: string[] = [];
@@ -335,15 +455,21 @@ export default function CompanySearch({
         const res = await fetch("/api/companies/bulk", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ courseSlug: cs, industrySlug, companies: results }),
+          body: JSON.stringify({ courseSlug: cs, industrySlug, companies: toAdd }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data?.error || `Save failed (${res.status})`);
         succeeded.push(cs);
         if (cs === courseSlug) for (const saved of data.companies as Company[]) onAdded(saved);
       }
-      setResults([]);
-      if (saveTo.length > 1) setNotice(`Added to ${saveTo.length} courses.`);
+      // Keep the skipped duplicates on screen so they can still be added individually.
+      setResults(skipDuplicates ? results.filter((c) => c.duplicateOf) : []);
+      const parts: string[] = [];
+      if (saveTo.length > 1) parts.push(`Added to ${saveTo.length} courses.`);
+      if (skipDuplicates && toAdd.length < results.length) {
+        parts.push(`Skipped ${results.length - toAdd.length} already saved elsewhere - still listed below.`);
+      }
+      if (parts.length > 0) setNotice(parts.join(" "));
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Save failed";
       // Partial failure: some courses already got the companies. Don't clear results
@@ -396,6 +522,8 @@ export default function CompanySearch({
       setAddingKey(null);
     }
   };
+
+  const duplicateCount = results.filter((c) => c.duplicateOf).length;
 
   const field = "rounded-md border bg-bg px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-[var(--ring)]";
 
@@ -490,6 +618,50 @@ export default function CompanySearch({
           Estimated time: {formatSeconds(estimateSeconds(fields, provider, model, tokenUsage, count))}
           {count > 15 ? ` (${Math.ceil(count / 15)} batches)` : ""}
         </p>
+
+        <div className="mt-2 border-t pt-2">
+          <label className="inline-flex items-center gap-1.5 text-sm">
+            <input
+              type="checkbox"
+              checked={compareMode}
+              onChange={(e) => setCompareMode(e.target.checked)}
+              className="size-3.5 cursor-pointer accent-[var(--primary)]"
+            />
+            Compare two providers
+          </label>
+          {compareMode && (
+            <div className="mt-1.5 flex flex-wrap items-end gap-2">
+              <div className="w-56">
+                <label className="mb-1 block text-xs font-medium text-text-muted">Compare against</label>
+                <select
+                  className={`${field} w-full`}
+                  value={compareArm}
+                  onChange={(e) => setCompareArm(e.target.value)}
+                >
+                  {COMPARE_ARMS.map((a) => (
+                    <option key={a.key} value={a.key}>
+                      {a.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="button"
+                onClick={runCompare}
+                disabled={loading || noProviderConfigured}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--primary)] px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-primary-soft disabled:opacity-60"
+              >
+                {loading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                {loading ? "Comparing..." : "Run comparison"}
+              </button>
+              <p className="w-full text-xs text-text-muted">
+                Runs the same query on your selected provider and the one above, side by side (one
+                batch of {Math.min(15, count)} each, both billed). Use it to check a cheaper model
+                against an expensive one on real output before trusting it at scale.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="rounded-lg border bg-bg/40 p-3">
@@ -581,9 +753,20 @@ export default function CompanySearch({
       </div>
 
       <div className="rounded-lg border bg-bg/40 p-3">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">
-          Fields &amp; target courses
-        </p>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+            Fields &amp; target courses
+          </p>
+          <button
+            type="button"
+            onClick={applyFullResearchPreset}
+            disabled={noProviderConfigured}
+            title="Check every field and select a live-search provider - the full discover, verify, then grounded-insights pipeline in one click"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--primary)] px-2.5 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary-soft disabled:opacity-60"
+          >
+            <Sparkles size={12} /> Full research preset
+          </button>
+        </div>
         <fieldset className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-0 p-0">
           <legend className="mb-1 w-full text-xs font-medium text-text-muted sm:mb-0 sm:w-auto">
             Fields to fetch:
@@ -612,6 +795,26 @@ export default function CompanySearch({
         <p aria-live="polite" className="mt-1.5 text-xs text-text-muted">
           {fieldModelAdvice(fields)}
         </p>
+
+        {fields.aiInsight && (
+          <label className="mt-2 inline-flex items-start gap-1.5 text-sm">
+            <input
+              type="checkbox"
+              checked={verifyFigures}
+              onChange={(e) => setVerifyFigures(e.target.checked)}
+              className="mt-1 size-3.5 cursor-pointer accent-[var(--primary)]"
+            />
+            <span>
+              Cross-check figures against a second source
+              <span className="block text-xs text-text-muted">
+                Every insight containing a number is re-verified against an independent source;
+                figures that can&apos;t be corroborated are dropped. Adds one extra call per company
+                with a figure. Only runs when the search does grounded research (live-search
+                provider + Website, Annual Reports and AI Insights all checked).
+              </span>
+            </span>
+          </label>
+        )}
 
         {allCourses.length > 1 && (
           <div className="mt-2.5">
@@ -702,6 +905,60 @@ export default function CompanySearch({
         </p>
       )}
 
+      {compare && (
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          {[compare.a, compare.b].map((arm, i) => {
+            const verified = arm.candidates.filter((c) => c.reportVerified === true).length;
+            const withInsights = arm.candidates.filter((c) => c.aiInsight?.length > 0).length;
+            const dupes = arm.candidates.filter((c) => c.duplicateOf).length;
+            return (
+              <div key={i} className="rounded-lg border bg-bg p-3">
+                <p className="text-sm font-semibold">{arm.label}</p>
+                {arm.model && <p className="text-[11px] text-text-muted">{arm.model}</p>}
+                {arm.error ? (
+                  <p className="mt-2 text-xs text-danger">{arm.error}</p>
+                ) : (
+                  <>
+                    <dl className="mt-2 space-y-0.5 text-xs text-text-muted">
+                      <div className="flex justify-between">
+                        <dt>Candidates</dt>
+                        <dd className="font-medium text-text">{arm.candidates.length}</dd>
+                      </div>
+                      <div className="flex justify-between">
+                        <dt>Reports verified</dt>
+                        <dd className="font-medium text-text">{verified}</dd>
+                      </div>
+                      <div className="flex justify-between">
+                        <dt>With insights</dt>
+                        <dd className="font-medium text-text">{withInsights}</dd>
+                      </div>
+                      <div className="flex justify-between">
+                        <dt>Already saved elsewhere</dt>
+                        <dd className="font-medium text-text">{dupes}</dd>
+                      </div>
+                    </dl>
+                    <ul className="mt-2 max-h-40 space-y-0.5 overflow-y-auto text-xs text-text-muted">
+                      {arm.candidates.map((c) => (
+                        <li key={keyOf(c)} className="truncate">
+                          · {c.companyName}
+                        </li>
+                      ))}
+                    </ul>
+                    <button
+                      onClick={() => adoptArm(arm)}
+                      disabled={arm.candidates.length === 0}
+                      className="btn-solid mt-2 w-full rounded-lg px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-60"
+                    >
+                      Use these {arm.candidates.length} results
+                    </button>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {results.length > 0 && (
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-text-muted">
@@ -725,8 +982,19 @@ export default function CompanySearch({
                 {enriching ? "Enriching..." : `Enrich selected (${selected.size})`}
               </button>
             )}
+            {duplicateCount > 0 && duplicateCount < results.length && (
+              <button
+                onClick={() => addAll(true)}
+                disabled={addingAll || enriching}
+                title={`Adds only the ${results.length - duplicateCount} companies not already saved under another course or industry`}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--primary)] px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary-soft disabled:opacity-60"
+              >
+                {addingAll ? <Loader2 size={13} className="animate-spin" /> : <PlusCircle size={13} />}
+                Add {results.length - duplicateCount} new
+              </button>
+            )}
             <button
-              onClick={addAll}
+              onClick={() => addAll(false)}
               disabled={addingAll || enriching}
               className="btn-solid inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-60"
             >
@@ -735,6 +1003,16 @@ export default function CompanySearch({
             </button>
           </div>
         </div>
+      )}
+
+      {duplicateCount > 0 && (
+        <p className="inline-flex items-start gap-1.5 rounded-md bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] px-2 py-1.5 text-[11px] text-text-muted">
+          <Info size={12} className="mt-px shrink-0 text-warning" />
+          <span>
+            {duplicateCount} of these {duplicateCount > 1 ? "companies are" : "company is"} already saved
+            under another course or industry. Adding again creates a second row.
+          </span>
+        </p>
       )}
 
       {results.length > 0 && (
@@ -780,6 +1058,14 @@ export default function CompanySearch({
                         {extractReportYear(cand.source)}
                       </span>
                     )}
+                    {cand.duplicateOf && (
+                      <span
+                        title={`Saved as "${cand.duplicateOf.companyName}" under ${cand.duplicateOf.courseSlug} / ${cand.duplicateOf.industrySlug}`}
+                        className="ml-1.5 rounded bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-warning"
+                      >
+                        Already saved · {cand.duplicateOf.industrySlug}
+                      </span>
+                    )}
                   </p>
                   {fields.website && safeHref(cand.website) && (
                     <a
@@ -796,9 +1082,14 @@ export default function CompanySearch({
                 <button
                   onClick={() => addCandidate(cand)}
                   disabled={addingKey === key}
+                  title={
+                    cand.duplicateOf
+                      ? `Already saved under ${cand.duplicateOf.courseSlug} / ${cand.duplicateOf.industrySlug} - adding creates a second row`
+                      : undefined
+                  }
                   className="inline-flex shrink-0 items-center gap-1 rounded-md border px-2.5 py-1 text-xs hover:bg-surface-2 disabled:opacity-60"
                 >
-                  <Plus size={13} /> Add
+                  <Plus size={13} /> {cand.duplicateOf ? "Add anyway" : "Add"}
                 </button>
               </div>
               {fields.aiInsight && cand.aiInsight?.length > 0 && (

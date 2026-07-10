@@ -154,6 +154,15 @@ src/
                               # CompaniesTable/CompanySearch; no structured year field exists,
                               # this just reads the year already embedded in prose by design
                               # (see reportRule/sourceRule prompt fragments) (tests/reportYear.test.ts)
+    duplicates.ts             # findDuplicate() - flags an AI Search candidate already saved
+                              # under a DIFFERENT course/industry (normalized name or shared
+                              # website host). The route's existingNames dedupe only covers the
+                              # SAME course+industry; this covers the cross-scope case that
+                              # would otherwise create silent duplicate rows (tests/duplicates.test.ts)
+    figures.ts                # hasNumericClaim / splitNumericBullets / reassembleVerified -
+                              # support for the opt-in cross-source figure check. reassembleVerified
+                              # fails CLOSED: a numeric bullet survives only if the verifier echoes
+                              # it back verbatim (tests/figures.test.ts)
     courseSummaries.ts, popularIndustries.ts, countries.ts, categoryMeta.ts, slug.ts
     csv.ts                    # quote-aware parser + sample + companiesToCsv; tested in tests/csv.test.ts
     useDialogA11y.ts          # shared modal hook: Escape, body-scroll lock, focus restore + Tab trap
@@ -299,6 +308,40 @@ Redis in production (Vercel) or the JSON files in `src/data/` in local dev - see
     don't hardcode a year). The prompt explicitly rejects both an older archived year
     when the target year exists, and a current/partial-year filing. `source` must name
     the document *and* its financial year.
+- **Cross-scope duplicate detection** (`lib/duplicates.ts`, applied in the search route):
+  the route's `existingNames` list only excludes companies already saved in the SAME
+  course+industry being searched. A candidate already saved under a *different*
+  course/industry is a legitimate result (a company can be a prospect for several courses)
+  but shouldn't be added by accident, so `findDuplicate` annotates it with `duplicateOf`
+  and the UI badges it ("Already saved · <industry>"), offers "Add N new" (skip dupes) next
+  to "Add all", and relabels its per-card button "Add anyway". **The annotation is applied
+  on the way OUT of the response cache, never stored in it** (`annotateDuplicates`) - the
+  duplicate verdict depends on the live dataset, which changes independently of the
+  search params the 24h cache is keyed on, so a cached verdict would go stale. Matching
+  normalizes legal suffixes ("Bechtel Group Inc." == saved "Bechtel") and also matches on
+  shared website host, so it catches renames the old exact-name dedupe missed.
+- **Opt-in cross-source figure verification** (`verifyFiguresInInsights` in the route,
+  `lib/figures.ts`): when the user ticks "Cross-check figures against a second source" AND
+  the run does grounded research (`deep`), every insight bullet carrying a numeric claim is
+  re-verified against an INDEPENDENT source and dropped if it can't be corroborated. It
+  **fails closed**: `reassembleVerified` keeps a numeric bullet only if the verifier echoes
+  it back verbatim, so a failed call, a paraphrase, or unparseable JSON all DROP the figure
+  rather than shipping it unverified - the correct direction, since an invented
+  training-spend number quoted into a sales call is the worst outcome. Qualitative bullets
+  (no figure) pass through untouched. `verifyFigures` is in the cache key.
+- **URL-check result caching** (`cachedCheckUrl` inside `verifyLinks`): each website/report
+  URL's alive/dead result is cached (7 days alive, 6 hours dead - a 404 is often a
+  transient move we want to re-check sooner) so re-running "Refresh reports & insights"
+  over the same companies doesn't re-fetch every URL. A cached `false` is a real result,
+  not a miss - the lookup checks `typeof hit === "boolean"`, not truthiness. No-ops without
+  Redis (local dev).
+- **Provider comparison mode** (`runCompare`/`adoptArm` in `CompanySearch.tsx`): runs the
+  SAME query on the current picker (arm A) and a second provider (arm B) concurrently, one
+  batch each, and shows a side-by-side scorecard (candidate count, reports verified, with
+  insights, dupes) so a cheaper model (e.g. GLM 5.2) can be judged against an expensive one
+  (Claude) on real output before trusting it at scale. "Use these N results" promotes one
+  arm into the normal results list so the existing Add/enrich flow applies unchanged. Note:
+  `adoptArm` must NOT be named `useArm` - the `use*` prefix trips `react-hooks/rules-of-hooks`.
 - **Link verification is SSRF-guarded** (`verifyLinks`/`checkUrl` in
   `api/companies/search/route.ts`): before fetching any user-supplied `website` or
   `annualReportUrls` value (attacker-controllable via enrich mode, CSV import, or Add

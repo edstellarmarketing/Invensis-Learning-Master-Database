@@ -11,6 +11,8 @@ import {
   mergeResearched,
   partitionForGroundedInsights,
 } from "@/lib/insightGate";
+import { findDuplicate, type DuplicateMatch, type ExistingCompany } from "@/lib/duplicates";
+import { reassembleVerified, splitNumericBullets } from "@/lib/figures";
 
 // Unauthenticated route that calls paid provider APIs with server-held keys - without a
 // cap, anyone can hammer it to run up billing or exhaust Vercel function concurrency.
@@ -56,6 +58,10 @@ type Candidate = {
   // the staged-insights gate (hasVerifiedWebsite) work correctly in that case instead of
   // silently never triggering.
   websiteVerified?: boolean;
+  // Set when this company is already saved under a DIFFERENT course/industry. Not an
+  // error (a company can be a prospect for several courses) - surfaced so the user
+  // doesn't unknowingly create a duplicate row. See lib/duplicates.ts.
+  duplicateOf?: DuplicateMatch;
 };
 
 type Fields = {
@@ -230,6 +236,10 @@ export async function POST(request: Request) {
     ? (body.model as ModelFamily)
     : "claude";
   const customModel = String(body.customModel ?? "").trim();
+  // Opt-in cross-source check of every numeric claim in the grounded insights. Costs one
+  // extra live-search call per company that produced a figure, so it's off by default and
+  // only meaningful when a live-search provider actually produced grounded insights.
+  const verifyFigures = body.verifyFigures === true;
 
   const hasClaude = Boolean(process.env.ANTHROPIC_API_KEY);
   const hasOpenRouter = Boolean(process.env.OPENROUTER_API_KEY);
@@ -286,8 +296,17 @@ export async function POST(request: Request) {
   // repeated searches keep discovering NEW prospects. Cap the list so it can't blow
   // up the prompt (and the Groq per-request token ceiling) on a well-populated table.
   let existingNames: string[] = [...excludeNames];
+  // Also kept in full (not truncated) to annotate cross-course/cross-industry duplicates
+  // below - that check needs the whole dataset, not just the prompt-sized exclusion list.
+  let allCompanies: ExistingCompany[] = [];
   try {
     const all = await readCompanies();
+    allCompanies = all.map((c) => ({
+      companyName: c.companyName,
+      courseSlug: c.courseSlug,
+      industrySlug: c.industrySlug,
+      website: c.website,
+    }));
     const targetSlugs = new Set(courseSlugs);
     existingNames.push(
       ...all
@@ -322,13 +341,24 @@ export async function POST(request: Request) {
         customModel,
         tokenUsage,
         fields,
+        verifyFigures,
       }),
     )
     .digest("hex");
+  // Applied on the way OUT of the cache, never stored in it: whether a candidate collides
+  // with a company saved under another course/industry depends on the live dataset, which
+  // changes independently of the search params the cache is keyed on. Annotating a cached
+  // payload would otherwise pin a duplicate verdict from up to 24h ago.
+  const annotateDuplicates = (list: Candidate[]): Candidate[] =>
+    list.map((c) => {
+      const dup = findDuplicate(c, allCompanies, { courseSlug, industrySlug });
+      return dup ? { ...c, duplicateOf: dup } : c;
+    });
+
   if (excludeNames.length === 0) {
     const hit = await cacheGet<{ candidates: Candidate[]; provider: Provider; model?: string }>(cacheKey);
     if (hit && Array.isArray(hit.candidates) && hit.candidates.length > 0) {
-      return Response.json({ ...hit, cached: true });
+      return Response.json({ ...hit, candidates: annotateDuplicates(hit.candidates), cached: true });
     }
   }
 
@@ -411,12 +441,18 @@ export async function POST(request: Request) {
         } else if (staged) {
           candidates = gateInsightsOnVerification(candidates);
         }
+        // Only meaningful after a grounded pass produced real figures - a hedged
+        // ("Likely:") insight set from a non-live-search provider has none to check.
+        if (verifyFigures && deep) {
+          candidates = await verifyFiguresInInsights(candidates, p, orModel);
+        }
         return Response.json({
           candidates,
           provider: p,
           model: p === "openrouter" ? orModel : undefined,
           enriched: true,
           deep,
+          figuresVerified: verifyFigures && deep,
         });
       } catch (err) {
         errors.push(`${p}: ${err instanceof Error ? err.message : "failed"}`);
@@ -504,17 +540,24 @@ export async function POST(request: Request) {
       } else if (staged) {
         candidates = gateInsightsOnVerification(candidates);
       }
+      // Only meaningful after a grounded pass produced real figures - a hedged
+      // ("Likely:") insight set from a non-live-search provider has none to check.
+      if (verifyFigures && deep) {
+        candidates = await verifyFiguresInInsights(candidates, p, orModel);
+      }
 
       const payload = {
         candidates,
         provider: p,
         model: p === "openrouter" ? orModel : undefined,
         deep,
+        figuresVerified: verifyFigures && deep,
       };
+      // Cache the un-annotated payload; duplicate verdicts are recomputed per request.
       if (excludeNames.length === 0 && candidates.length > 0) {
         await cacheSet(cacheKey, payload, 86400);
       }
-      return Response.json(payload);
+      return Response.json({ ...payload, candidates: annotateDuplicates(candidates) });
     } catch (err) {
       errors.push(`${p}: ${err instanceof Error ? err.message : "failed"}`);
     }
@@ -666,6 +709,80 @@ Respond with ONLY a JSON object (no fences, no prose): {"aiInsight": string[4-5]
   return out;
 }
 
+// Cross-source figure verification: re-check every bullet carrying a numeric claim against
+// an INDEPENDENT source (not the report the figure was originally read from) and drop the
+// ones that can't be corroborated. Qualitative bullets are passed through untouched - they
+// have no figure to cross-check and would only burn tokens.
+//
+// Fails closed by construction: reassembleVerified keeps a numeric bullet only if the
+// verifier echoes it back verbatim, so a failed call, a paraphrase, or an unparseable
+// response all result in the figure being DROPPED rather than shipped unverified. That is
+// the correct direction to fail - an invented training-spend number quoted into a sales
+// call is far worse than a missing bullet.
+async function verifyFiguresInInsights(
+  candidates: Candidate[],
+  p: Provider,
+  orModel: string,
+): Promise<Candidate[]> {
+  const verifyOne = async (c: Candidate): Promise<Candidate> => {
+    if (!c.aiInsight || c.aiInsight.length === 0) return c;
+    const { numeric } = splitNumericBullets(c.aiInsight);
+    if (numeric.length === 0) return c;
+
+    const prompt = `You are fact-checking claims about the company "${c.companyName}"${c.website ? ` (${c.website})` : ""}.
+
+Each claim below contains a figure that was read from ${c.source ? `"${c.source}"` : "a company report"}. Independently verify each one against a DIFFERENT source than that document - for example the company's own press releases, a separate ESG/sustainability report, a regulatory filing, or credible press coverage.
+
+Claims:
+${numeric.map((b, i) => `${i + 1}. ${b}`).join("\n")}
+
+Keep a claim ONLY if you found an independent source that states the same figure (small rounding differences are fine). If you cannot corroborate a figure independently, or you are unsure, DROP it - do not guess and do not soften it into a range.
+
+Respond with ONLY a JSON object (no fences, no prose):
+{"kept": string[], "corroboration": string}
+"kept" must repeat the confirmed claims VERBATIM, exactly as written above (do not rephrase, renumber, or reformat them). Use an empty array if none could be corroborated.
+"corroboration" names the independent source(s) you used, or "none" if nothing was corroborated.`;
+
+    try {
+      const text =
+        p === "claude" ? await runClaude(prompt, 2) : await runOpenRouter(prompt, 2, orModel, "medium");
+      const start = text.indexOf("{");
+      const end = text.lastIndexOf("}");
+      if (start === -1 || end <= start) throw new Error("no JSON");
+      const obj = JSON.parse(text.slice(start, end + 1).replace(/,\s*([\]}])/g, "$1")) as {
+        kept?: unknown;
+        corroboration?: unknown;
+      };
+      const kept = Array.isArray(obj.kept) ? obj.kept.map(String) : [];
+      const insights = reassembleVerified(c.aiInsight, numeric, kept);
+      const dropped = numeric.length - kept.length;
+      const corroboration = obj.corroboration ? String(obj.corroboration) : "none";
+      const note =
+        dropped > 0
+          ? `${dropped} unverifiable figure${dropped > 1 ? "s" : ""} dropped; cross-checked against ${corroboration}`
+          : `figures cross-checked against ${corroboration}`;
+      return { ...c, aiInsight: insights, source: c.source ? `${c.source} [${note}]` : note };
+    } catch {
+      // Drop every numeric bullet: we asked for corroboration and got none.
+      return {
+        ...c,
+        aiInsight: reassembleVerified(c.aiInsight, numeric, []),
+        source: c.source
+          ? `${c.source} [figure cross-check failed; unverified figures dropped]`
+          : "figure cross-check failed; unverified figures dropped",
+      };
+    }
+  };
+
+  const out: Candidate[] = [...candidates];
+  const POOL = 3;
+  for (let i = 0; i < out.length; i += POOL) {
+    const chunk = await Promise.all(out.slice(i, i + POOL).map(verifyOne));
+    for (let j = 0; j < chunk.length; j++) out[i + j] = chunk[j];
+  }
+  return out;
+}
+
 // The pure gate logic (which candidate qualifies for insights, and the skip notes) lives
 // in lib/insightGate.ts so it can be unit tested - see tests/insightGate.test.ts.
 // Runs deepResearch only on candidates with BOTH a verified website and a verified
@@ -805,6 +922,24 @@ async function verifyLinks(candidates: Candidate[], fields: Fields): Promise<Can
     }
   };
 
+  // Cache each URL's verification result so re-running "Refresh reports & insights" over
+  // the same companies doesn't re-fetch every website and report from scratch. Corporate
+  // IR URLs change on the order of months, so a 7-day TTL trades a small staleness window
+  // for a large cut in latency and outbound requests on repeat runs. Dead links get a much
+  // shorter TTL: a 404 is often a transient move/redeploy, and we'd rather re-check that
+  // soon than suppress a real report for a week. No-ops without Redis (local dev).
+  const URL_CACHE_TTL_ALIVE = 7 * 86400;
+  const URL_CACHE_TTL_DEAD = 6 * 3600;
+  const cachedCheckUrl = async (url: string): Promise<boolean> => {
+    const key = `urlcheck:${createHash("sha1").update(url).digest("hex")}`;
+    const hit = await cacheGet<boolean>(key);
+    // Explicit boolean check: a cached `false` (dead link) is a real result, not a miss.
+    if (typeof hit === "boolean") return hit;
+    const alive = await checkUrl(url);
+    await cacheSet(key, alive, alive ? URL_CACHE_TTL_ALIVE : URL_CACHE_TTL_DEAD);
+    return alive;
+  };
+
   // Flatten all URLs, verify with bounded parallelism, then map results back. Website is
   // checked whenever one is present, regardless of fields.website - a caller asking to
   // verify reports/insights on an already-known company (fields.website: false) still
@@ -821,7 +956,7 @@ async function verifyLinks(candidates: Candidate[], fields: Fields): Promise<Can
   for (let i = 0; i < jobs.length; i += POOL) {
     await Promise.all(
       jobs.slice(i, i + POOL).map(async (url) => {
-        results.set(url, await checkUrl(url));
+        results.set(url, await cachedCheckUrl(url));
       }),
     );
   }
