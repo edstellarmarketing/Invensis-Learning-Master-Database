@@ -15,6 +15,7 @@ import {
   Loader2,
   Pencil,
   Plus,
+  RefreshCw,
   Search,
   Sparkles,
   Trash2,
@@ -52,8 +53,9 @@ export default function CompaniesTable({
   const [notice, setNotice] = useState<string | null>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
   const [rawPage, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(20);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   // Tracks un-added AI Search results so switching to Edit/Add Company can warn before
   // silently discarding them (a multi-batch AI search can take minutes to produce).
@@ -197,6 +199,90 @@ export default function CompaniesTable({
       setError(err instanceof Error ? err.message : "Delete failed");
     } finally {
       setBulkDeleting(false);
+    }
+  };
+
+  // Re-research the selected SAVED companies for only annual reports + AI insights (the
+  // enrich API's fields flag) and persist the results back. Keeps website/country/name
+  // untouched. Skips any company enrichment returned empty for, so a provider miss never
+  // overwrites existing good data with blanks. The enrich route caps at 25 targets per
+  // call, so send in chunks of 25.
+  const ENRICH_CHUNK = 25;
+  const refreshSelected = async () => {
+    const targets = companies.filter((c) => selected.has(c.id));
+    if (targets.length === 0 || refreshing) return;
+    if (
+      !window.confirm(
+        `Fetch fresh annual reports & AI insights for ${targets.length} selected ${targets.length === 1 ? "company" : "companies"}? This calls the AI provider and may incur cost.`,
+      )
+    )
+      return;
+    setError(null);
+    setNotice(null);
+    setRefreshing(true);
+    let updated = 0;
+    try {
+      for (let i = 0; i < targets.length; i += ENRICH_CHUNK) {
+        const chunk = targets.slice(i, i + ENRICH_CHUNK);
+        const res = await fetch("/api/companies/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            courseSlug,
+            industrySlug,
+            industryName,
+            provider: "auto",
+            fields: { website: false, country: false, annualReportUrls: true, aiInsight: true },
+            enrich: chunk.map((c) => ({ companyName: c.companyName, website: c.website })),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || `Refresh failed (${res.status})`);
+        type EnrichCandidate = {
+          companyName: string;
+          annualReportUrls?: string[];
+          aiInsight?: string[];
+          source?: string;
+        };
+        const byName = new Map<string, EnrichCandidate>(
+          ((data.candidates ?? []) as EnrichCandidate[]).map((cand) => [
+            cand.companyName.toLowerCase().trim(),
+            cand,
+          ]),
+        );
+        await Promise.all(
+          chunk.map(async (c) => {
+            const cand = byName.get(c.companyName.toLowerCase().trim());
+            const reports = cand?.annualReportUrls ?? [];
+            const insights = cand?.aiInsight ?? [];
+            // Nothing came back - don't overwrite existing data with empties.
+            if (reports.length === 0 && insights.length === 0) return;
+            const put = await fetch(`/api/companies/${c.id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                annualReportUrls: reports,
+                aiInsight: insights,
+                ...(cand?.source ? { source: cand.source } : {}),
+              }),
+            });
+            if (!put.ok) return;
+            const saved = (await put.json()) as Company;
+            setCompanies((prev) => prev.map((x) => (x.id === saved.id ? saved : x)));
+            updated += 1;
+          }),
+        );
+      }
+      setSelected(new Set());
+      setNotice(
+        updated === targets.length
+          ? `Refreshed reports & insights for ${updated} ${updated === 1 ? "company" : "companies"}.`
+          : `Refreshed ${updated} of ${targets.length}; the rest returned no new data.`,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Refresh failed");
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -382,14 +468,27 @@ export default function CompaniesTable({
           <div className="flex items-center gap-2">
             <button
               onClick={() => setSelected(new Set())}
-              disabled={bulkDeleting}
+              disabled={bulkDeleting || refreshing}
               className="rounded-md px-2.5 py-1.5 text-sm text-text-muted transition-colors hover:text-text disabled:opacity-50"
             >
               Clear
             </button>
             <button
+              onClick={refreshSelected}
+              disabled={bulkDeleting || refreshing}
+              title="Re-fetch annual reports & AI insights for the selected companies"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--primary)] px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-primary-soft disabled:opacity-60"
+            >
+              {refreshing ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <RefreshCw size={14} />
+              )}
+              {refreshing ? "Refreshing..." : "Refresh reports & insights"}
+            </button>
+            <button
               onClick={bulkDelete}
-              disabled={bulkDeleting}
+              disabled={bulkDeleting || refreshing}
               className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--danger)] px-3 py-1.5 text-sm font-medium text-danger transition-colors hover:bg-danger hover:text-bg disabled:opacity-60"
             >
               {bulkDeleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
@@ -577,7 +676,7 @@ export default function CompaniesTable({
               aria-label="Rows per page"
               className="rounded-md border bg-surface px-2 py-1 text-xs text-text-muted outline-none focus:ring-2 focus:ring-[var(--ring)]"
             >
-              {[10, 25, 50, 100].map((n) => (
+              {[10, 20, 25, 50, 100].map((n) => (
                 <option key={n} value={n}>
                   {n} / page
                 </option>
