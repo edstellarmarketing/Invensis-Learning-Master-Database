@@ -43,13 +43,21 @@ Add Company, CSV import, and everything except AI Search). **Never commit `.env.
   a real Anthropic key (starts `sk-ant-`) - an OpenRouter key here 401s, use
   `OPENROUTER_API_KEY` instead.
 - `OPENROUTER_API_KEY` - AI Search via OpenRouter (openrouter.ai). The UI exposes a model
-  family picker (Claude Sonnet / Gemini Flash / ChatGPT / DeepSeek / Free open models /
-  Other with a custom slug field) crossed with a token-usage tier (Low/Medium/High) -
-  resolved via `OPENROUTER_MODELS[family][tier]` in the route. Low = cheaper same-family
+  family picker (Claude Sonnet / GLM 5.2 / Gemini Flash / ChatGPT / DeepSeek / Free open
+  models / Other with a custom slug field) crossed with a token-usage tier (Low/Medium/High)
+  - resolved via `OPENROUTER_MODELS[family][tier]` in the route. Low = cheaper same-family
   model, no `:online` (answers from training knowledge, hedged). Medium/High = bigger model
   + `:online` web search (live-verified, paid, billed by OpenRouter). The "Free" family
   (Llama/Qwen `:free` slugs) rotates through `FREE_MODEL_POOL` on 429/503 and falls back to
   Groq automatically if the whole free pool is saturated - genuinely $0.
+  - **GLM 5.2** (`z-ai/glm-5.2`) is the recommended cheaper-than-Claude pick: ~$0.77/$2.42
+    per million input/output tokens vs Sonnet's ~$2/$10, same 1M-token context, and
+    benchmarks at or above Sonnet on tool-use/agentic tasks. Only one z-ai model is
+    published on OpenRouter right now, so unlike the other families there's no separate
+    low-tier model to fall back to - all three tiers resolve to `glm-5.2`, differing only
+    by the `:online` suffix and token budget. Re-verify pricing/slug at
+    openrouter.ai/z-ai/glm-5.2 before relying on the numbers above; OpenRouter's z-ai
+    lineup was a single model at time of writing and may grow a lighter "air" variant.
 - `GROQ_API_KEY` - Groq fallback (free tier). Used when neither Claude nor OpenRouter keys
   are set, when the user picks Groq explicitly, or when the OpenRouter free pool is
   saturated. `GROQ_MODEL` defaults to `llama-3.3-70b-versatile` (answers from model

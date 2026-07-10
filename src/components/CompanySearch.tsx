@@ -25,7 +25,7 @@ function keyOf(cand: Candidate): string {
 
 type Fields = { website: boolean; country: boolean; annualReportUrls: boolean; aiInsight: boolean };
 type Provider = "auto" | "claude" | "openrouter" | "groq";
-type ModelFamily = "claude" | "gemini" | "gpt" | "deepseek" | "free" | "other";
+type ModelFamily = "claude" | "glm" | "gemini" | "gpt" | "deepseek" | "free" | "other";
 type TokenUsage = "low" | "medium" | "high";
 
 // Which provider/tier actually earns each field, so the picks above the checkboxes are
@@ -131,7 +131,7 @@ export default function CompanySearch({
   // Medium/High) stay fully available - just not pre-selected.
   const [provider, setProvider] = useState<"auto" | "claude" | "openrouter" | "groq">("groq");
   const [model, setModel] = useState<
-    "claude" | "gemini" | "gpt" | "deepseek" | "free" | "other"
+    "claude" | "glm" | "gemini" | "gpt" | "deepseek" | "free" | "other"
   >("free");
   const [customModel, setCustomModel] = useState("");
   const [tokenUsage, setTokenUsage] = useState<"low" | "medium" | "high">("low");
@@ -531,6 +531,7 @@ export default function CompanySearch({
               onChange={(e) => setModel(e.target.value as typeof model)}
             >
               <option value="claude">Claude Sonnet (Paid)</option>
+              <option value="glm">GLM 5.2 (Paid, cheaper than Claude)</option>
               <option value="gemini">Gemini Flash (Paid)</option>
               <option value="gpt">ChatGPT / GPT-4o (Paid)</option>
               <option value="deepseek">DeepSeek (Paid)</option>

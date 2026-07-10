@@ -67,7 +67,7 @@ type Fields = {
 
 type Provider = "claude" | "openrouter" | "groq";
 type TokenUsage = "low" | "medium" | "high";
-type ModelFamily = "claude" | "gemini" | "gpt" | "deepseek" | "free" | "other";
+type ModelFamily = "claude" | "glm" | "gemini" | "gpt" | "deepseek" | "free" | "other";
 
 // OpenRouter model catalog: family -> token-usage tier -> model slug. Verified live
 // against GET https://openrouter.ai/api/v1/models (no auth needed) - re-check there
@@ -80,6 +80,17 @@ const OPENROUTER_MODELS: Record<ModelFamily, Record<TokenUsage, string>> = {
     low: "anthropic/claude-haiku-4.5",
     medium: "anthropic/claude-sonnet-5:online",
     high: "anthropic/claude-opus-4.8:online",
+  },
+  // GLM 5.2 (Z-AI/Zhipu): ~3x cheaper than Sonnet on input, ~4x cheaper on output, same
+  // 1M context window, benchmarks at or above Sonnet on tool-use/agentic tasks - the best
+  // "cheaper than Claude, equal or better quality" pick on OpenRouter as of this writing.
+  // Only one z-ai model is published right now, so unlike other families there's no
+  // separate low-tier model to step down to - low/medium/high all resolve to glm-5.2 and
+  // differ only by the :online suffix and token budget.
+  glm: {
+    low: "z-ai/glm-5.2",
+    medium: "z-ai/glm-5.2:online",
+    high: "z-ai/glm-5.2:online",
   },
   gemini: {
     low: "google/gemini-3.1-flash-lite",
@@ -207,9 +218,15 @@ export async function POST(request: Request) {
   const tokenUsage: TokenUsage = ["low", "medium", "high"].includes(String(body.tokenUsage))
     ? (body.tokenUsage as TokenUsage)
     : "medium";
-  const modelFamily: ModelFamily = ["claude", "gemini", "gpt", "deepseek", "free", "other"].includes(
-    String(body.model),
-  )
+  const modelFamily: ModelFamily = [
+    "claude",
+    "glm",
+    "gemini",
+    "gpt",
+    "deepseek",
+    "free",
+    "other",
+  ].includes(String(body.model))
     ? (body.model as ModelFamily)
     : "claude";
   const customModel = String(body.customModel ?? "").trim();
