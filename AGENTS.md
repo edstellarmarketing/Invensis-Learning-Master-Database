@@ -213,16 +213,32 @@ Redis in production (Vercel) or the JSON files in `src/data/` in local dev - see
   link-local (including the `169.254.169.254` cloud metadata address), and IPv6
   unique-local/link-local are rejected. Don't switch `redirect` back to `"follow"`; that
   reopens the redirect-based bypass this closes.
-- **The CSP in `next.config.ts` is production-only** (`headers()` returns `[]` when
-  `NODE_ENV !== "production"`). A strict `script-src` breaks Turbopack/webpack dev-mode
-  entirely - HMR relies on `eval()`/blob-worker chunk loading that a CSP blocks as a
-  browser-level violation, which is invisible to `console.*`-hook-based log capture (it's
-  not a catchable JS error) and presents as: page paints fine, but **zero** clicks/state
-  updates do anything, with no console error to point at. If you ever need to debug "app
-  looks fine but nothing is clickable" again with no errors in sight, check the CSP first.
-  Don't add `script-src` back for dev, even scoped with `'unsafe-eval'` - that alone wasn't
-  sufficient (still broke) and chasing every dev-mode CSP requirement isn't worth it; the
-  header only needs to protect the deployed (production) app.
+- **CSP lives in `src/proxy.ts`, not `next.config.ts`** - `next.config.ts` has no
+  `headers()` at all. `proxy.ts` is Next.js 16's file-convention rename of what used to be
+  `middleware.ts` (same mechanism: exports a function - here named `proxy` - that runs
+  before rendering); don't recreate a `middleware.ts`, Next 16 warns it's deprecated. Two
+  reasons the CSP has to live here instead of `next.config.ts`:
+  1. **Production needs a per-request nonce.** `script-src 'self'` alone blocks every
+     inline script unconditionally, including ones Next.js itself injects (the RSC-
+     hydration payload scripts, the streaming bootstrap) and this app's own theme-flash
+     script in `layout.tsx` - a static `headers()` CSP can't hand out a fresh nonce per
+     request, only `proxy.ts` can. It puts the nonce on an `x-nonce` request header;
+     `layout.tsx` reads it via `headers()` (`next/headers`) and passes it to the `nonce`
+     prop on its inline `<script>` - Next.js then automatically applies that same nonce to
+     its own inline scripts once it sees the nonce'd CSP response header. If you add
+     another inline `<script>` anywhere, it needs the same `nonce={nonce}` treatment or
+     it'll get blocked in production the same way (this exact bug shipped once already:
+     `script-src 'self'` with no nonce broke the deployed site's own hydration scripts).
+  2. **Dev needs the CSP skipped entirely** (`proxy.ts` returns early when
+     `NODE_ENV !== "production"`). Turbopack/webpack dev-mode relies on `eval()`/blob-
+     worker chunk loading for HMR that ANY CSP here blocks as a browser-level violation -
+     invisible to `console.*`-hook-based log capture (not a catchable JS error) - and
+     presents as: page paints fine, but **zero** clicks/state updates do anything, with no
+     console error to point at. If you ever need to debug "app looks fine but nothing is
+     clickable" again with no errors in sight, check for a CSP header first. Don't try to
+     scope a dev CSP down to just `'unsafe-eval'`; that alone wasn't sufficient last time
+     (still broke) and chasing every dev-mode CSP requirement isn't worth it - the header
+     only needs to protect the deployed (production) app.
 - **All mutating API routes go through `readJsonBody`** (`lib/requestLimits.ts`) instead of
   raw `request.json()` - caps body size (5MB) and returns a friendly 400/413 instead of
   throwing. Routes that accept arrays (`companies[]`, bulk `ids[]`, import's

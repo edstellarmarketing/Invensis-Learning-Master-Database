@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 import TopBar from "@/components/TopBar";
@@ -20,10 +21,14 @@ export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const categories = await readCategories();
+  // Set by middleware.ts (production only) so this inline script - and Next's own
+  // RSC-hydration scripts - pass the nonce-based CSP instead of getting blocked
+  // outright. undefined in dev, where middleware skips the CSP entirely.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html lang="en">
       <head>
-        <script dangerouslySetInnerHTML={{ __html: NO_FLASH }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: NO_FLASH }} />
       </head>
       <body>
         <div className="flex min-h-screen">
