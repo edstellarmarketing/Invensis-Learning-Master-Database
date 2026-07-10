@@ -299,6 +299,11 @@ export async function POST(request: Request) {
         if (fields.annualReportUrls || fields.website) {
           candidates = await verifyLinks(candidates, fields);
         }
+        // Same staged gate as discovery (see the main loop below): don't keep insights
+        // for a company whose website/report couldn't be verified, even in enrich mode.
+        if (fields.website && fields.annualReportUrls && fields.aiInsight) {
+          candidates = gateInsightsOnVerification(candidates);
+        }
         return Response.json({
           candidates,
           provider: p,
@@ -321,10 +326,18 @@ export async function POST(request: Request) {
       OPENROUTER_MODELS[modelFamily][tokenUsage] ??
       "anthropic/claude-sonnet-5:online";
     const liveSearch = p === "claude" || (p === "openrouter" && orModel.endsWith(":online"));
-    // Deep research (High tier + live search): phase 1 only lists companies + links,
-    // phase 2 reads each company's VERIFIED report for grounded insights - the same
-    // two-step process the hand-verified seed rows went through.
-    const deep = tokenUsage === "high" && fields.aiInsight && liveSearch;
+    // Staged workflow: when Website + Annual Reports + AI Insights are ALL requested
+    // together, gate insights on verification instead of generating them blind - find
+    // the company and its website, verify the website, verify the annual report, and
+    // only then spend anything on insights. An unverified company might not be real, so
+    // insight text for it would be unfounded no matter how plausible it reads.
+    // With a live-search provider this is a real second pass (deepResearch, grounded in
+    // the verified report) - previously gated to High tier only; now it runs whenever
+    // all three fields are checked, since the point is correctness, not depth. Without
+    // live search there's no way to do a grounded second pass, so unqualified
+    // candidates just lose their (still-hedged) insights - see gateInsightsOnVerification.
+    const staged = fields.website && fields.annualReportUrls && fields.aiInsight;
+    const deep = staged && liveSearch;
     const phase1Fields: Fields = deep ? { ...fields, aiInsight: false } : fields;
     // Rebuild per provider so the live-search framing matches what actually runs.
     const prompt = buildPrompt({
@@ -374,10 +387,14 @@ export async function POST(request: Request) {
         candidates = await verifyLinks(candidates, fields);
       }
 
-      // Deep research phase 2: read each company's verified report (or search the web
+      // Deep research phase 2: read each VERIFIED company's report (or search the web
       // for its L&D disclosures) in its own small call - grounded, per-company insights.
+      // Only for candidates that passed the website+report verification gate; the rest
+      // get a clear "skipped" note instead of an ungrounded guess.
       if (deep) {
-        candidates = await deepResearch(candidates, p, orModel, courseName);
+        candidates = await researchQualified(candidates, p, orModel, courseName);
+      } else if (staged) {
+        candidates = gateInsightsOnVerification(candidates);
       }
 
       const payload = {
@@ -543,6 +560,58 @@ Respond with ONLY a JSON object (no fences, no prose): {"aiInsight": string[4-5]
     for (let j = 0; j < chunk.length; j++) out[i + j] = chunk[j];
   }
   return out;
+}
+
+// Website is non-empty (verifyLinks blanks it if dead, and it was already "" if the
+// model never found one) - the one verification every candidate can realistically pass,
+// live-search or not.
+function hasVerifiedWebsite(c: Candidate): boolean {
+  return Boolean(c.website);
+}
+
+// reportVerified is exactly true (not just truthy - undefined means nothing to verify,
+// i.e. no report URL was found at all, which should fail this too). Only meaningful to
+// require for a live-search provider: a non-live-search one is told to leave
+// annualReportUrls empty rather than guess, so it would almost never find a verifiable
+// report and this bar would fail nearly every candidate - see gateInsightsOnVerification.
+function hasVerifiedReport(c: Candidate): boolean {
+  return c.reportVerified === true;
+}
+
+const INSIGHTS_SKIPPED_NOTE = "AI Insights skipped: website couldn't be verified.";
+
+// Runs deepResearch only on candidates with BOTH a verified website and a verified
+// report - live search can actually confirm a report exists before spending a grounded
+// research call on it, so hold it to the higher bar. The rest get a clear "skipped" note
+// instead of an ungrounded guess. Preserves the original candidate order.
+async function researchQualified(
+  candidates: Candidate[],
+  p: Provider,
+  orModel: string,
+  courseName: string,
+): Promise<Candidate[]> {
+  const qualifies = candidates.map((c) => hasVerifiedWebsite(c) && hasVerifiedReport(c));
+  const toResearch = candidates.filter((_, i) => qualifies[i]);
+  const researched = await deepResearch(toResearch, p, orModel, courseName);
+  let ri = 0;
+  return candidates.map((c, i) =>
+    qualifies[i]
+      ? researched[ri++]
+      : { ...c, aiInsight: [], source: "AI Insights skipped: website/annual report couldn't be verified." },
+  );
+}
+
+// Provider-agnostic fallback for the staged gate when there's no live-search provider to
+// run a real second research pass with: the insights already came back in the same call
+// as discovery (hedged either way for a non-live-search provider - see buildPrompt). Gate
+// on a verified WEBSITE only, not a verified report - a non-live-search provider is
+// explicitly told not to guess report URLs (buildPrompt/enrichCompanies), so it almost
+// never returns one; requiring a verified report here would drop insights for nearly
+// every real candidate on the free tier, not just fake ones.
+function gateInsightsOnVerification(candidates: Candidate[]): Candidate[] {
+  return candidates.map((c) =>
+    hasVerifiedWebsite(c) ? c : { ...c, aiInsight: [], source: INSIGHTS_SKIPPED_NOTE },
+  );
 }
 
 // Fetch each annual-report URL and website (HEAD, falling back to a ranged GET when HEAD

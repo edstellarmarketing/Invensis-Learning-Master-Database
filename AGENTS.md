@@ -234,6 +234,27 @@ Redis in production (Vercel) or the JSON files in `src/data/` in local dev - see
   reports its result count up via `onResultsChange` so the parent can confirm before
   discarding un-added results when the user switches to Edit/Add Company (both unmount the
   search panel).
+- **AI Insights are staged behind verification, not generated blind** (`api/companies/
+  search/route.ts`): whenever Website + Annual Reports + AI Insights are ALL checked
+  together, a candidate only keeps its insights if it passes a verification gate -
+  otherwise `aiInsight` is cleared with a `source` note explaining why, instead of
+  showing text for a company that might not even be real.
+  - **Live-search provider** (Claude, or OpenRouter with a `:online` model): the higher
+    bar - `researchQualified` requires BOTH a verified website AND a verified report
+    (`hasVerifiedWebsite` + `hasVerifiedReport`) before running `deepResearch` (a real,
+    grounded per-company call). This used to be gated to `tokenUsage === "high"` only;
+    it now runs whenever all three fields are checked, at any tier, since the point is
+    correctness, not depth.
+  - **Non-live-search provider** (Groq, OpenRouter free/low): `gateInsightsOnVerification`
+    requires only a verified **website**, not a verified report. This is deliberate, not
+    an oversight - `buildPrompt`/`enrichCompanies` explicitly tell a non-live-search
+    model not to guess report URLs, so it almost never returns one; requiring a verified
+    report there would drop insights for nearly every real candidate on the free tier,
+    not just fake ones. (Tested this in practice: with the strict website+report bar
+    applied to Groq, 0/5 candidates kept insights; website-only, 4/5 did - only the one
+    with no discoverable website was gated.)
+  - The same gate applies in enrich mode (re-researching known companies), not just
+    fresh discovery.
 - **Link verification is SSRF-guarded** (`verifyLinks`/`checkUrl` in
   `api/companies/search/route.ts`): before fetching any user-supplied `website` or
   `annualReportUrls` value (attacker-controllable via enrich mode, CSV import, or Add

@@ -23,16 +23,46 @@ saving.
    paying for the expensive fields. Two live-updating hints sit right below the
    checkboxes to help this decision:
    - **Model recommendation** - a one-line steer on which provider/tier actually earns
-     the fields you've checked: AI Insights needs a live-search provider at High tier
-     (grounded, per-company research); Annual Reports needs live search to find a real
-     URL; Website/Country alone works fine with any provider, including free ones.
+     the fields you've checked: AI Insights needs a live-search provider (grounded,
+     per-company research); Annual Reports needs live search to find a real URL;
+     Website/Country alone works fine with any provider, including free ones.
    - **Estimated time** - a rough ETA under the Search button, recalculated from the
      actual backend call shape (base discovery call, live-search vs. not, the link-
-     verification pass, and deep research's one grounded call per company at High
-     tier), scaled across batches for counts over 15. It's a heuristic, not a
-     guarantee - live web search and per-company research both have real latency
-     variance.
+     verification pass, and deep research's one grounded call per company when it
+     runs - see the staged-verification note below), scaled across batches for counts
+     over 15. It's a heuristic, not a guarantee - live web search and per-company
+     research both have real latency variance.
 5. Click **Search**. Review the candidate list.
+
+### Staged verification: Website → Report → AI Insights
+
+When **Website**, **Annual Reports**, and **AI Insights** are all three checked at once,
+the backend doesn't generate insights blind - it stages them behind verification, so you
+never end up with a paragraph of confident-sounding training insights for a company that
+turns out not to be real:
+
+1. Discover candidates (company name, website, country, report URL).
+2. Verify the website and the report URL for real (a direct HTTP check on the server -
+   see `verifyLinks` / the SSRF-guard gotcha above).
+3. Only a candidate whose checks passed gets AI Insights. On the rest, `aiInsight` comes
+   back empty with a `source` explaining why it was skipped, instead of a guess.
+
+What "passed" requires depends on whether the provider can browse the live web:
+
+- **Claude, or OpenRouter with a live-search model**: requires a verified website **and**
+  a verified report. Since the provider can actually confirm a report exists, a
+  qualifying candidate gets a real second research call that reads that verified report
+  and writes grounded insights from it - this used to only happen at the High token-usage
+  tier; it now runs at any tier once all three fields are checked, because the point is
+  correctness, not depth.
+- **Groq, or OpenRouter's free-model family** (no live browsing): requires only a
+  verified **website**. These providers are explicitly told not to guess report URLs, so
+  they almost never return a verifiable one - requiring a verified report from them too
+  would gate out nearly every real candidate, not just fake ones. A qualifying candidate
+  keeps the (still-hedged, "Likely:"/"AI estimate") insights it already produced during
+  discovery; a candidate with no verifiable website loses them.
+
+Same gate in enrich mode (re-researching known companies), not just fresh discovery.
 6. To fetch only report + insights for specific candidates (the "enrich" step): tick
    **Annual Reports** and **AI Insights** in Fields, tick the candidate rows, click
    **Enrich selected (N)**. This re-researches only those two fields for only the
@@ -175,6 +205,7 @@ against the deployed API (not just local state) after re-running both scripts wi
 |---|---|
 | A few candidates for one industry, reviewed before saving | Manual AI Search UI |
 | Not sure which model/tier a set of fields needs, or how long it'll take | Check the Fields to fetch hints (model recommendation + ETA) before hitting Search |
+| Want AI Insights only for companies that actually check out, not guesses for everything | Check Website + Annual Reports + AI Insights together - the staged verification gate (§1) handles the rest automatically |
 | Fill in missing report/insight data on a handful of saved rows | "Refresh reports & insights" (companies table) |
 | Add a known, curated list of companies fast (no AI discovery) | `seed-course-companies.mjs` |
 | Bulk-fill AI-search enrich data on a large curated set, roughly | `seed-course-companies.mjs --enrich` (use a paid live-search provider for real report URLs) |
