@@ -157,6 +157,13 @@ function lastCompletedFinancialYear(): number {
   return new Date().getFullYear() - 1;
 }
 
+// Appended only on the strict retry (see the discovery loop below) - agentic :online
+// models (GLM 5.2 in particular) sometimes reply with their search plan ("I need to
+// find annual report URLs...") instead of the requested JSON despite the base prompt
+// already asking for JSON-only, so the retry needs a sharper, repeated instruction.
+const STRICT_JSON_RETRY_SUFFIX =
+  "\n\nSTOP - do not describe your search plan or reasoning. Your entire response must be nothing but the JSON array itself, with '[' as the very first character and ']' as the very last. No prose, no markdown, no explanation before or after.";
+
 function reportRule(liveSearch: boolean): string {
   const fy = lastCompletedFinancialYear();
   return liveSearch
@@ -496,18 +503,21 @@ export async function POST(request: Request) {
       liveSearch,
     });
     try {
-      const run = () =>
+      const run = (promptText: string) =>
         p === "claude"
-          ? runClaude(prompt, count)
+          ? runClaude(promptText, count)
           : p === "openrouter"
-            ? runOpenRouter(prompt, count, orModel, tokenUsage)
-            : runGroq(prompt, count, phase1Fields);
+            ? runOpenRouter(promptText, count, orModel, tokenUsage)
+            : runGroq(promptText, count, phase1Fields);
 
-      let text = await run();
+      let text = await run(prompt);
       let candidates = parseCandidates(text, phase1Fields);
       if (candidates.length === 0 && text) {
-        // One strict retry: some models wrap the array in prose despite instructions.
-        text = await run();
+        // One strict retry: some models (notably agentic :online models like GLM 5.2)
+        // narrate their search plan instead of emitting JSON, and repeating the exact
+        // same prompt just reproduces the same narration - so the retry adds an explicit
+        // anti-narration instruction instead of resending an unchanged prompt.
+        text = await run(prompt + STRICT_JSON_RETRY_SUFFIX);
         candidates = parseCandidates(text, phase1Fields);
       }
       if (candidates.length === 0) {
