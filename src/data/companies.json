@@ -4060,22 +4060,6 @@
     "addedAt": "2026-07-13T12:27:50.696Z"
   },
   {
-    "id": "c_mrj76x48_9_752g",
-    "courseSlug": "pmp-certification-training",
-    "industrySlug": "it",
-    "companyName": "SAP America, Inc.",
-    "country": "United States",
-    "website": "https://www.sap.com",
-    "annualReportUrls": [],
-    "aiInsight": [
-      "SAP Learning Hub is a company-wide digital platform delivering guided, expert-led, and hands-on upskilling across the SAP software portfolio",
-      "Integrated learning experience in SAP SuccessFactors combines mandatory compliance training with role-based and self-directed content, delivered partly through a Skillsoft content partnership",
-      "In 2025, SAP's learning organization partnered with Accenture to deliver personalized upskilling/reskilling training services from the C-suite to technical teams"
-    ],
-    "source": "SAP.com SuccessFactors Learning Hub pages; SAP news release on Accenture partnership",
-    "addedAt": "2026-07-13T12:27:50.696Z"
-  },
-  {
     "id": "c_mrj76x48_10_uec0",
     "courseSlug": "pmp-certification-training",
     "industrySlug": "it",
@@ -7945,22 +7929,6 @@
     "addedAt": "2026-07-13T12:27:53.626Z"
   },
   {
-    "id": "c_mrj76zdm_20_f1i1",
-    "courseSlug": "pmp-certification-training",
-    "industrySlug": "pharma",
-    "companyName": "Incyte Genomics, Inc.",
-    "country": "United States",
-    "website": "https://www.incyte.com",
-    "annualReportUrls": [],
-    "aiInsight": [
-      "Offers employees development plans, challenging job assignments, and training opportunities as part of standard people programs",
-      "Provides tuition reimbursement to support continued education for its ~2,844 employees",
-      "Ties a portion (3%) of its annual bonus incentive program to company-wide ESG/people targets, per its Global Responsibility Report"
-    ],
-    "source": "Incyte FY2025 Form ARS/10-K and 2024 Global Responsibility Report",
-    "addedAt": "2026-07-13T12:27:53.626Z"
-  },
-  {
     "id": "c_mrj76zdm_21_mwe5",
     "courseSlug": "pmp-certification-training",
     "industrySlug": "pharma",
@@ -7974,22 +7942,6 @@
       "Operates as an independent Roche Group affiliate (acquired 2018, ~1,700 employees) and can tap into Roche's broader learning infrastructure (e.g., Roche Diagnostics University)"
     ],
     "source": "Foundation Medicine careers blog; Roche corporate careers/training pages",
-    "addedAt": "2026-07-13T12:27:53.626Z"
-  },
-  {
-    "id": "c_mrj76zdm_22_oq6r",
-    "courseSlug": "pmp-certification-training",
-    "industrySlug": "pharma",
-    "companyName": "Illumina Ventures",
-    "country": "United States",
-    "website": "https://www.illumina.com",
-    "annualReportUrls": [],
-    "aiInsight": [
-      "Runs 'Illumina University,' an internal training arm delivering in-depth online and on-site courses on products, technical skills, and professional topics, plus webinars and university partnerships",
-      "Offers structured leadership development programs alongside mentoring/coaching, certification programs, and tuition reimbursement for job-related education",
-      "Blends classroom, virtual, and e-learning formats so employees build both technical and soft-skill capabilities"
-    ],
-    "source": "Illumina careers site; Illumina 2025 Corporate Responsibility Report",
     "addedAt": "2026-07-13T12:27:53.626Z"
   },
   {
