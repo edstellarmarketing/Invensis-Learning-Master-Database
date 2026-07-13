@@ -1100,22 +1100,6 @@
     "source": "Royal BAM Group Annual Report 2024 (bam.com); BAM Nuttall Academy/apprenticeship info"
   },
   {
-    "id": "c_mrj76uqx_0_y43m",
-    "courseSlug": "pmp-certification-training",
-    "industrySlug": "construction",
-    "companyName": "Bechtel Group Inc.",
-    "country": "United States",
-    "website": "https://www.bechtel.com/",
-    "annualReportUrls": [],
-    "aiInsight": [
-      "Bechtel University offers thousands of instructor-led, virtual, online and mobile courses across leadership, technical skills, safety/ethics and languages",
-      "Bechtel University is accredited by the International Association for Continuing Education & Training to grant CE credit toward professional certifications",
-      "Runs joint early-career/workforce development programs with universities abroad (e.g., Warsaw University of Technology for nuclear, Prince Sultan University in Saudi Arabia)"
-    ],
-    "source": "Bechtel.com Learning & Development page and press releases",
-    "addedAt": "2026-07-13T12:27:47.625Z"
-  },
-  {
     "id": "c_mrj76uqx_1_c4hg",
     "courseSlug": "pmp-certification-training",
     "industrySlug": "construction",
@@ -1183,22 +1167,6 @@
       "Construction Ready Program supports workforce pipeline development in local markets"
     ],
     "source": "Turner Construction insights pages, turnerconstruction.com",
-    "addedAt": "2026-07-13T12:27:47.625Z"
-  },
-  {
-    "id": "c_mrj76uqx_5_vik3",
-    "courseSlug": "pmp-certification-training",
-    "industrySlug": "construction",
-    "companyName": "PCL Construction Enterprises Inc.",
-    "country": "United States",
-    "website": "https://www.pcl.com/",
-    "annualReportUrls": [],
-    "aiInsight": [
-      "PCL College of Construction is PCL's in-house professional development arm covering technical, leadership and behavioral competency training",
-      "E3 Leadership Certification Program (education, exposure, experience) has produced 1,000+ graduates since launching in 2017",
-      "Accelerated Superintendent Development Program targets high-potential field employees; Learning Road Maps help staff plan individualized training paths"
-    ],
-    "source": "PCL Construction careers/insights pages, pcl.com",
     "addedAt": "2026-07-13T12:27:47.625Z"
   },
   {
@@ -1330,24 +1298,6 @@
     "addedAt": "2026-07-13T12:27:47.625Z"
   },
   {
-    "id": "c_mrj76uqx_14_edd4",
-    "courseSlug": "pmp-certification-training",
-    "industrySlug": "construction",
-    "companyName": "Toll Brothers Inc.",
-    "country": "United States",
-    "website": "https://www.tollbrothers.com/",
-    "annualReportUrls": [
-      "https://www.sec.gov/Archives/edgar/data/794170/000079417025000112/tol-20251031.htm"
-    ],
-    "aiInsight": [
-      "Toll Brothers University and its Talent Development Team run technical and soft-skills courses, including specialized onboarding for new people leaders, Sales and Construction staff",
-      "National Production Training Program is split into five curriculums covering technical, managerial, leadership, personal-development and field-proficiency skills",
-      "Offers tuition reimbursement for work-related coursework and a nine-month Management Associate rotational program"
-    ],
-    "source": "Toll Brothers FY2025 10-K and Toll Career Center",
-    "addedAt": "2026-07-13T12:27:47.625Z"
-  },
-  {
     "id": "c_mrj76uqx_15_tzw5",
     "courseSlug": "pmp-certification-training",
     "industrySlug": "construction",
@@ -1420,24 +1370,6 @@
     "addedAt": "2026-07-13T12:27:47.625Z"
   },
   {
-    "id": "c_mrj76uqx_19_axib",
-    "courseSlug": "pmp-certification-training",
-    "industrySlug": "construction",
-    "companyName": "Taylor Morrison Home Corporation",
-    "country": "United States",
-    "website": "https://www.taylormorrison.com/",
-    "annualReportUrls": [
-      "https://www.sec.gov/Archives/edgar/data/1562476/000162828026009030/tmhc-20251231.htm"
-    ],
-    "aiInsight": [
-      "Learning management system gives employees access to more than 5,000 online courses plus tailored leadership-development programs by career stage",
-      "Offers tuition reimbursement as part of its standard benefits package",
-      "Requires mandatory ongoing cybersecurity training and additional health/safety training for construction and field personnel"
-    ],
-    "source": "Taylor Morrison FY2025 10-K (SEC EDGAR)",
-    "addedAt": "2026-07-13T12:27:47.625Z"
-  },
-  {
     "id": "c_mrj76uqx_20_v3aw",
     "courseSlug": "pmp-certification-training",
     "industrySlug": "construction",
@@ -1471,24 +1403,6 @@
       "6-session 'Managing Essentials' management training series graduated 69 managers in FY2023, bringing total graduates to over 413 across the past decade; tuition reimbursement offered as a career-development benefit"
     ],
     "source": "KB Home FY2023 10-K, Human Capital section (SEC EDGAR)",
-    "addedAt": "2026-07-13T12:27:47.625Z"
-  },
-  {
-    "id": "c_mrj76uqx_22_r16x",
-    "courseSlug": "pmp-certification-training",
-    "industrySlug": "construction",
-    "companyName": "M.D.C. Holdings Inc.",
-    "country": "United States",
-    "website": "https://www.richmondamerican.com/",
-    "annualReportUrls": [
-      "https://www.sec.gov/cgi-bin/browse-edgar?CIK=MDC"
-    ],
-    "aiInsight": [
-      "About 1,826 employees as of Dec 31, 2024 (up from 1,760 in 2023), with training cited as a core human-capital investment area",
-      "Offers ongoing training and development through online resources, job shadowing, and mentoring programs across career paths",
-      "Requires annual compliance training under its Code of Conduct, including mandatory instruction on preventing and reporting workplace discrimination"
-    ],
-    "source": "M.D.C. Holdings FY2023/2024 10-K, Human Capital section; note MDC Holdings was acquired by Sekisui House in 2024 and no longer files independently, so this is the last available public disclosure",
     "addedAt": "2026-07-13T12:27:47.625Z"
   },
   {
@@ -1612,24 +1526,6 @@
     "addedAt": "2026-07-13T12:27:47.625Z"
   },
   {
-    "id": "c_mrj76uqx_30_n4iy",
-    "courseSlug": "pmp-certification-training",
-    "industrySlug": "construction",
-    "companyName": "MasTec Inc.",
-    "country": "United States",
-    "website": "https://www.mastec.com/",
-    "annualReportUrls": [
-      "https://www.sec.gov/Archives/edgar/data/15615/000001561526000020/mtz-20251231.htm"
-    ],
-    "aiInsight": [
-      "Runs regular safety training and skill-level improvement programs including new-employee safety orientation, safety leadership training for front-line leaders, OSHA construction outreach training, and defensive driving/DOT training",
-      "Operates under a company-wide \"Zero Harm\" safety culture instilled in all ~36,000 employees",
-      "Workforce includes ~9,000 unionized employees, many trained via union apprenticeship/journeyman pipelines tied to craft trades"
-    ],
-    "source": "MasTec FY2025 10-K (SEC), Human Capital section",
-    "addedAt": "2026-07-13T12:27:47.625Z"
-  },
-  {
     "id": "c_mrj76uqx_31_mrnz",
     "courseSlug": "pmp-certification-training",
     "industrySlug": "construction",
@@ -1663,42 +1559,6 @@
       "Actively promotes continued external education to help employees build certifications and degrees alongside internal training"
     ],
     "source": "Granite Construction careers site (granitenet.com/careers/granite-university)",
-    "addedAt": "2026-07-13T12:27:47.625Z"
-  },
-  {
-    "id": "c_mrj76uqx_33_quq0",
-    "courseSlug": "pmp-certification-training",
-    "industrySlug": "construction",
-    "companyName": "MYR Group Inc.",
-    "country": "United States",
-    "website": "https://www.myrgroup.com/",
-    "annualReportUrls": [
-      "https://www.sec.gov/Archives/edgar/data/700923/000070092326000007/myrg-20251231.htm"
-    ],
-    "aiInsight": [
-      "Non-union subsidiary Great Southwestern Construction runs a paid electrical-apprenticeship program at a dedicated training facility in Alvarado, Texas, combining work-based learning with related classroom instruction",
-      "Most MYR Group subsidiaries operate in IBEW jurisdictions and participate in national and local Joint Apprenticeship Training Committees (JATCs) for electrical trade certification",
-      "Partners on community workforce-development initiatives (e.g., with the Detroit Public Lighting Authority and IBEW Local 17) to widen access to electrical-trade training"
-    ],
-    "source": "MYR Group corporate site / news releases (myrgroup.com)",
-    "addedAt": "2026-07-13T12:27:47.625Z"
-  },
-  {
-    "id": "c_mrj76uqx_34_4t9r",
-    "courseSlug": "pmp-certification-training",
-    "industrySlug": "construction",
-    "companyName": "Ameresco Inc.",
-    "country": "United States",
-    "website": "https://www.ameresco.com/",
-    "annualReportUrls": [
-      "https://www.sec.gov/Archives/edgar/data/1488139/000162828026013574/amrc_20251231x10-k.htm"
-    ],
-    "aiInsight": [
-      "offers technical/certification training for energy engineers and project staff (e.g., PE, CEM, LEED credentials) given its energy-services/ESCO business model",
-      "provides structured onboarding and role-based technical development programs for its ~1,500+ employees across US, Canada, UK and Italy offices",
-      "Encourages employee community engagement through paid volunteer/community-service days as part of its broader people program"
-    ],
-    "source": "Ameresco 10-K filings (SEC) Human Capital section; no specific training-program figures found",
     "addedAt": "2026-07-13T12:27:47.625Z"
   },
   {
@@ -1818,60 +1678,6 @@
     "addedAt": "2026-07-13T12:27:47.625Z"
   },
   {
-    "id": "c_mrj76uqx_42_2h2l",
-    "courseSlug": "pmp-certification-training",
-    "industrySlug": "construction",
-    "companyName": "Quanta Services",
-    "country": "United States",
-    "website": "https://www.quantaservices.com/",
-    "annualReportUrls": [
-      "https://www.sec.gov/Archives/edgar/data/1050915/000105091526000006/pwr-20251231.htm"
-    ],
-    "aiInsight": [
-      "Owns and operates Northwest Lineman College, a postsecondary institution specializing in pre-apprenticeship, apprenticeship, and specialized utility task training for electric workers",
-      "Operating companies run DOL-approved apprenticeship programs and participate in IBEW/NECA Apprenticeship Program and other union-sponsored craft training",
-      "Maintains strategic partnerships with universities, the military, and unions specifically to build and train its skilled-craft and engineering workforce"
-    ],
-    "source": "Quanta Services 10-K (FY2025, SEC EDGAR) human capital/workforce development disclosures",
-    "addedAt": "2026-07-13T12:27:47.625Z"
-  },
-  {
-    "id": "c_mrj76uqx_43_uyvq",
-    "courseSlug": "pmp-certification-training",
-    "industrySlug": "construction",
-    "companyName": "Emerson Electric",
-    "country": "United States",
-    "website": "https://www.emerson.com/",
-    "annualReportUrls": [
-      "https://www.sec.gov/Archives/edgar/data/32604/000003260425000087/emr-20250930.htm"
-    ],
-    "aiInsight": [
-      "Runs global training and development programs explicitly aimed at building employees' leadership and professional skills, including intensive programs for both new and established leaders",
-      "Partners with educational institutions and nonprofit organizations to prepare current and future workers with needed skills",
-      "Approximately 73,000 employees company-wide (FY2024 count) supported by ongoing workplace-modernization and talent-development initiatives"
-    ],
-    "source": "Emerson Electric FY2025 10-K (SEC EDGAR) human capital section + emerson.com/careers",
-    "addedAt": "2026-07-13T12:27:47.625Z"
-  },
-  {
-    "id": "c_mrj76uqx_44_ka4y",
-    "courseSlug": "pmp-certification-training",
-    "industrySlug": "construction",
-    "companyName": "Jacobs Engineering",
-    "country": "United States",
-    "website": "https://www.jacobs.com/",
-    "annualReportUrls": [
-      "https://www.sec.gov/Archives/edgar/data/52988/000162828025053316/jec-20250926.htm"
-    ],
-    "aiInsight": [
-      "Launched \"Jacobs University\" in fiscal 2025 as a global learning and development hub with four dedicated schools (more planned) and nearly 30,000 training programs, built in response to employee feedback for more AI/digital-skills training",
-      "Offers 32,000+ training programs through its e3 Learning platform tied to the \"e3: engage. excel. elevate.\" employee experience framework",
-      "No explicit PMP/project-management certification program disclosed in the 10-K, but broad, high-volume internal learning infrastructure signals strong receptivity to external certification partnerships"
-    ],
-    "source": "Jacobs Solutions FY2025 10-K (SEC EDGAR) human capital section",
-    "addedAt": "2026-07-13T12:27:47.625Z"
-  },
-  {
     "id": "c_mrj76uqx_45_0dzp",
     "courseSlug": "pmp-certification-training",
     "industrySlug": "construction",
@@ -1890,24 +1696,6 @@
     "addedAt": "2026-07-13T12:27:47.625Z"
   },
   {
-    "id": "c_mrj76uqx_46_nyj3",
-    "courseSlug": "pmp-certification-training",
-    "industrySlug": "construction",
-    "companyName": "Primoris Services",
-    "country": "United States",
-    "website": "https://www.prim.com/",
-    "annualReportUrls": [
-      "https://www.sec.gov/Archives/edgar/data/1361538/000110465926018677/prim-20251231x10k.htm"
-    ],
-    "aiInsight": [
-      "Runs five-tier leadership development curriculum (Foreman Foundations, Extreme Ownership, Hunt for Leadership Success, Next Level Leadership, The Leadership Experience) progressing crew members to strategic leaders",
-      "Operates company-owned training facilities, including sites that train electric apprentices through to journeyman status",
-      "Provides project management training alongside on- and off-site skills training as part of its 'skilled labor advantage' strategy"
-    ],
-    "source": "Primoris Services FY2024/2025 10-K human capital disclosures (SEC EDGAR)",
-    "addedAt": "2026-07-13T12:27:47.625Z"
-  },
-  {
     "id": "c_mrj76uqx_47_o4z7",
     "courseSlug": "pmp-certification-training",
     "industrySlug": "construction",
@@ -1923,24 +1711,6 @@
       "Funds a family scholarship program (MDU Resources Foundation) supporting employees' children/spouses in college or vocational education, suggesting a broader culture of investment in learning"
     ],
     "source": "MDU Resources careers site and MDU Resources Foundation scholarship program materials",
-    "addedAt": "2026-07-13T12:27:47.625Z"
-  },
-  {
-    "id": "c_mrj76uqx_48_usm6",
-    "courseSlug": "pmp-certification-training",
-    "industrySlug": "construction",
-    "companyName": "Granite Construction",
-    "country": "United States",
-    "website": "https://www.graniteconstruction.com/",
-    "annualReportUrls": [
-      "https://www.sec.gov/Archives/edgar/data/861459/000086145926000004/gva-20251231.htm"
-    ],
-    "aiInsight": [
-      "Employees completed over 35,000 training courses in 2025 combining on-the-job learning with in-person and online coursework",
-      "More than 200 employees graduated from Granite's multi-level leadership development program in 2025, spanning emerging to senior leaders",
-      "Managerial/supervisory staff average 12 years tenure, attributed to sustained investment in talent development and succession planning"
-    ],
-    "source": "Granite Construction FY2025 10-K (SEC EDGAR, gva-20251231.htm) human capital section",
     "addedAt": "2026-07-13T12:27:47.625Z"
   },
   {
@@ -2034,24 +1804,6 @@
     "addedAt": "2026-07-13T12:27:47.626Z"
   },
   {
-    "id": "c_mrj76uqx_54_7crg",
-    "courseSlug": "pmp-certification-training",
-    "industrySlug": "construction",
-    "companyName": "Tutor Perini",
-    "country": "United States",
-    "website": "https://www.tutorperini.com/",
-    "annualReportUrls": [
-      "https://www.sec.gov/Archives/edgar/data/77543/000007754326000028/tpc-20251231.htm"
-    ],
-    "aiInsight": [
-      "10-K frames training/retention as a core strategic pillar ('Talent Recruitment, Training and Retention') across ~7,400 employees, delivered via management information systems, on-the-job training, and educational seminars",
-      "Places particular emphasis on training staff in project estimating, project management, and project cost control, building a pipeline of long-term successors to current project leaders",
-      "Runs an active college recruitment program pulling from construction management, civil, mechanical, and electrical engineering programs nationwide"
-    ],
-    "source": "Tutor Perini FY2025 10-K (SEC EDGAR) + Tutor Perini careers/college recruitment pages",
-    "addedAt": "2026-07-13T12:27:47.626Z"
-  },
-  {
     "id": "c_mrj76uqx_55_e1q8",
     "courseSlug": "pmp-certification-training",
     "industrySlug": "construction",
@@ -2139,42 +1891,6 @@
       "Offers ongoing leadership training and networking programs as part of its professional development track"
     ],
     "source": "Taylor Morrison FY2023 10-K Human Capital section + careers.taylormorrison.com",
-    "addedAt": "2026-07-13T12:27:47.626Z"
-  },
-  {
-    "id": "c_mrj76uqx_60_ndu0",
-    "courseSlug": "pmp-certification-training",
-    "industrySlug": "construction",
-    "companyName": "Tri Pointe Homes",
-    "country": "United States",
-    "website": "https://www.tripointehomes.com/",
-    "annualReportUrls": [
-      "https://www.sec.gov/cgi-bin/browse-edgar?CIK=TPH"
-    ],
-    "aiInsight": [
-      "Offers structured sales-rep development including day-one access to a 'Blueprint' leadership and learning program",
-      "Tuition reimbursement provided as part of employee benefits",
-      "Leadership training and internal promotion paths are formal growth tracks"
-    ],
-    "source": "Tri Pointe Homes careers site / employer profiles",
-    "addedAt": "2026-07-13T12:27:47.626Z"
-  },
-  {
-    "id": "c_mrj76uqx_61_ft5b",
-    "courseSlug": "pmp-certification-training",
-    "industrySlug": "construction",
-    "companyName": "Meritage Homes",
-    "country": "United States",
-    "website": "https://www.meritagehomes.com/",
-    "annualReportUrls": [
-      "https://www.sec.gov/Archives/edgar/data/833079/000083307926000010/mth-20251231.htm"
-    ],
-    "aiInsight": [
-      "FY2025 10-K highlights tuition reimbursement as a standing employee benefit",
-      "Mandatory ongoing information-security/cybersecurity training required company-wide, including monthly phishing simulations",
-      "Workforce is 42% female and 58% minority as of Dec 31, 2025, per human capital disclosures"
-    ],
-    "source": "Meritage Homes FY2025 10-K (SEC EDGAR)",
     "addedAt": "2026-07-13T12:27:47.626Z"
   },
   {
@@ -2345,56 +2061,6 @@
       "Reimburses up to $1,000/year per employee for off-site work-related education, plus conference and certification expenses; also runs a formal cross-department mentorship program"
     ],
     "source": "PCL Construction insights pages and careers FAQ",
-    "addedAt": "2026-07-13T12:27:47.626Z"
-  },
-  {
-    "id": "c_mrj76uqx_72_fas6",
-    "courseSlug": "pmp-certification-training",
-    "industrySlug": "construction",
-    "companyName": "Whiting-Turner Contracting Company",
-    "country": "United States",
-    "website": "https://www.whiting-turner.com/",
-    "annualReportUrls": [],
-    "aiInsight": [
-      "Offers tuition reimbursement up to $5,250/year for job-related coursework",
-      "Maintains a formal mentorship program pairing employees with peers and leaders for career development",
-      "Employee reviews and company messaging emphasize frequent training opportunities as part of career-goal support"
-    ],
-    "source": "Whiting-Turner careers site",
-    "addedAt": "2026-07-13T12:27:47.626Z"
-  },
-  {
-    "id": "c_mrj76uqx_73_tuu6",
-    "courseSlug": "pmp-certification-training",
-    "industrySlug": "construction",
-    "companyName": "AstraZeneca's US Construction Partner, Jacobs",
-    "country": "United States",
-    "website": "https://www.jacobs.com/",
-    "annualReportUrls": [
-      "https://www.sec.gov/Archives/edgar/data/52988/000162828025053316/jec-20250926.htm"
-    ],
-    "aiInsight": [
-      "Launched 'Jacobs University,' a global learning and development hub with four dedicated schools and near 30,000 available training programs, emphasizing AI and digital-skills upskilling",
-      "In fiscal 2025, over 97% of employees completed the mandatory annual 'Living Our Values' training module",
-      "Global graduate development program and local apprenticeships onboarded 1,300+ graduates, interns and apprentices in fiscal 2025"
-    ],
-    "source": "Jacobs Engineering Group FY2025 10-K (SEC EDGAR)",
-    "addedAt": "2026-07-13T12:27:47.626Z"
-  },
-  {
-    "id": "c_mrj76uqx_74_z1xg",
-    "courseSlug": "pmp-certification-training",
-    "industrySlug": "construction",
-    "companyName": "Bechtel Group",
-    "country": "United States",
-    "website": "https://www.bechtel.com/",
-    "annualReportUrls": [],
-    "aiInsight": [
-      "Runs 'Bechtel University,' offering thousands of instructor-led, virtual and mobile courses across leadership, technical, safety/ethics and language training",
-      "Four-week 'Construction Immersion' program accelerates onboarding for early-career construction professionals",
-      "'Bechtel Field Leadership Assessment' and 'High-Performance Crews' program specifically develop front-line/field leaders"
-    ],
-    "source": "Bechtel corporate site (learning & development page)",
     "addedAt": "2026-07-13T12:27:47.626Z"
   },
   {
@@ -2840,38 +2506,6 @@
     "addedAt": "2026-07-13T12:27:49.406Z"
   },
   {
-    "id": "c_mrj76w4e_3_47bj",
-    "courseSlug": "pmp-certification-training",
-    "industrySlug": "ites",
-    "companyName": "Ernst & Young (EY)",
-    "country": "United States",
-    "website": "https://www.ey.com",
-    "annualReportUrls": [],
-    "aiInsight": [
-      "FY2023 EY Value Realized report: record $385 million invested in training, delivering an all-time-high 24 million training hours, averaging 61 hours per employee",
-      "EY measures training ROI via average spend-per-employee",
-      "2025 EY research found employees with 80+ hours of annual AI training reported productivity gains averaging 14 hours/week, well above the 8-hour median"
-    ],
-    "source": "EY Value Realized / Global Review reports and EY 2025 AI training research",
-    "addedAt": "2026-07-13T12:27:49.406Z"
-  },
-  {
-    "id": "c_mrj76w4e_4_d3zn",
-    "courseSlug": "pmp-certification-training",
-    "industrySlug": "ites",
-    "companyName": "KPMG",
-    "country": "United States",
-    "website": "https://www.kpmg.com",
-    "annualReportUrls": [],
-    "aiInsight": [
-      "KPMG Lakehouse (Lake Nona, FL) delivers over 1 million hours of in-person professional development annually for US-based employees and partners",
-      "In 2024, 80,000+ KPMG global employees took part in '24 Hours of AI' and 'Summer of AI' training programs",
-      "Rolled out 57,000+ Microsoft Copilot licenses firmwide to support AI-era skill building"
-    ],
-    "source": "KPMG Global press releases, KPMG Lakehouse program materials",
-    "addedAt": "2026-07-13T12:27:49.406Z"
-  },
-  {
     "id": "c_mrj76w4e_5_eb8t",
     "courseSlug": "pmp-certification-training",
     "industrySlug": "ites",
@@ -2903,24 +2537,6 @@
       "Learning & Development careers page highlights structured upskilling paths as part of employee value proposition"
     ],
     "source": "Capgemini 2025 Universal Registration Document",
-    "addedAt": "2026-07-13T12:27:49.406Z"
-  },
-  {
-    "id": "c_mrj76w4e_7_qtoy",
-    "courseSlug": "pmp-certification-training",
-    "industrySlug": "ites",
-    "companyName": "Cognizant",
-    "country": "United States",
-    "website": "https://www.cognizant.com",
-    "annualReportUrls": [
-      "https://www.sec.gov/Archives/edgar/data/1058290/000105829026000008/ctsh-20251231.htm"
-    ],
-    "aiInsight": [
-      "Synapse upskilling program commitment doubled in 2025 after hitting its original goal early; now targeting 2 million future workers upskilled by 2030",
-      "In 2024, over 277,000 employees acquired at least one new skill via Cognizant's learning ecosystem, and 168,000+ associates completed generative AI training",
-      "Launched Cognizant Skillspring, an internal-proven talent transformation platform providing AI tools and role-redesign pathways"
-    ],
-    "source": "Cognizant FY2025 10-K (SEC EDGAR) and Cognizant Skillspring press materials",
     "addedAt": "2026-07-13T12:27:49.406Z"
   },
   {
@@ -2975,38 +2591,6 @@
       "131,000+ employees completed behavioral/leadership development courses and MentorMe logged 61,000+ mentoring hours in FY25"
     ],
     "source": "HCLTech Annual Report 2024-25",
-    "addedAt": "2026-07-13T12:27:49.406Z"
-  },
-  {
-    "id": "c_mrj76w4e_11_my0k",
-    "courseSlug": "pmp-certification-training",
-    "industrySlug": "ites",
-    "companyName": "Syntel",
-    "country": "United States",
-    "website": "https://www.syntelinc.com",
-    "annualReportUrls": [],
-    "aiInsight": [
-      "Syntel (acquired by Atos in 2018, brand discontinued) likely ran standard IT-services onboarding and technical certification tracks typical of Indian IT outsourcers of its era",
-      "probably offered structured new-hire training and internal promotion-driven career pathing consistent with its 'Talent Factory' HR branding reported around 2010-2012",
-      "any company-specific L&D branding or metrics from the Syntel era are no longer maintained or publicly trackable post-acquisition"
-    ],
-    "source": "Limited/no current source â€” company defunct since 2018 Atos acquisition",
-    "addedAt": "2026-07-13T12:27:49.406Z"
-  },
-  {
-    "id": "c_mrj76w4e_12_ix0m",
-    "courseSlug": "pmp-certification-training",
-    "industrySlug": "ites",
-    "companyName": "Convergys",
-    "country": "United States",
-    "website": "https://www.convergys.com",
-    "annualReportUrls": [],
-    "aiInsight": [
-      "Historically offered 2-4 weeks of classroom onboarding training depending on line of business, followed by on-the-job production floor training",
-      "In 2004 Convergys acquired e-learning provider DigitalThink for $120 million to expand workforce development/HRO training offerings",
-      "Partnered with Bellevue University to provide dedicated advisors enabling employees to pursue further education while employed"
-    ],
-    "source": "Historical company records (pre-2018); Convergys absorbed into Concentrix/Synnex in 2018",
     "addedAt": "2026-07-13T12:27:49.406Z"
   },
   {
@@ -3440,38 +3024,6 @@
     "addedAt": "2026-07-13T12:27:49.406Z"
   },
   {
-    "id": "c_mrj76w4e_39_yawd",
-    "courseSlug": "pmp-certification-training",
-    "industrySlug": "ites",
-    "companyName": "BCG (Boston Consulting Group)",
-    "country": "United States",
-    "website": "https://www.bcg.com",
-    "annualReportUrls": [],
-    "aiInsight": [
-      "BCG University (BCG U) redesigned its core curriculum, cutting dense academic content from 150+ hours down to 15 hours of bite-sized, digestible modules",
-      "Offers a comprehensive online training catalog spanning tech-product skills to leadership development so consultants can personalize their learning journey",
-      "Runs the RISE by BCG academy (RISE 2.0) as a dedicated capability-building platform for talent development"
-    ],
-    "source": "BCG.com / BCG Careers / RISE academy site",
-    "addedAt": "2026-07-13T12:27:49.406Z"
-  },
-  {
-    "id": "c_mrj76w4e_40_nrix",
-    "courseSlug": "pmp-certification-training",
-    "industrySlug": "ites",
-    "companyName": "Capgemini US LLC",
-    "country": "United States",
-    "website": "https://www.capgemini.com/us-en/",
-    "annualReportUrls": [],
-    "aiInsight": [
-      "ESG target: average 70 learning hours per employee per year, delivered via Capgemini University (self-paced learning, dedicated programs, web-based and face-to-face training)",
-      "Additional ESG target to grow average learning hours per employee by 5% every year",
-      "Disclosed annually in Capgemini's Universal Registration Document filed with the AMF (Euronext Paris)"
-    ],
-    "source": "Capgemini 2024/2025 Universal Registration Document",
-    "addedAt": "2026-07-13T12:27:49.406Z"
-  },
-  {
     "id": "c_mrj76w4e_41_4wxo",
     "courseSlug": "pmp-certification-training",
     "industrySlug": "ites",
@@ -3608,38 +3160,6 @@
     "addedAt": "2026-07-13T12:27:49.406Z"
   },
   {
-    "id": "c_mrj76w4e_49_990s",
-    "courseSlug": "pmp-certification-training",
-    "industrySlug": "ites",
-    "companyName": "Grant Thornton LLP",
-    "country": "United States",
-    "website": "https://www.grantthornton.com",
-    "annualReportUrls": [],
-    "aiInsight": [
-      "Invested Â£1 million in a 'data and digital mindset' transformation training programme for UK employees",
-      "Won gold (Best Program for Upskilling Employees) and silver (Best Blended Learning Program) at Brandon Hall Group awards",
-      "Runs Fullstax, an internal program building emerging-technology skills, alongside tiered leadership programs"
-    ],
-    "source": "HR Grapevine; Grant Thornton press releases",
-    "addedAt": "2026-07-13T12:27:49.406Z"
-  },
-  {
-    "id": "c_mrj76w4e_50_8in1",
-    "courseSlug": "pmp-certification-training",
-    "industrySlug": "ites",
-    "companyName": "HCL America Inc.",
-    "country": "United States",
-    "website": "https://www.hcltech.com",
-    "annualReportUrls": [],
-    "aiInsight": [
-      "FY2022-23: invested 9.4 million person-hours in training, with 70,000+ employees trained in digital skills and 150,000+ in core skills",
-      "FY2024-25: 115,500+ employees trained in digital skills, 116,200+ trained in GenAI, and 131,000+ completed behavioral/leadership development courses",
-      "Learning framework spans cloud, engineering, 5G/6G, and ESG-linked technology skill-building"
-    ],
-    "source": "HCLTech Annual Report 2023 and 2025",
-    "addedAt": "2026-07-13T12:27:49.406Z"
-  },
-  {
     "id": "c_mrj76w4e_51_5b24",
     "courseSlug": "pmp-certification-training",
     "industrySlug": "ites",
@@ -3655,24 +3175,6 @@
       "Matches employees with internal performance coaches and mentors to guide career growth and skills certification"
     ],
     "source": "Huron Consulting Group 10-K filings",
-    "addedAt": "2026-07-13T12:27:49.406Z"
-  },
-  {
-    "id": "c_mrj76w4e_52_1wzr",
-    "courseSlug": "pmp-certification-training",
-    "industrySlug": "ites",
-    "companyName": "IBM Global Business Services",
-    "country": "United States",
-    "website": "https://www.ibm.com",
-    "annualReportUrls": [
-      "https://www.sec.gov/Archives/edgar/data/51143/000005114326000010/ibm-20251231.htm"
-    ],
-    "aiInsight": [
-      "Spends roughly $600 million annually on employee training and development",
-      "Requires all employees to complete at least 40 hours of learning per year on its digital learning platform, with average completion around 85 hours",
-      "Runs a U.S. apprenticeship program that has hired about 1,000 apprentices, with 90%+ converting to full-time roles; committed to skilling 30 million people globally by 2030"
-    ],
-    "source": "IBM 10-K (FY2025) and IBM Skills Development",
     "addedAt": "2026-07-13T12:27:49.406Z"
   },
   {
@@ -3814,38 +3316,6 @@
     "addedAt": "2026-07-13T12:27:49.406Z"
   },
   {
-    "id": "c_mrj76w4e_61_gft4",
-    "courseSlug": "pmp-certification-training",
-    "industrySlug": "ites",
-    "companyName": "Protiviti Inc.",
-    "country": "United States",
-    "website": "https://www.protiviti.com",
-    "annualReportUrls": [],
-    "aiInsight": [
-      "Protiviti pays for employees to attain select recognized professional certifications as part of its benefits",
-      "Every Protiviti employee is assigned a career adviser who coaches them and recommends development actions",
-      "Annual operating plans include dedicated learning-budget funding plus milestone-based learning events at key career stages"
-    ],
-    "source": "Robert Half International 10-K human capital section and Protiviti careers pages",
-    "addedAt": "2026-07-13T12:27:49.406Z"
-  },
-  {
-    "id": "c_mrj76w4e_62_9a8g",
-    "courseSlug": "pmp-certification-training",
-    "industrySlug": "ites",
-    "companyName": "PwC (PricewaterhouseCoopers LLP)",
-    "country": "United States",
-    "website": "https://www.pwc.com",
-    "annualReportUrls": [],
-    "aiInsight": [
-      "PwC's average training hours per employee were 49.9 in FY23 (51.7 hrs for men, 47.9 for women), funded via ~Â£2,273 learning & development spend per FTE",
-      "93,000 PwC people have completed ESG training through its Global ESG Academy; 50,450 completed 'Inclusive Mindset' training",
-      "39% of staff took learning courses outside their core area of expertise, part of a formal 'time away from role to learn' policy"
-    ],
-    "source": "PwC Global Annual Review 2023-2025 and PwC Saratoga Workforce Index",
-    "addedAt": "2026-07-13T12:27:49.406Z"
-  },
-  {
     "id": "c_mrj76w4e_63_w9fj",
     "courseSlug": "pmp-certification-training",
     "industrySlug": "ites",
@@ -3941,24 +3411,6 @@
       "Maintains technology/development labs so implementation specialists stay current on latest Oracle/SAP/OneStream software releases"
     ],
     "source": "The Hackett Group FY2025 10-K (SEC)",
-    "addedAt": "2026-07-13T12:27:49.406Z"
-  },
-  {
-    "id": "c_mrj76w4e_69_2vcf",
-    "courseSlug": "pmp-certification-training",
-    "industrySlug": "ites",
-    "companyName": "Wipro Limited",
-    "country": "United States",
-    "website": "https://www.wipro.com",
-    "annualReportUrls": [
-      "https://www.sec.gov/cgi-bin/browse-edgar?CIK=WIT"
-    ],
-    "aiInsight": [
-      "Wipro trained over 225,000 employees in generative AI skills (as of FY2023-24)",
-      "85% of employees completed the company's mandatory annual Code of Business Conduct training in FY2025-26",
-      "Runs a Work Integrated Learning Program (earn-and-learn model) alongside its broader Integrated Annual/Sustainability Report learning disclosures"
-    ],
-    "source": "Wipro Integrated Annual Report FY2025-26",
     "addedAt": "2026-07-13T12:27:49.406Z"
   },
   {
